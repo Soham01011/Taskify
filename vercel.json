@@ -1,0 +1,21 @@
+
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "backend/src/app.js", 
+        "use": "@vercel/node"
+      }
+    ],
+    "env": {
+      "MONGO_URI": "@mongo_uri",  
+      "JWT_SECRET": "@jwt_secret"
+    },
+    "rewrites": [
+      {
+        "source": "/(.*)",
+        "destination": "/backend/src/app.js" 
+      }
+    ]
+  }
+  
