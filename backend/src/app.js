@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
+const taskRoutes = require('./routes/tasksRoutes');
 const authMiddleware = require('./middlewares/authMiddleware');
 
 dotenv.config();
@@ -21,9 +22,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 app.use('/api/auth', authRoutes);
 
 // Protected routes (auth required)
-app.use('/api/tasks', authMiddleware, (req, res) => {
-  res.json({ message: 'This is a protected route', user: req.user });
-});
+app.use('/api/tasks', authMiddleware, taskRoutes);
 
 // Default route for testing
 app.get('/', (req, res) => {

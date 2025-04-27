@@ -1,4 +1,4 @@
-const Task = require("../models/Task");
+const Task = require("../models/taskModel");
 
 // Get all tasks or a single task by ID
 const getTasks = async (req, res) => {
