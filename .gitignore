@@ -4,3 +4,4 @@ backend/.env
 .env
 vercel.json
 .vercelignore
+taskify/node_modules
