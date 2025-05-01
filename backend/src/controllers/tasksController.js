@@ -35,7 +35,7 @@ const getTasks = async (req, res) => {
 // Create a new task
 const createTask = async (req, res) => {
   try {
-    const { title, description, dueDate, priority, subjects } = req.body;
+    const { title, description, dueDate, priority, subjects, group } = req.body;
 
     // Parse dueDate to a Date object
     const dueDateObj = new Date(dueDate);
@@ -56,6 +56,7 @@ const createTask = async (req, res) => {
       dueDate,
       priority,
       subjects: subjects?.length ? subjects : [],
+      group
     });
 
     const savedTask = await newTask.save();
