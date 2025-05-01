@@ -74,6 +74,11 @@ const TaskSchema = new mongoose.Schema({
   subtasks: {
     type: [SubtaskSchema], // <-- Embedded array of subtasks
     default: [],
+  },
+  group:{
+    type: String,
+    required: true,
+    trim: true,
   }
 }, { timestamps: true });
 
