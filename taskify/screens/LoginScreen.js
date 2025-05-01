@@ -14,12 +14,36 @@ const LoginScreen = ({ navigation }) => {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
+    checkExistingToken();
+
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 1000,
       useNativeDriver: true,
     }).start();
   }, []);
+
+
+  const checkExistingToken = async () => {
+    try {
+      const savedToken = await AsyncStorage.getItem('token');
+      if (savedToken) {
+        const response = await fetch('https://taskify-eight-kohl.vercel.app/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: savedToken }),
+        });
+        const data = await response.json();
+        if (response.ok && data.valid) {
+          navigation.replace('Home'); // Token exists, go to Home
+        }
+      }
+    } catch (error) {
+      console.error('Error checking token:', error);
+    } finally {
+      setCheckingToken(false); // Done checking
+    }
+  };
 
   const handleLogin = async () => {
     try {

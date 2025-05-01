@@ -37,6 +37,18 @@ const createTask = async (req, res) => {
   try {
     const { title, description, dueDate, priority, subjects } = req.body;
 
+    // Parse dueDate to a Date object
+    const dueDateObj = new Date(dueDate);
+
+    // Get current time in IST
+    const now = new Date();
+    const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // add 5.5 hours
+
+    // Check if dueDate is in the past (compared to IST time)
+    if (dueDateObj < istNow) {
+      return res.status(400).json({ message: "Cannot set a due date/time in the past." });
+    }
+
     const newTask = new Task({
       username: req.user.username, // coming from authMiddleware (attached user)
       title,
@@ -54,11 +66,23 @@ const createTask = async (req, res) => {
   }
 };
 
+
 // Update an existing task
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    // If 'dueDate' is being updated, validate it
+    if (updates.dueDate) {
+      const dueDateObj = new Date(updates.dueDate);
+      const now = new Date();
+      const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // add 5.5 hours to current UTC time
+
+      if (dueDateObj < istNow) {
+        return res.status(400).json({ message: "Cannot set due date/time in the past." });
+      }
+    }
 
     const task = await Task.findOneAndUpdate(
       { _id: id, username: req.user.username }, // Only allow updating user's own tasks
@@ -76,6 +100,7 @@ const updateTask = async (req, res) => {
     return res.status(500).json({ message: "Server Error" });
   }
 };
+
 
 // Delete a task
 const deleteTask = async (req, res) => {

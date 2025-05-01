@@ -1,0 +1,69 @@
+name: Sync All Branches
+
+on:
+  push:
+    branches:
+      - main
+      - akshata
+      - manjiri
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+
+      - name: Sync all branches
+        run: |
+          # Get the current branch name
+          CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
+          
+          # Define all branches to sync
+          BRANCHES=("main" "akshata" "manjiri")
+          
+          # First, update all branches
+          for BRANCH in "${BRANCHES[@]}"; do
+            git checkout $BRANCH
+            git pull origin $BRANCH
+          done
+          
+          # Then, for each branch
+          for SOURCE in "${BRANCHES[@]}"; do
+            # Try to merge into other branches
+            for TARGET in "${BRANCHES[@]}"; do
+              if [ "$SOURCE" != "$TARGET" ]; then
+                echo "Attempting to merge $SOURCE into $TARGET"
+                git checkout $TARGET
+                
+                if git merge $SOURCE --no-ff -m "Merge $SOURCE into $TARGET"; then
+                  git push origin $TARGET
+                  echo "Successfully merged $SOURCE into $TARGET"
+                else
+                  git merge --abort
+                  echo "Merge conflicts detected when merging $SOURCE into $TARGET"
+                  # Create pull request for manual resolution
+                  gh pr create --base $TARGET --head $SOURCE --title "Merge conflicts: $SOURCE into $TARGET" --body "Please resolve conflicts manually."
+                fi
+              fi
+            done
+          done
+
+      - name: Create Pull Request on conflicts
+        if: failure()
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Sync failed: Branch synchronization required"
+          body: |
+            Branch synchronization failed due to conflicts.
+            Please resolve conflicts manually.
+          branch: sync-${{ github.sha }}
