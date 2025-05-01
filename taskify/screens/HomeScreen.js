@@ -1,24 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  ScrollView, 
-  Animated, 
-  Alert, 
-  RefreshControl, 
-  Dimensions 
-} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, StyleSheet, Dimensions, ScrollView, RefreshControl, Animated, Alert, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const { height: windowHeight } = Dimensions.get('window');
 
 export default function HomeScreen() {
+  const navigation = useNavigation();
   const [tasks, setTasks] = useState([]);
   const [token, setToken] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -26,6 +22,13 @@ export default function HomeScreen() {
       duration: 1000,
       useNativeDriver: true,
     }).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.97, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
 
     loadTokenAndFetchTasks();
   }, []);
@@ -76,10 +79,30 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const isTaskOverdue = (dueDate) => {
+    if (!dueDate) return false;
+    const nowUTC = new Date();
+    const nowIST = new Date(nowUTC.getTime() + (5.5 * 60 * 60 * 1000));
+    const taskDue = new Date(dueDate);
+    return taskDue < nowIST;
+  };
+
+  const handleAddTaskPress = () => {
+    // Animate button to expand
+    Animated.timing(buttonScale, {
+      toValue: 50,
+      duration: 500,
+      useNativeDriver: false,
+    }).start(() => {
+      navigation.navigate('AddTask');
+      buttonScale.setValue(1); // reset after navigation
+    });
+  };
+
   return (
     <Animated.View style={{ flex: 1, backgroundColor: '#000', padding: 16, paddingTop: windowHeight * 0.05, opacity: fadeAnim }}>
       <Text style={{ fontSize: 24, color: 'white', fontWeight: 'bold', marginBottom: 16 }}>
-        Home
+        Today
       </Text>
       <TextInput
         placeholder="Search tasks..."
@@ -97,57 +120,70 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
         }
       >
-        {tasks.map((task, index) => (
-          <LinearGradient
-            key={task._id || index}
-            colors={['#0B2F9F', '#7CF5FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              borderRadius: 16,
-              marginBottom: 20,
-              padding: 2,
-            }}
-          >
-            <View style={{ backgroundColor: '#000', borderRadius: 14, padding: 16 }}>
-              {/* Title */}
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
-                {task.title}
-              </Text>
+        {tasks.map((task, index) => {
+          const overdue = isTaskOverdue(task.dueDate);
+          const gradientColors = overdue
+            ? ['#FF0000', '#FF7F50'] // Red to Orange
+            : ['#0B2F9F', '#7CF5FF']; // Normal Blue Gradient
 
-              {/* Description inside grey box */}
-              {task.description && (
-                <View style={{
-                  backgroundColor: '#222',
-                  borderRadius: 8,
-                  padding: 10,
-                  marginBottom: 10,
-                }}>
-                  <Text style={{ color: '#bbb', fontSize: 14 }}>
-                    {task.description}
+          return (
+            <Animated.View
+              key={task._id || index}
+              style={{ transform: [{ scale: overdue ? pulseAnim : 1 }], marginBottom: 20 }}
+            >
+              <LinearGradient
+                colors={gradientColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  borderRadius: 16,
+                  padding: 2,
+                }}
+              >
+                <View style={{ backgroundColor: '#000', borderRadius: 14, padding: 16 }}>
+                  {/* Title */}
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
+                    {task.title}
                   </Text>
-                </View>
-              )}
 
-              {/* Tags */}
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {task.tags && task.tags.map((tag, idx) => (
-                  <View
-                    key={idx}
-                    style={{
+                  {/* Description inside grey box */}
+                  {task.description && (
+                    <View style={{
                       backgroundColor: '#222',
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
                       borderRadius: 8,
-                    }}
-                  >
-                    <Text style={{ color: '#bbb', fontSize: 12 }}>{tag}</Text>
+                      padding: 10,
+                      marginBottom: 10,
+                    }}>
+                      <Text style={{ color: '#bbb', fontSize: 14 }}>
+                        {task.description}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Tags */}
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {task.tags && task.tags.map((tag, idx) => (
+                      <View
+                        key={idx}
+                        style={{
+                          backgroundColor: '#222',
+                          paddingVertical: 4,
+                          paddingHorizontal: 8,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ color: '#bbb', fontSize: 12 }}>{tag}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-            </View>
-          </LinearGradient>
-        ))}
+                </View>
+              </LinearGradient>
+            </Animated.View>
+          );
+        })}
+        <TouchableOpacity onPress={handleAddTaskPress} activeOpacity={0.8}>
+          <Text style={{ color: 'white', fontSize: 32, fontWeight: 'bold' }}>+</Text>
+        </TouchableOpacity>
       </ScrollView>
     </Animated.View>
   );
