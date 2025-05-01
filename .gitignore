@@ -5,3 +5,5 @@ backend/.env
 vercel.json
 .vercelignore
 taskify/node_modules
+node_modules
+taskify/dist
