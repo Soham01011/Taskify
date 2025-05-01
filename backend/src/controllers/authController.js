@@ -52,3 +52,18 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: 'Error logging in user' });
   }
 };
+
+exports.verifyToken = async (req, res) => {
+  const token = req.body.token;
+
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    res.json({ valid: true, userId: decoded.id });
+  } catch (err) {
+    res.status(401).json({ valid: false, message: 'Invalid token' });
+  }
+}
