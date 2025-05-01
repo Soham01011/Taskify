@@ -26,7 +26,7 @@ app.use('/api/tasks', authMiddleware, taskRoutes);
 
 // Default route for testing
 app.get('/', (req, res) => {
-  res.send('Welcome to the Taskify API');
+  res.send('Welcome to the Taskify API, Webapp coming soon!');
 });
 
 // 🔁 DO NOT start the server here when using with Vercel
