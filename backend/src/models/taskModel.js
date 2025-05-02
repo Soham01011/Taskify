@@ -10,9 +10,7 @@ const SubtaskSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true,
     trim: true,
-    minlength: 3,
     maxlength: 500,
   },
   completed: {
@@ -30,7 +28,7 @@ const SubtaskSchema = new mongoose.Schema({
   },
   subjects: {
     type: [String],
-    default: ['general'],
+    default: [],
   }
 }, { timestamps: true });
 
@@ -49,9 +47,7 @@ const TaskSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true,
     trim: true,
-    minlength: 3,
     maxlength: 500,
   },
   completed: {
@@ -72,12 +68,12 @@ const TaskSchema = new mongoose.Schema({
     default: [],
   },
   subtasks: {
-    type: [SubtaskSchema], // <-- Embedded array of subtasks
+    type: [SubtaskSchema],
     default: [],
   },
-  group:{
+  group: {
     type: String,
-    required: true,
+    default: 'personal',
     trim: true,
   }
 }, { timestamps: true });
