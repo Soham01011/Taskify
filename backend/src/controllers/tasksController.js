@@ -35,28 +35,38 @@ const getTasks = async (req, res) => {
 // Create a new task
 const createTask = async (req, res) => {
   try {
-    const { title, description, dueDate, priority, subjects, group } = req.body;
+    const { title, description, dueDate, priority, subjects, group, subtasks } = req.body;
 
-    // Parse dueDate to a Date object
-    const dueDateObj = new Date(dueDate);
-
-    // Get current time in IST
-    const now = new Date();
-    const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // add 5.5 hours
-
-    // Check if dueDate is in the past (compared to IST time)
-    if (dueDateObj < istNow) {
-      return res.status(400).json({ message: "Cannot set a due date/time in the past." });
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ message: "Title is required" });
     }
 
+    // Parse dueDate to a Date object if it exists
+    let dueDateObj = null;
+    if (dueDate) {
+      dueDateObj = new Date(dueDate);
+      
+      // Get current time in IST
+      const now = new Date();
+      const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+
+      // Check if dueDate is in the past
+      if (dueDateObj < istNow) {
+        return res.status(400).json({ message: "Cannot set a due date/time in the past." });
+      }
+    }
+
+    // Create the new task
     const newTask = new Task({
-      username: req.user.username, // coming from authMiddleware (attached user)
+      username: req.user.username,
       title,
-      description,
-      dueDate,
-      priority,
-      subjects: subjects?.length ? subjects : [],
-      group
+      description: description || '',
+      dueDate: dueDateObj,
+      priority: priority || 'medium',
+      subjects: subjects || [],
+      group: group || 'personal',
+      subtasks: subtasks || []
     });
 
     const savedTask = await newTask.save();
