@@ -4,17 +4,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import fetchTasks from '../funcitonModules/fetchTasks'; 
+import { getCachedTasks } from '../funcitonModules/taskStorage';
+import loadTokenAndFetchTasks from '../funcitonModules/loadTokenAndFetchTasks';
+
 
 const { height: windowHeight } = Dimensions.get('window');
 
-export default function HomeScreen() {
+export default function HomeScreen(){
   const navigation = useNavigation();
   const [tasks, setTasks] = useState([]);
-  const [token, setToken] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -30,46 +34,19 @@ export default function HomeScreen() {
       ])
     ).start();
 
-    loadTokenAndFetchTasks();
+    const loadCachedTasks = async () => {
+      const cached = await getCachedTasks();
+      if (cached) {
+        setTasks(cached);
+      }
+      else
+      {
+        await loadTokenAndFetchTasks();
+      }
+    };
+    loadCachedTasks();
   }, []);
 
-  const loadTokenAndFetchTasks = async () => {
-    try {
-      const savedToken = await AsyncStorage.getItem('token');
-      if (savedToken) {
-        setToken(savedToken);
-        await fetchTasks(savedToken);
-      } else {
-        Alert.alert('No token found', 'Please login again.');
-      }
-    } catch (error) {
-      console.error('Error loading token:', error);
-    }
-  };
-
-  const fetchTasks = async (authToken) => {
-    try {
-      const response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setTasks(data);
-      } else {
-        console.error('Error fetching tasks:', data.message);
-        Alert.alert('Failed to fetch tasks: ' + (data.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      Alert.alert('Failed to fetch tasks');
-    }
-  };
 
   const onRefresh = async () => {
     setRefreshing(true);
