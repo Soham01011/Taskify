@@ -36,7 +36,7 @@ const getTasks = async (req, res) => {
 const createTask = async (req, res) => {
   try {
     const { title, description, dueDate, priority, subjects, group, subtasks } = req.body;
-
+    console.log("Request body:", req.body);
     // Validate required fields
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
