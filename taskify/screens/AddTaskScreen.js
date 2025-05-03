@@ -13,6 +13,8 @@ import {
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { Calendar } from "react-native-calendars";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 
 const { height: windowHeight } = Dimensions.get("window");
 
@@ -22,6 +24,8 @@ const AddTaskScreen = ({ navigation }) => {
   const [priority, setPriority] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedTime, setSelectedTime] = useState(null);
   const [reminder, setReminder] = useState(null);
   const [subtasks, setSubtasks] = useState([""]);
 
@@ -38,6 +42,13 @@ const AddTaskScreen = ({ navigation }) => {
   const handleDateSelect = (day) => {
     setSelectedDate(day.dateString);
     setShowCalendar(false);
+  };
+
+  const handleTimeSelect = (event, selected) => {
+    setShowTimePicker(false);
+    if (selected) {
+      setSelectedTime(selected);
+    }
   };
 
   const handleSubtaskChange = (text, index) => {
@@ -64,6 +75,13 @@ const AddTaskScreen = ({ navigation }) => {
         return;
       }
 
+      const dueDateTime = selectedDate && selectedTime
+      ? new Date(new Date(`${selectedDate}T${selectedTime.toTimeString().slice(0, 8)}`).getTime() + 5.5 * 60 * 60 * 1000)
+      : selectedDate
+      ? new Date(new Date(`${selectedDate}T00:00:00`).getTime() + 5.5 * 60 * 60 * 1000)
+      : null;
+    
+
       // Filter out empty subtasks
       const filteredSubtasks = subtasks
         .filter(subtask => subtask.trim() !== '')
@@ -71,21 +89,21 @@ const AddTaskScreen = ({ navigation }) => {
           title: subtask,
           description: description, // Inherit from parent task
           priority: priority || 'medium',
-          dueDate: selectedDate,
+          dueDate: dueDateTime,
           subjects: []
         }));
 
       const taskData = {
         title,
         description: description || '',
-        dueDate: selectedDate,
+        dueDate: dueDateTime,
         priority: priority || 'medium',
         subjects: [],
         group: 'personal', // You can make this dynamic if needed
         subtasks: filteredSubtasks
       };
 
-      const response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
+      const response = await fetch('http://192.168.31.28:5000/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -216,6 +234,30 @@ const AddTaskScreen = ({ navigation }) => {
           </View>
         )}
 
+        <TouchableOpacity
+          style={styles.optionButton}
+          onPress={() => setShowTimePicker(true)}
+        >
+          <Icon name="clock-outline" size={20} color="#666" />
+          <Text style={styles.optionText}>
+            {selectedTime
+              ? selectedTime.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "Time"}
+          </Text>
+        </TouchableOpacity>
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={selectedTime || new Date()}
+            mode="time"
+            display="default"
+            onChange={handleTimeSelect}
+          />
+        )}
+
         <TouchableOpacity style={styles.subjectButton}>
           <Icon name="inbox" size={20} color="#666" />
           <Text style={styles.subjectText}>Subjects</Text>
@@ -311,6 +353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 6,
     gap: 6,
+    marginBottom: 10,
   },
   optionText: {
     color: "#666",
