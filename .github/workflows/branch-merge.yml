@@ -1,5 +1,4 @@
-name: Sync All Branches
-
+name: Sync Other Branches
 on:
   push:
     branches:
@@ -22,48 +21,31 @@ jobs:
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
 
-      - name: Sync all branches
+      - name: Sync other branches into pushed branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the current branch name
           CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
-          
-          # Define all branches to sync
           BRANCHES=("main" "akshata" "manjiri")
-          
-          # First, update all branches
-          for BRANCH in "${BRANCHES[@]}"; do
-            git checkout $BRANCH
-            git pull origin $BRANCH
-          done
-          
-          # Then, for each branch
-          for SOURCE in "${BRANCHES[@]}"; do
-            # Try to merge into other branches
-            for TARGET in "${BRANCHES[@]}"; do
-              if [ "$SOURCE" != "$TARGET" ]; then
-                echo "Attempting to merge $SOURCE into $TARGET"
-                git checkout $TARGET
-                
-                if git merge $SOURCE --no-ff -m "Merge $SOURCE into $TARGET"; then
-                  git push origin $TARGET
-                  echo "Successfully merged $SOURCE into $TARGET"
-                else
-                  git merge --abort
-                  echo "Merge conflicts detected when merging $SOURCE into $TARGET"
-                  # Create pull request for manual resolution
-                  gh pr create --base $TARGET --head $SOURCE --title "Merge conflicts: $SOURCE into $TARGET" --body "Please resolve conflicts manually."
-                fi
-              fi
-            done
-          done
 
-      - name: Create Pull Request on conflicts
-        if: failure()
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: "Sync failed: Branch synchronization required"
-          body: |
-            Branch synchronization failed due to conflicts.
-            Please resolve conflicts manually.
-          branch: sync-${{ github.sha }}
+          git fetch origin
+
+          echo "Syncing into $CURRENT_BRANCH..."
+
+          # Checkout the pushed branch and pull latest
+          git checkout $CURRENT_BRANCH
+          git pull origin $CURRENT_BRANCH
+
+          for BRANCH in "${BRANCHES[@]}"; do
+            if [ "$BRANCH" != "$CURRENT_BRANCH" ]; then
+              echo "Merging $BRANCH into $CURRENT_BRANCH..."
+              if git merge origin/$BRANCH --no-ff -m "Merge $BRANCH into $CURRENT_BRANCH"; then
+                git push origin $CURRENT_BRANCH
+                echo "Successfully merged $BRANCH into $CURRENT_BRANCH"
+              else
+                echo "Merge conflict: could not merge $BRANCH into $CURRENT_BRANCH"
+                git merge --abort
+                gh pr create --base $CURRENT_BRANCH --head $BRANCH --title "Conflict: Merge $BRANCH into $CURRENT_BRANCH" --body "Please resolve the conflict manually."
+              fi
+            fi
+          done
