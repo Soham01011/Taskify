@@ -45,25 +45,50 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  // In LoginScreen.js where you handle successful login:
   const handleLogin = async () => {
     try {
+      if (!username || !password) {
+        Alert.alert('Error', 'Please enter both username and password');
+        return;
+      }
+  
       const response = await fetch('https://taskify-eight-kohl.vercel.app/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-
-      const data = await response.json();
-
-      if (response.ok && data.token) {
-        await AsyncStorage.setItem('token', data.token);
+  
+      // Log the raw response for debugging
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+  
+      // Try to parse the response
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Response parsing error:', parseError);
+        console.error('Response text:', responseText);
+        Alert.alert('Error', 'Server returned invalid data. Please try again.');
+        return;
+      }
+  
+      if (response.ok && data.accessToken) {
+        await AsyncStorage.setItem('token', data.accessToken);
+        if (data.refreshToken) {
+          await AsyncStorage.setItem('refreshToken', data.refreshToken);
+        }
         navigation.replace('Home');
       } else {
-        Alert.alert('Login failed: ' + data.message);
+        Alert.alert('Login failed', data.message || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert('Something went wrong. Please try again later.');
+      Alert.alert(
+        'Connection Error',
+        'Could not connect to the server. Please check your internet connection.'
+      );
     }
   };
 

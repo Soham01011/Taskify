@@ -1,18 +1,15 @@
+import { Alert } from 'react-native';
 import { storeTasks, getCachedTasks } from './taskStorage';
+import { refreshTokens } from '../modules/tokenServices.js';
 
 const fetchTasks = async (authToken, forceFetch = false) => {
   try {
-    // Try to get cached data first if not forcing fetch
     if (!forceFetch) {
       const cachedTasks = await getCachedTasks();
-      if (cachedTasks) {
-        setTasks(cachedTasks);
-        return cachedTasks;
-      }
+      if (cachedTasks) return cachedTasks;
     }
 
-    // Fetch from API if cache miss or force fetch
-    const response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
+    let response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
@@ -20,12 +17,27 @@ const fetchTasks = async (authToken, forceFetch = false) => {
       },
     });
 
+    // If token expired, try to refresh
+    if (response.status === 401) {
+      const newToken = await refreshTokens();
+      if (newToken) {
+        response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${newToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } else {
+        // Refresh failed, user needs to login again
+        throw new Error('Session expired');
+      }
+    }
+
     const data = await response.json();
 
     if (response.ok) {
-      // Store in local storage
       await storeTasks(data);
-      setTasks(data);
       return data;
     } else {
       console.error('Error fetching tasks:', data.message);
@@ -34,7 +46,12 @@ const fetchTasks = async (authToken, forceFetch = false) => {
     }
   } catch (error) {
     console.error('Error fetching tasks:', error);
-    Alert.alert('Failed to fetch tasks');
+    if (error.message === 'Session expired') {
+      Alert.alert('Session expired', 'Please login again');
+      // Handle navigation to login screen
+    } else {
+      Alert.alert('Failed to fetch tasks');
+    }
     return null;
   }
 };
