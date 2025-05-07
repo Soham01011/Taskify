@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { Calendar } from "react-native-calendars";
@@ -103,7 +104,7 @@ const AddTaskScreen = ({ navigation }) => {
         subtasks: filteredSubtasks
       };
 
-      const response = await fetch('http://192.168.31.28:5000/api/tasks', {
+      const response = await fetch('http://192.168.31.28:3000/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,12 +251,26 @@ const AddTaskScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         {showTimePicker && (
-          <DateTimePicker
-            value={selectedTime || new Date()}
-            mode="time"
-            display="default"
-            onChange={handleTimeSelect}
-          />
+          Platform.OS === 'web' ? (
+            <TextInput
+              type="time"
+              style={styles.timeInput}
+              value={selectedTime ? selectedTime.toTimeString().slice(0, 5) : ''}
+              onChange={(event) => {
+                const [hours, minutes] = event.target.value.split(':');
+                const newDate = new Date();
+                newDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+                handleTimeSelect({ type: 'set', nativeEvent: { timestamp: newDate } }, newDate);
+              }}
+            />
+          ) : (
+            <DateTimePicker
+              value={selectedTime || new Date()}
+              mode="time"
+              display="default"
+              onChange={handleTimeSelect}
+            />
+          )
         )}
 
         <TouchableOpacity style={styles.subjectButton}>
@@ -408,6 +423,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "500",
+  },
+  timeInput: {
+    backgroundColor: '#222',
+    color: '#fff',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 10,
+    fontSize: 16,
+    width: 120,
+    borderWidth: 0,
   },
 });
 
