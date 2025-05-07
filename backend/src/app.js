@@ -13,18 +13,16 @@ const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: '*',
+  origin: [
+    'http://localhost:8081',
+    'http://localhost:19006',
+    'http://localhost:3000',
+    'https://taskify-web.vercel.app', // Add your web app domain
+    'exp://localhost:19000'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
-    'X-CSRF-Token',
-    'X-Requested-With',
-    'Accept',
-    'Accept-Version',
-    'Content-Length',
-    'Content-MD5',
     'Content-Type',
-    'Date',
-    'X-Api-Version',
     'Authorization'
   ],
   credentials: true,

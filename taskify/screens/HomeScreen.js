@@ -63,12 +63,24 @@ export default function HomeScreen() {
     }
   };
 
+  const filterTodayAndOverdueTasks = (tasks) => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(startOfToday.getDate() + 1);
+
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      return taskDate < endOfToday;
+    });
+  };
+
   const isTaskOverdue = (dueDate) => {
     if (!dueDate) return false;
     const nowUTC = new Date();
     const nowIST = new Date(nowUTC.getTime() + (5.5 * 60 * 60 * 1000));
-    const taskDue = new Date(dueDate);
-    return taskDue < nowIST;
+    return new Date(dueDate) < nowIST;
   };
 
   const handleAddTaskPress = () => {
@@ -87,7 +99,7 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: '#000', padding: 16, paddingTop: windowHeight * 0.05 }}>
       <Animated.View style={{ opacity: fadeAnim }}>
         <Text style={{ fontSize: 24, color: 'white', fontWeight: 'bold', marginBottom: 16 }}>
-          Today
+          Today & Overdue
         </Text>
         <TextInput
           placeholder="Search tasks..."
@@ -105,7 +117,7 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
           }
         >
-          {tasks.map((task, index) => {
+          {filterTodayAndOverdueTasks(tasks).map((task, index) => {
             const overdue = isTaskOverdue(task.dueDate);
             const gradientColors = overdue
               ? ['#FF0000', '#FF7F50'] // Red to Orange
