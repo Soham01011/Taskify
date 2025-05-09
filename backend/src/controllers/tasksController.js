@@ -134,9 +134,39 @@ const deleteTask = async (req, res) => {
   }
 };
 
+const markComplete = async (req, res) => {
+  try {
+    const { taskId, subtaskId } = req.params;
+    
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    // Check if this is a subtask completion
+    if (req.path.includes('/subtask/')) {
+      const subtask = task.subtasks.id(subtaskId);
+      if (!subtask) {
+        return res.status(404).json({ message: 'Subtask not found' });
+      }
+      subtask.completed = true;
+    } else {
+      // Main task completion
+      task.completed = true;
+    }
+
+    await task.save();
+    res.json(task);
+  } catch (error) {
+    console.error('Error in markComplete:', error);
+    res.status(500).json({ message: 'Error updating task completion status' });
+  }
+};
+
 module.exports = {
   getTasks,
   createTask,
   updateTask,
   deleteTask,
+  markComplete,
 };

@@ -1,21 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Dimensions, ScrollView, RefreshControl, Animated, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Dimensions,
+  ScrollView,
+  RefreshControl,
+  Animated,
+  TouchableOpacity,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
 
-import fetchTasks from '../funcitonModules/fetchTasks'; 
-import { getCachedTasks } from '../funcitonModules/taskStorage';
-import loadTokenAndFetchTasks from '../funcitonModules/loadTokenAndFetchTasks';
+import fetchTasks from "../funcitonModules/fetchTasks";
+import { getCachedTasks } from "../funcitonModules/taskStorage";
+import loadTokenAndFetchTasks from "../funcitonModules/loadTokenAndFetchTasks";
 
-import BottomNavBar from '../modules/BottomNavBar';
-
-const { height: windowHeight } = Dimensions.get('window');
+import BottomNavBar from "../modules/BottomNavBar";
+import TaskCard from "../modules/TaskCard";
+import handleMarkComplete from "../modules/markTask";
+const { height: windowHeight } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [tasks, setTasks] = useState([]);
   const [token, setToken] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -29,8 +40,16 @@ export default function HomeScreen() {
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.97, duration: 2000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.97,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
       ])
     ).start();
 
@@ -57,7 +76,7 @@ export default function HomeScreen() {
         setToken(result.token);
       }
     } catch (error) {
-      console.error('Error refreshing tasks:', error);
+      console.error("Error refreshing tasks:", error);
     } finally {
       setRefreshing(false);
     }
@@ -65,11 +84,15 @@ export default function HomeScreen() {
 
   const filterTodayAndOverdueTasks = (tasks) => {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     const endOfToday = new Date(startOfToday);
     endOfToday.setDate(startOfToday.getDate() + 1);
 
-    return tasks.filter(task => {
+    return tasks.filter((task) => {
       if (!task.dueDate) return false;
       const taskDate = new Date(task.dueDate);
       return taskDate < endOfToday;
@@ -79,7 +102,7 @@ export default function HomeScreen() {
   const isTaskOverdue = (dueDate) => {
     if (!dueDate) return false;
     const nowUTC = new Date();
-    const nowIST = new Date(nowUTC.getTime() + (5.5 * 60 * 60 * 1000));
+    const nowIST = new Date(nowUTC.getTime() + 5.5 * 60 * 60 * 1000);
     return new Date(dueDate) < nowIST;
   };
 
@@ -90,100 +113,154 @@ export default function HomeScreen() {
       duration: 500,
       useNativeDriver: false,
     }).start(() => {
-      navigation.navigate('AddTask');
+      navigation.navigate("AddTask");
       buttonScale.setValue(1); // reset after navigation
     });
   };
 
+  const onTaskComplete = async (taskId, subtaskId = null) => {
+    if (isCompleting) return;
+
+    setIsCompleting(true);
+    try {
+      await handleMarkComplete(taskId, subtaskId, (updatedTask) => {
+        // Update the tasks state with the completed task
+        setTasks(prevTasks => 
+          prevTasks.map(task => {
+            if (task._id === taskId) {
+              if (subtaskId) {
+                // Update subtask
+                return {
+                  ...task,
+                  subtasks: task.subtasks.map(subtask => 
+                    subtask._id === subtaskId 
+                      ? { ...subtask, completed: true }
+                      : subtask
+                  )
+                };
+              }
+              // Update main task
+              return { ...task, completed: true };
+            }
+            return task;
+          })
+        );
+      });
+    } catch (error) {
+      console.error('Error in onTaskComplete:', error);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#000', padding: 16, paddingTop: windowHeight * 0.05 }}>
-      <Animated.View style={{ opacity: fadeAnim }}>
-        <Text style={{ fontSize: 24, color: 'white', fontWeight: 'bold', marginBottom: 16 }}>
-          Today & Overdue
-        </Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Today & Overdue</Text>
         <TextInput
           placeholder="Search tasks..."
           placeholderTextColor="#aaa"
-          style={{
-            backgroundColor: '#111',
-            padding: 12,
-            borderRadius: 12,
-            color: 'white',
-            marginBottom: 24,
-          }}
+          style={styles.searchInput}
         />
-        <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
-          }
-        >
-          {filterTodayAndOverdueTasks(tasks).map((task, index) => {
-            const overdue = isTaskOverdue(task.dueDate);
-            const gradientColors = overdue
-              ? ['#FF0000', '#FF7F50'] // Red to Orange
-              : ['#0B2F9F', '#7CF5FF']; // Normal Blue Gradient
+      </View>
 
-            return (
-              <Animated.View
-                key={task._id || index}
-                style={{ transform: [{ scale: overdue ? pulseAnim : 1 }], marginBottom: 20 }}
-              >
-                <LinearGradient
-                  colors={gradientColors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    borderRadius: 16,
-                    padding: 2,
-                  }}
-                >
-                  <View style={{ backgroundColor: '#000', borderRadius: 14, padding: 16 }}>
-                    {/* Title */}
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
-                      {task.title}
-                    </Text>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="white"
+          />
+        }
+      >
+        {filterTodayAndOverdueTasks(tasks).map((task, index) => (
+          <TaskCard
+            key={task._id || index}
+            task={task}
+            pulseAnim={pulseAnim}
+            isOverdue={isTaskOverdue(task.dueDate)}
+            onComplete={onTaskComplete}
+            isCompleting={isCompleting}
+          />
+        ))}
+      </ScrollView>
 
-                    {/* Description inside grey box */}
-                    {task.description && (
-                      <View style={{
-                        backgroundColor: '#222',
-                        borderRadius: 8,
-                        padding: 10,
-                        marginBottom: 10,
-                      }}>
-                        <Text style={{ color: '#bbb', fontSize: 14 }}>
-                          {task.description}
-                        </Text>
-                      </View>
-                    )}
+      <TouchableOpacity 
+        onPress={handleAddTaskPress} 
+        activeOpacity={0.8}
+        style={styles.addButton}
+      >
+        <Text style={styles.addButtonText}>+</Text>
+      </TouchableOpacity>
 
-                    {/* Tags */}
-                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                      {task.tags && task.tags.map((tag, idx) => (
-                        <View
-                          key={idx}
-                          style={{
-                            backgroundColor: '#222',
-                            paddingVertical: 4,
-                            paddingHorizontal: 8,
-                            borderRadius: 8,
-                          }}
-                        >
-                          <Text style={{ color: '#bbb', fontSize: 12 }}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </LinearGradient>
-              </Animated.View>
-            );
-          })}
-          <TouchableOpacity onPress={handleAddTaskPress} activeOpacity={0.8}>
-            <Text style={{ color: 'white', fontSize: 32, fontWeight: 'bold' }}>+</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </Animated.View>
-      <BottomNavBar />
+      <View style={styles.bottomNav}>
+        <BottomNavBar />
+      </View>
     </View>
   );
 }
+
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: windowHeight * 0.05,
+    backgroundColor: "#000",
+    zIndex: 1,
+  },
+  headerText: {
+    fontSize: 24,
+    color: "white",
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: "#111",
+    padding: 12,
+    borderRadius: 12,
+    color: "white",
+    marginBottom: 24,
+  },
+  scrollContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 80, // Adjust based on your bottom nav height
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#3D90D7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#7CF5FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 2,
+  },
+  addButtonText: {
+    color: "#000",
+    fontSize: 32,
+    fontWeight: "bold",
+  },
+  bottomNav: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#000',
+    zIndex: 1,
+  }
+};

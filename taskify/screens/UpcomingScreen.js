@@ -4,10 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BottomNavBar from '../modules/BottomNavBar';
 import loadTokenAndFetchTasks from '../funcitonModules/loadTokenAndFetchTasks';
 import { getCachedTasks } from '../funcitonModules/taskStorage';
+import handleMarkComplete from '../modules/markTask';
+import TaskCard from "../modules/TaskCard";
+
 
 const UpcomingScreen = () => {
   const [tasks, setTasks] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); 
+  const [isCompleting, setIsCompleting] = useState(false);
 
   // Load tasks from cache first, then fetch from API
   useEffect(() => {
@@ -63,6 +67,27 @@ const UpcomingScreen = () => {
     }
   };
 
+  const onTaskComplete = async (taskId, subtaskId = null) => {
+    if (isCompleting) return;
+    
+    setIsCompleting(true);
+    try {
+      await handleMarkComplete(taskId, subtaskId, (updatedTask) => {
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task._id === taskId 
+              ? { ...task, completed: subtaskId ? task.completed : true }
+              : task
+          )
+        );
+      });
+    } catch (error) {
+      console.error('Error in onTaskComplete:', error);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>Upcoming Tasks</Text>
@@ -78,27 +103,13 @@ const UpcomingScreen = () => {
         }
       >
         {filterUpcomingTasks(tasks).map((task, index) => (
-          <View key={task._id || index} style={styles.taskContainer}>
-            <Text style={styles.dateText}>{formatDate(task.dueDate)}</Text>
-            <LinearGradient
-              colors={['#0B2F9F', '#7CF5FF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientBorder}
-            >
-              <View style={styles.taskContent}>
-                <Text style={styles.taskTitle}>{task.title}</Text>
-                {task.description && (
-                  <View style={styles.descriptionBox}>
-                    <Text style={styles.descriptionText}>{task.description}</Text>
-                  </View>
-                )}
-              </View>
-            </LinearGradient>
-          </View>
+          <TaskCard
+            key={task._id || index}
+            task={task}
+            onComplete={onTaskComplete}
+            isCompleting={isCompleting}
+          />
         ))}
-
-        
       </ScrollView>
       <BottomNavBar />
     </View>

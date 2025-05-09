@@ -14,7 +14,7 @@ const LoginScreen = ({ navigation }) => {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    checkExistingToken();
+    //checkExistingToken();
 
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -55,33 +55,33 @@ const LoginScreen = ({ navigation }) => {
   
       const response = await fetch('https://taskify-eight-kohl.vercel.app/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ username, password }), // Fix: Stringify the body
       });
   
-      // Log the raw response for debugging
+      // Get response text first for debugging
       const responseText = await response.text();
       console.log('Raw response:', responseText);
   
-      // Try to parse the response
-      let data;
       try {
-        data = JSON.parse(responseText);
+        const data = JSON.parse(responseText);
+        
+        if (response.ok && data.accessToken) {
+          await AsyncStorage.setItem('token', data.accessToken);
+          if (data.refreshToken) {
+            await AsyncStorage.setItem('refreshToken', data.refreshToken);
+          }
+          navigation.replace('Home');
+        } else {
+          Alert.alert('Login failed', data.message || 'Unknown error occurred');
+        }
       } catch (parseError) {
         console.error('Response parsing error:', parseError);
         console.error('Response text:', responseText);
         Alert.alert('Error', 'Server returned invalid data. Please try again.');
-        return;
-      }
-  
-      if (response.ok && data.accessToken) {
-        await AsyncStorage.setItem('token', data.accessToken);
-        if (data.refreshToken) {
-          await AsyncStorage.setItem('refreshToken', data.refreshToken);
-        }
-        navigation.replace('Home');
-      } else {
-        Alert.alert('Login failed', data.message || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Login error:', error);
