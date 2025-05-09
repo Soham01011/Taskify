@@ -104,7 +104,7 @@ const AddTaskScreen = ({ navigation }) => {
         subtasks: filteredSubtasks
       };
 
-      const response = await fetch('http://192.168.31.28:3000/api/tasks', {
+      const response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
