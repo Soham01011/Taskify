@@ -8,8 +8,7 @@ router.post('/', createTask);
 router.put('/:id', updateTask);
 router.delete('/:id', deleteTask);
 
-// Split the complete routes into two separate routes
-router.put('/complete/:taskId', markComplete); // For main task completion
-router.put('/complete/:taskId/subtask/:subtaskId', markComplete); // For subtask completion
+// Single route for both task and subtask completion
+router.put('/complete/:taskId', markComplete);
 
 module.exports = router;

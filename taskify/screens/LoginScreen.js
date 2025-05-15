@@ -14,7 +14,7 @@ const LoginScreen = ({ navigation }) => {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    //checkExistingToken();
+    checkExistingToken();
 
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -71,6 +71,7 @@ const LoginScreen = ({ navigation }) => {
         
         if (response.ok && data.accessToken) {
           await AsyncStorage.setItem('token', data.accessToken);
+          await AsyncStorage.setItem('username', username);
           if (data.refreshToken) {
             await AsyncStorage.setItem('refreshToken', data.refreshToken);
           }
