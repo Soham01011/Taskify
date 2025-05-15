@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
-const handleMarkComplete = async (taskId, subtaskId = null, onSuccess) => {
+const handleMarkComplete = async (taskId, subtaskTitle = null, onSuccess) => {
   try {
     const token = await AsyncStorage.getItem('token');
     
@@ -10,17 +10,13 @@ const handleMarkComplete = async (taskId, subtaskId = null, onSuccess) => {
       return;
     }
 
-    // Create the endpoint URL based on whether we have a subtaskId
-    const endpoint = subtaskId 
-      ? `/api/tasks/complete/${taskId}/subtask/${subtaskId}`
-      : `/api/tasks/complete/${taskId}`;
-
-    const response = await fetch(`https://taskify-eight-kohl.vercel.app${endpoint}`, {
+    const response = await fetch(`https://taskify-eight-kohl.vercel.app/api/tasks/complete/${taskId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ subtaskTitle })
     });
 
     if (!response.ok) {
@@ -41,4 +37,4 @@ const handleMarkComplete = async (taskId, subtaskId = null, onSuccess) => {
   }
 };
 
-export { handleMarkComplete };
+export default handleMarkComplete;

@@ -136,23 +136,32 @@ const deleteTask = async (req, res) => {
 
 const markComplete = async (req, res) => {
   try {
-    const { taskId, subtaskId } = req.params;
+    const { taskId } = req.params;
+    const { subtaskTitle } = req.body; // We'll send subtask title instead of ID
     
-    const task = await Task.findById(taskId);
+    const task = await Task.findOne({ 
+      _id: taskId,
+      username: req.user.username // Ensure user owns the task
+    });
+
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    // Check if this is a subtask completion
-    if (req.path.includes('/subtask/')) {
-      const subtask = task.subtasks.id(subtaskId);
+    if (subtaskTitle) {
+      // Find and update subtask by title
+      const subtask = task.subtasks.find(st => st.title === subtaskTitle);
       if (!subtask) {
         return res.status(404).json({ message: 'Subtask not found' });
       }
       subtask.completed = true;
+      // Don't mark main task as completed
     } else {
-      // Main task completion
+      // Mark main task and all subtasks as completed
       task.completed = true;
+      task.subtasks.forEach(subtask => {
+        subtask.completed = true;
+      });
     }
 
     await task.save();

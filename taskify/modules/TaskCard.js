@@ -3,8 +3,20 @@ import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const TaskCard = ({ task, pulseAnim, isOverdue }) => {
+const TaskCard = ({ task, pulseAnim, isOverdue, onComplete, isCompleting }) => {
   const [expanded, setExpanded] = useState(false);
+
+  const handleTaskComplete = () => {
+    if (!isCompleting && !task.completed) {
+      onComplete(task._id);
+    }
+  };
+
+  const handleSubtaskComplete = (subtask) => {
+    if (!isCompleting && !subtask.completed) {
+      onComplete(task._id, subtask.title);
+    }
+  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -22,7 +34,8 @@ const TaskCard = ({ task, pulseAnim, isOverdue }) => {
   return (
     <Animated.View style={{ 
       transform: [{ scale: isOverdue ? pulseAnim : 1 }], 
-      marginBottom: 20 
+      marginBottom: 20,
+      opacity: task.completed ? 0.5 : 1 
     }}>
       <TouchableOpacity
         activeOpacity={0.8}
@@ -43,7 +56,27 @@ const TaskCard = ({ task, pulseAnim, isOverdue }) => {
             padding: 16 
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
+              <TouchableOpacity 
+                onPress={handleTaskComplete}
+                disabled={task.completed || isCompleting}
+                style={{
+                  marginRight: 8,
+                }}
+              >
+                <Icon 
+                  name={task.completed ? 'checkbox-marked' : 'checkbox-blank-outline'} 
+                  size={24} 
+                  color="#7CF5FF" 
+                />
+              </TouchableOpacity>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: 'white',
+                marginBottom: 8,
+                textDecorationLine: task.completed ? 'line-through' : 'none',
+                opacity: task.completed ? 0.7 : 1
+              }}>
                 {task.title}
               </Text>
               <Icon 
@@ -102,12 +135,27 @@ const TaskCard = ({ task, pulseAnim, isOverdue }) => {
                           alignItems: 'center'
                         }}
                       >
-                        <Icon 
-                          name={subtask.completed ? 'checkbox-marked' : 'checkbox-blank-outline'} 
-                          size={20} 
-                          color="#7CF5FF" 
-                        />
-                        <Text style={{ color: '#bbb', marginLeft: 8 }}>{subtask.title}</Text>
+                        <TouchableOpacity 
+                          onPress={() => handleSubtaskComplete(subtask)}
+                          disabled={subtask.completed || isCompleting}
+                          style={{
+                            marginRight: 8,
+                          }}
+                        >
+                          <Icon 
+                            name={subtask.completed ? 'checkbox-marked' : 'checkbox-blank-outline'} 
+                            size={20} 
+                            color="#7CF5FF" 
+                          />
+                        </TouchableOpacity>
+                        <Text style={{
+                          color: '#bbb',
+                          marginLeft: 8,
+                          textDecorationLine: subtask.completed ? 'line-through' : 'none',
+                          opacity: subtask.completed ? 0.7 : 1
+                        }}>
+                          {subtask.title}
+                        </Text>
                       </View>
                     ))}
                   </View>
