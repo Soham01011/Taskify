@@ -66,9 +66,22 @@ const SettingsScreen = () => {
 
   const handleCreateGroup = async () => {
     try {
+      if (!newGroupName.trim()) {
+        Alert.alert('Error', 'Group name is required');
+        return;
+      }
+
       const token = await AsyncStorage.getItem('token');
-      const members = newGroupMembers.split(',').map(m => m.trim());
-      
+      if (!token) {
+        navigation.replace('Login');
+        return;
+      }
+
+      const members = newGroupMembers
+        .split(',')
+        .map(m => m.trim())
+        .filter(m => m.length > 0); // Remove empty entries
+
       const response = await fetch('https://taskify-eight-kohl.vercel.app/api/groups', {
         method: 'POST',
         headers: {
@@ -76,23 +89,26 @@ const SettingsScreen = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: newGroupName,
+          name: newGroupName.trim(),
+          description: '', // Add a description field to your modal if needed
           members: members
         })
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         setCreateGroupModalVisible(false);
         setNewGroupName('');
         setNewGroupMembers('');
-        loadGroups();
+        await loadGroups(); // Reload groups
         Alert.alert('Success', 'Group created successfully!');
       } else {
-        Alert.alert('Error', 'Failed to create group');
+        Alert.alert('Error', data.message || 'Failed to create group');
       }
     } catch (error) {
       console.error('Error creating group:', error);
-      Alert.alert('Error', 'Failed to create group');
+      Alert.alert('Error', 'Failed to create group. Please try again.');
     }
   };
 
@@ -177,11 +193,12 @@ const SettingsScreen = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Create New Group</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !newGroupName.trim() && styles.inputError]}
               placeholder="Group Name"
               placeholderTextColor="#666"
               value={newGroupName}
               onChangeText={setNewGroupName}
+              maxLength={50} // Match your backend validation
             />
             <TextInput
               style={styles.input}
@@ -189,6 +206,8 @@ const SettingsScreen = () => {
               placeholderTextColor="#666"
               value={newGroupMembers}
               onChangeText={setNewGroupMembers}
+              multiline={true}
+              numberOfLines={2}
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity 
@@ -306,6 +325,10 @@ const styles = StyleSheet.create({
     padding: 12,
     color: '#fff',
     marginBottom: 12,
+  },
+  inputError: {
+    borderColor: '#FF4444',
+    borderWidth: 1,
   },
   modalButtons: {
     flexDirection: 'row',

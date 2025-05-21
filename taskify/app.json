@@ -14,7 +14,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-        "jsEngine": "jsc"
+      "jsEngine": "jsc"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,6 +24,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "604bde33-af19-4c17-8781-b87ac3ce4b74"
+      }
+    },
+    "owner": "soham_dalvi"
   }
 }
