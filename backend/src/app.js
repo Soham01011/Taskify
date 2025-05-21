@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/tasksRoutes');
+const groupsRoutes = require('./routes/groupRoutes');
 const authMiddleware = require('./middlewares/authMiddleware');
 
 dotenv.config();
@@ -47,6 +48,8 @@ app.use('/api/auth', authRoutes);
 
 // Protected routes (auth required)
 app.use('/api/tasks', authMiddleware, taskRoutes);
+
+app.use('/api/groups', authMiddleware, groupsRoutes);
 
 // Default route for testing
 app.get('/', (req, res) => {
