@@ -10,12 +10,12 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Modal,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { Calendar } from "react-native-calendars";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const { height: windowHeight } = Dimensions.get("window");
 
@@ -29,6 +29,10 @@ const AddTaskScreen = ({ navigation }) => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [reminder, setReminder] = useState(null);
   const [subtasks, setSubtasks] = useState([""]);
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [assignedMembers, setAssignedMembers] = useState({});
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -66,64 +70,99 @@ const AddTaskScreen = ({ navigation }) => {
   const handleSubmit = async () => {
     try {
       if (!title.trim()) {
-        Alert.alert('Error', 'Task title is required');
+        Alert.alert("Error", "Task title is required");
         return;
       }
 
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem("token");
       if (!token) {
-        navigation.replace('Login');
+        navigation.replace("Login");
         return;
       }
 
-      const dueDateTime = selectedDate && selectedTime
-      ? new Date(new Date(`${selectedDate}T${selectedTime.toTimeString().slice(0, 8)}`).getTime() + 5.5 * 60 * 60 * 1000)
-      : selectedDate
-      ? new Date(new Date(`${selectedDate}T00:00:00`).getTime() + 5.5 * 60 * 60 * 1000)
-      : null;
-    
+      const dueDateTime =
+        selectedDate && selectedTime
+          ? new Date(
+              new Date(
+                `${selectedDate}T${selectedTime.toTimeString().slice(0, 8)}`
+              ).getTime() +
+                5.5 * 60 * 60 * 1000
+            )
+          : selectedDate
+          ? new Date(
+              new Date(`${selectedDate}T00:00:00`).getTime() +
+                5.5 * 60 * 60 * 1000
+            )
+          : null;
 
       // Filter out empty subtasks
       const filteredSubtasks = subtasks
-        .filter(subtask => subtask.trim() !== '')
-        .map(subtask => ({
+        .filter((subtask) => subtask.trim() !== "")
+        .map((subtask, index) => ({
           title: subtask,
-          description: description, // Inherit from parent task
-          priority: priority || 'medium',
+          description: description,
+          priority: priority || "medium",
           dueDate: dueDateTime,
-          subjects: []
+          assignedTo: assignedMembers[index] || null,
         }));
 
       const taskData = {
         title,
-        description: description || '',
+        description: description || "",
         dueDate: dueDateTime,
-        priority: priority || 'medium',
-        subjects: [],
-        group: 'personal', // You can make this dynamic if needed
-        subtasks: filteredSubtasks
+        priority: priority || "medium",
+        group: selectedGroup ? selectedGroup._id : "personal",
+        subtasks: filteredSubtasks,
       };
 
-      const response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(taskData)
-      });
+      const response = await fetch(
+        "https://taskify-eight-kohl.vercel.app/api/tasks",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(taskData),
+        }
+      );
 
       const data = await response.json();
 
       if (response.ok) {
         navigation.goBack();
       } else {
-        Alert.alert('Error', data.message || 'Failed to create task');
+        Alert.alert("Error", data.message || "Failed to create task");
       }
     } catch (error) {
-      console.error('Error creating task:', error);
-      Alert.alert('Error', 'Failed to create task. Please try again.');
+      console.error("Error creating task:", error);
+      Alert.alert("Error", "Failed to create task. Please try again.");
     }
+  };
+
+  const loadGroups = async () => {
+    try {
+      const savedGroups = await AsyncStorage.getItem("groups");
+      console.log(savedGroups)
+      if (savedGroups) {
+        setGroups(JSON.parse(savedGroups));
+      }
+    } catch (error) {
+      console.error("Error loading groups:", error);
+    }
+  };
+
+  // Add this to your useEffect
+  useEffect(() => {
+    loadGroups();
+  }, []);
+
+  // Add this function to handle member assignment
+  const handleMemberAssignment = (subtaskIndex, memberUsername) => {
+    setAssignedMembers((prev) => ({
+      ...prev,
+      [subtaskIndex]: memberUsername,
+    }));
   };
 
   return (
@@ -250,17 +289,22 @@ const AddTaskScreen = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
 
-        {showTimePicker && (
-          Platform.OS === 'web' ? (
+        {showTimePicker &&
+          (Platform.OS === "web" ? (
             <TextInput
               type="time"
               style={styles.timeInput}
-              value={selectedTime ? selectedTime.toTimeString().slice(0, 5) : ''}
+              value={
+                selectedTime ? selectedTime.toTimeString().slice(0, 5) : ""
+              }
               onChange={(event) => {
-                const [hours, minutes] = event.target.value.split(':');
+                const [hours, minutes] = event.target.value.split(":");
                 const newDate = new Date();
                 newDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-                handleTimeSelect({ type: 'set', nativeEvent: { timestamp: newDate } }, newDate);
+                handleTimeSelect(
+                  { type: "set", nativeEvent: { timestamp: newDate } },
+                  newDate
+                );
               }}
             />
           ) : (
@@ -270,12 +314,17 @@ const AddTaskScreen = ({ navigation }) => {
               display="default"
               onChange={handleTimeSelect}
             />
-          )
-        )}
+          ))}
 
-        <TouchableOpacity style={styles.subjectButton}>
-          <Icon name="inbox" size={20} color="#666" />
-          <Text style={styles.subjectText}>Subjects</Text>
+        {/* Group Selection Button */}
+        <TouchableOpacity
+          style={styles.subjectButton}
+          onPress={() => setShowGroupModal(true)}
+        >
+          <Icon name="account-group" size={20} color="#666" />
+          <Text style={styles.subjectText}>
+            {selectedGroup ? `Group: ${selectedGroup.name}` : "Select Group"}
+          </Text>
           <Icon
             name="chevron-right"
             size={20}
@@ -283,6 +332,87 @@ const AddTaskScreen = ({ navigation }) => {
             style={{ marginLeft: "auto" }}
           />
         </TouchableOpacity>
+
+        {/* Group Selection Modal */}
+        <Modal visible={showGroupModal} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Group</Text>
+                <TouchableOpacity
+                  onPress={() => setShowGroupModal(false)}
+                  style={styles.closeButton}
+                >
+                  <Icon name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.groupsList}>
+                {groups.map((group, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.groupItem,
+                      selectedGroup?._id === group._id && styles.selectedGroupItem,
+                    ]}
+                    onPress={() => {
+                      setSelectedGroup(group);
+                      setShowGroupModal(false);
+                    }}
+                  >
+                    <Text style={styles.groupName}>{group.name}</Text>
+                    <Text style={styles.groupMembers}>
+                      {group.members.length} members
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Show member assignment if group is selected */}
+        {selectedGroup &&
+          subtasks.map((subtask, index) => (
+            <View key={index} style={styles.subtaskContainer}>
+              <TextInput
+                placeholder={`Subtask ${index + 1}`}
+                placeholderTextColor="#666"
+                value={subtask}
+                onChangeText={(text) => handleSubtaskChange(text, index)}
+                style={styles.subtaskInput}
+              />
+              {subtask.trim() && (
+                <TouchableOpacity
+                  style={styles.assignButton}
+                  onPress={() => {
+                    Alert.alert(
+                      "Assign to Member",
+                      "Select a member to assign this subtask",
+                      selectedGroup.members.map((member) => ({
+                        text: member.username,
+                        onPress: () => handleMemberAssignment(index, member.username),
+                      }))
+                    );
+                  }}
+                >
+                  <Icon
+                    name="account-plus"
+                    size={20}
+                    color={assignedMembers[index] ? "#7CF5FF" : "#666"}
+                  />
+                  <Text
+                    style={[
+                      styles.assignText,
+                      assignedMembers[index] && styles.assignedText,
+                    ]}
+                  >
+                    {assignedMembers[index] || "Assign"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
 
         <View style={styles.footer}>
           <TouchableOpacity
@@ -425,14 +555,88 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   timeInput: {
-    backgroundColor: '#222',
-    color: '#fff',
+    backgroundColor: "#222",
+    color: "#fff",
     padding: 10,
     borderRadius: 6,
     marginBottom: 10,
     fontSize: 16,
     width: 120,
     borderWidth: 0,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+  },
+  modalContent: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "#222",
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "500",
+  },
+  closeButton: {
+    padding: 8,
+  },
+  groupsList: {
+    maxHeight: "70%",
+  },
+  groupItem: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    backgroundColor: "#333",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  selectedGroupItem: {
+    backgroundColor: "#3D90D7",
+  },
+  groupName: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  groupMembers: {
+    color: "#ccc",
+    fontSize: 14,
+  },
+  subtaskContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  assignButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#333",
+    padding: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 6,
+  },
+  assignText: {
+    color: "#666",
+    fontSize: 14,
+  },
+  assignedText: {
+    color: "#7CF5FF",
+    fontWeight: "500",
   },
 });
 

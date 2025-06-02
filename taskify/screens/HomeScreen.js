@@ -24,6 +24,7 @@ const { height: windowHeight } = Dimensions.get("window");
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [tasks, setTasks] = useState([]);
+  const [groupTasks, setGroupTasks] = useState([]);
   const [token, setToken] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -56,11 +57,13 @@ export default function HomeScreen() {
     const loadCachedTasks = async () => {
       const cached = await getCachedTasks();
       if (cached) {
-        setTasks(cached);
+        setTasks(cached.personalTasks || []);
+        setGroupTasks(cached.groupTasks || []);
       }
       const result = await loadTokenAndFetchTasks();
       if (result.tasks) {
-        setTasks(result.tasks);
+        setTasks(result.tasks.personalTasks || []);
+        setGroupTasks(result.tasks.groupTasks || []);
         setToken(result.token);
       }
     };
@@ -82,7 +85,7 @@ export default function HomeScreen() {
     }
   };
 
-  const filterTodayAndOverdueTasks = (tasks) => {
+  const filterTodayAndOverdueTasks = (personalTasks, groupTasks) => {
     const now = new Date();
     const startOfToday = new Date(
       now.getFullYear(),
@@ -92,11 +95,18 @@ export default function HomeScreen() {
     const endOfToday = new Date(startOfToday);
     endOfToday.setDate(startOfToday.getDate() + 1);
 
-    return tasks.filter((task) => {
+    const filterTask = (task) => {
       if (!task.dueDate) return false;
       const taskDate = new Date(task.dueDate);
       return taskDate < endOfToday;
-    });
+    };
+
+    const filteredPersonalTasks = personalTasks.filter(filterTask);
+    const filteredGroupTasks = groupTasks.filter(filterTask);
+
+    return [...filteredPersonalTasks, ...filteredGroupTasks].sort((a, b) => 
+      new Date(a.dueDate) - new Date(b.dueDate)
+    );
   };
 
   const isTaskOverdue = (dueDate) => {
@@ -175,7 +185,7 @@ export default function HomeScreen() {
           />
         }
       >
-        {filterTodayAndOverdueTasks(tasks).map((task, index) => (
+        {filterTodayAndOverdueTasks(tasks, groupTasks).map((task, index) => (
           <TaskCard
             key={task._id || index}
             task={task}
