@@ -7,6 +7,5 @@ vercel.json
 taskify/node_modules
 node_modules
 taskify/dist
-node_modules
 
 http://localhost:8081, http://localhost:19006, http://localhost:3000, http://192.168.31.28:3000

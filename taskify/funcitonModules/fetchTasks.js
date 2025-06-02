@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { storeTasks, getCachedTasks } from './taskStorage';
+import { storeTasks, getCachedTasks ,storeGroupTasks} from './taskStorage';
 import { refreshTokens } from '../modules/tokenServices.js';
 
 const fetchTasks = async (authToken, forceFetch = false) => {
@@ -9,7 +9,7 @@ const fetchTasks = async (authToken, forceFetch = false) => {
       if (cachedTasks) return cachedTasks;
     }
 
-    let response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
+    let response = await fetch('http://192.168.31.28:5000/api/tasks', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
@@ -21,7 +21,7 @@ const fetchTasks = async (authToken, forceFetch = false) => {
     if (response.status === 401) {
       const newToken = await refreshTokens();
       if (newToken) {
-        response = await fetch('https://taskify-eight-kohl.vercel.app/api/tasks', {
+        response = await fetch('http://192.168.31.28:5000/api/tasks', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${newToken}`,
@@ -34,16 +34,43 @@ const fetchTasks = async (authToken, forceFetch = false) => {
       }
     }
 
-    const data = await response.json();
+    const [tasksResponse, groupsResponse] = await Promise.all([
+      fetch('http://192.168.31.28:5000/api/tasks', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      }),
+      fetch('http://192.168.31.28:5000/api/groups', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+    ]);
 
-    if (response.ok) {
-      await storeTasks(data);
-      return data;
-    } else {
-      console.error('Error fetching tasks:', data.message);
-      Alert.alert('Failed to fetch tasks: ' + (data.message || 'Unknown error'));
-      return null;
-    }
+    const [tasksData, groupsData] = await Promise.all([
+      tasksResponse.json(),
+      groupsResponse.json()
+    ]);
+
+    // Process group tasks to include group name
+    const groupTasks = groupsData.reduce((acc, group) => {
+      const tasksWithGroup = group.tasks.map(task => ({
+        ...task,
+        groupName: group.name,
+        groupId: group._id
+      }));
+      return [...acc, ...tasksWithGroup];
+    }, []);
+
+    const combinedData = {
+      personalTasks: tasksData,
+      groupTasks
+    };
+
+    await storeTasks(combinedData);
+    return combinedData;
   } catch (error) {
     console.error('Error fetching tasks:', error);
     if (error.message === 'Session expired') {

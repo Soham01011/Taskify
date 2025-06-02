@@ -18,6 +18,7 @@
     "@react-navigation/stack": "^7.2.10",
     "dayjs": "^1.11.13",
     "dayjs-plugin-utc": "^0.1.2",
+    "eas-cli": "^16.7.0",
     "expo": "^53.0.9",
     "expo-linear-gradient": "~14.1.4",
     "expo-status-bar": "~2.2.3",
@@ -31,7 +32,8 @@
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.10.0",
     "react-native-vector-icons": "^10.2.0",
-    "react-native-web": "^0.20.0"
+    "react-native-web": "^0.20.0",
+    "expo-updates": "~0.28.13"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

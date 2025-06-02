@@ -46,3 +46,13 @@ export const clearTasksCache = async () => {
     console.error('Error clearing tasks cache:', error);
   }
 };
+
+export const storeGroupTasks = async (groupTasks) => {
+  try {
+    const timestamp = new Date().getTime();
+    await AsyncStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(groupTasks));
+    await AsyncStorage.setItem(LAST_FETCH_KEY, timestamp.toString());
+  } catch (error) {
+    console.error('Error storing group tasks:', error);
+  }
+}

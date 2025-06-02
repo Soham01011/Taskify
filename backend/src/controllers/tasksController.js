@@ -1,3 +1,4 @@
+const { stringify } = require("uuid");
 const Task = require("../models/taskModel");
 
 // Get all tasks or a single task by ID
@@ -16,7 +17,7 @@ const getTasks = async (req, res) => {
         username: username,
         completed: false, // Only incomplete tasks
       });
-
+      console.log(tasks);
       return res.status(200).json(tasks);
     } else {
       const tasks = await Task.find({
