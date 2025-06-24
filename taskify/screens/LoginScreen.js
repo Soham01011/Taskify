@@ -2,13 +2,13 @@ import React ,{ useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet } from "react-native";
 import { handleLogin } from "../modules/login_user";
 
-export default function LoginScreen(){
+export default function LoginScreen({navigation}){
 
     const [username , setUsername] = useState("");
     const [password , setPassword] = useState("");
 
     const onLoginPress = () => {
-        handleLogin(username, password);
+        handleLogin(username, password, navigation);
     };
 
     return(

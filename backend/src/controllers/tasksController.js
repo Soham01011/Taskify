@@ -25,6 +25,8 @@ const getTasks = async (req, res) => {
         completed: false,
       });
 
+      console.log(" usertasks :", tasks);
+
       return res.status(200).json(tasks);
     }
   } catch (error) {

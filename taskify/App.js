@@ -21,12 +21,14 @@ export default function App() {
       const now = Date.now();
 
       if (accessToken && expiresAt > now) {
+        console.log("Token is active and sending the use to home.")
         // Access token still valid
         setInitialRoute('Home');
       } else if (refreshToken) {
         // Try refresh
         const newAccessToken = await preTokenCheck(refreshToken);
         if (newAccessToken) {
+          console.log("Token refreshed successfully, sending the user to home.");
           setInitialRoute('Home');
         } else {
           setInitialRoute('Login');
