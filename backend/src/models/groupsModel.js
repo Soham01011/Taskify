@@ -1,5 +1,42 @@
 const mongoose = require('mongoose');
 
+const GroupTaskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 100,
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: 500,
+  },
+  completed: {
+    type: Boolean,
+    default: false,
+  },
+  dueDate: {
+    type: Date,
+    default: null,
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium',
+  },
+  assignedTo: {
+    type: String, // username of group member
+    required: true,
+    trim: true,
+  },
+  createdBy: {
+    type: String, // username of creator
+    required: true,
+    trim: true,
+  }
+}, { timestamps: true });
+
 const MemberSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -36,17 +73,13 @@ const GroupSchema = new mongoose.Schema({
     trim: true
   },
   members: [MemberSchema],
-  tasks: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Task'
-  }],
+  tasks: [GroupTaskSchema], // Embedded tasks here
   isActive: {
     type: Boolean,
     default: true
   }
 }, { 
   timestamps: true,
-  // Add methods to the schema
   methods: {
     isAdmin(username) {
       return this.members.some(member => 
@@ -71,11 +104,9 @@ GroupSchema.pre('save', function(next) {
   next();
 });
 
-// Create indexes for better query performance
 GroupSchema.index({ name: 1, creator: 1 }, { unique: true });
 GroupSchema.index({ 'members.username': 1 });
 
-// Static method to find groups for a user
 GroupSchema.statics.findUserGroups = function(username) {
   return this.find({
     'members.username': username,
