@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 export const preTokenCheck = async (refreshToken) => {
     try{
-        const response = await fetch('http://192.168.31.28:5000/api/auth/verify', {
+        const response = await fetch('http://192.168.1.3:5000/api/auth/verify', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

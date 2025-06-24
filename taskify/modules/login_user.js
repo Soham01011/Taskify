@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const handleLogin = async (username, password) => {
     try {
-      const response = await fetch('http://192.168.31.28:5000/api/auth/login', {
+      const response = await fetch('http://192.168.1.3:5000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -23,7 +23,11 @@ export const handleLogin = async (username, password) => {
           ['@refresh_token', refreshToken],
           ['@token_expires_at', (Date.now() + expiresIn * 1000).toString()], // Store exact expiry timestamp
         ]);
-        Alert.alert("Login successful", "Welcome back!");
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
+
       } else {
         Alert.alert("Login failed", data.message || "Invalid credentials");
       }
