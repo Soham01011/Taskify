@@ -1,5 +1,4 @@
 const Group = require('../models/groupsModel');
-const Task = require('../models/taskModel');
 
 // Create a new group
 const createGroup = async (req, res) => {
@@ -125,36 +124,35 @@ const addMember = async (req, res) => {
 const createGroupTask = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
-    
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
     }
-
     if (!group.isMember(req.user.username)) {
       return res.status(403).json({ message: 'Only group members can create tasks' });
     }
 
-    const { title, description, dueDate, assignedTo } = req.body;
+    const { title, description, dueDate, priority, assignedTo } = req.body;
 
     // Verify assignee is a group member
-    if (assignedTo && !group.isMember(assignedTo)) {
+    if (!assignedTo || !group.isMember(assignedTo)) {
       return res.status(400).json({ message: 'Assigned user must be a group member' });
     }
 
-    const task = new Task({
-      username: assignedTo || req.user.username,
+    const newTask = {
       title,
       description,
       dueDate,
-      group: group._id
-    });
+      priority: priority || 'medium',
+      assignedTo,
+      createdBy: req.user.username,
+      completed: false
+    };
 
-    await task.save();
-    
-    group.tasks.push(task._id);
+    group.tasks.push(newTask);
     await group.save();
 
-    res.status(201).json(task);
+    // Return the newly added task (last in array)
+    res.status(201).json(group.tasks[group.tasks.length - 1]);
   } catch (error) {
     console.error('Error creating group task:', error);
     res.status(500).json({ message: 'Error creating group task' });
@@ -181,6 +179,36 @@ const getGroupTasks = async (req, res) => {
   }
 };
 
+const markGroupTaskComplete = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!group.isMember(req.user.username)) {
+      return res.status(403).json({ message: 'Only group members can update tasks' });
+    }
+
+    const task = group.tasks.id(req.params.taskId);
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    if (task.completed) {
+      return res.status(400).json({ message: 'Task is already completed' });
+    }
+
+    task.completed = true;
+    await group.save();
+
+    res.json(task);
+  } catch (error) {
+    console.error('Error marking task complete:', error);
+    res.status(500).json({ message: 'Error marking task complete' });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroups,
@@ -188,5 +216,6 @@ module.exports = {
   deleteGroup,
   addMember,
   createGroupTask,
-  getGroupTasks
+  getGroupTasks,
+  markGroupTaskComplete
 };
