@@ -1,9 +1,9 @@
 import { Alert } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const handleLogin = async (username, password) => {
+export const handleLogin = async (username, password, navigation) => {
     try {
-      const response = await fetch('http://192.168.1.3:5000/api/auth/login', {
+      const response = await fetch('http://192.168.1.4:5000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -19,6 +19,7 @@ export const handleLogin = async (username, password) => {
       if (response.ok) {
         const { accessToken, refreshToken, expiresIn} = data;
         await AsyncStorage.multiSet([
+          ['@username', username],
           ['@access_token', accessToken],
           ['@refresh_token', refreshToken],
           ['@token_expires_at', (Date.now() + expiresIn * 1000).toString()], // Store exact expiry timestamp
@@ -35,4 +36,4 @@ export const handleLogin = async (username, password) => {
       console.error(error);
       Alert.alert("Error", "Something went wrong. Please try again later.");
     }
-  };
+};

@@ -1,6 +1,8 @@
 const { stringify } = require("uuid");
 const Task = require("../models/taskModel");
 
+const Grouptasks = require("../models/groupsModel");
+
 // Get all tasks or a single task by ID
 const getTasks = async (req, res) => {
   try {
@@ -13,19 +15,15 @@ const getTasks = async (req, res) => {
           .json({ message: "Unauthorized access to tasks" });
       }
 
-      const tasks = await Task.find({
-        username: username,
-        completed: false, // Only incomplete tasks
-      });
-      console.log(tasks);
-      return res.status(200).json(tasks);
     } else {
       const tasks = await Task.find({
         username: req.user.username,
         completed: false,
       });
 
-      console.log(" usertasks :", tasks);
+      const groups = await Group.findUserGroups(req.user.username)
+      .populate('tasks')
+      .sort({ createdAt: -1 });
 
       return res.status(200).json(tasks);
     }
