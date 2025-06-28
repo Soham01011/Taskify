@@ -1,33 +1,44 @@
 const { stringify } = require("uuid");
 const Task = require("../models/taskModel");
 
-const Grouptasks = require("../models/groupsModel");
+const Group = require("../models/groupsModel");
 
 // Get all tasks or a single task by ID
 const getTasks = async (req, res) => {
-  try {
-    const { username } = req.params;
+  try{
+    const personalTAsks = await Task.find({ username: req.user.username, completed: false });
 
-    if (username) {
-      if (username !== req.user.username) {
-        return res
-          .status(403)
-          .json({ message: "Unauthorized access to tasks" });
+    const groups = await Group.findUserGroups(req.user.username);
+    let groupTasks = [];
+    groups.forEach(group => {
+      if (Array.isArray(group.tasks)) {
+        group.tasks.forEach(task => {
+          // Only include tasks assigned to the user and not completed
+          if (task.assignedTo === req.user.username && !task.completed) {
+            // Attach group info for frontend display
+            groupTasks.push({
+              ...task.toObject(),
+              groupName: group.name,
+              groupId: group._id,
+              groupTaskId: group.task._id // Unique ID for the task in the group context
+            });
+          }
+        });
       }
+    });
 
-    } else {
-      const tasks = await Task.find({
-        username: req.user.username,
-        completed: false,
-      });
+    const allTasks = [...personalTAsks, ...groupTasks];
 
-      const groups = await Group.findUserGroups(req.user.username)
-      .populate('tasks')
-      .sort({ createdAt: -1 });
-
-      return res.status(200).json(tasks);
-    }
-  } catch (error) {
+    allTasks.sort((a,b) => {
+      if (!a.dueDate && !b.dueDate) return 0; // Both have no due date
+      if (!a.dueDate) return 1; // a has no due date, b comes first
+      if (!b.dueDate) return -1; // b has no due date, a comes first
+      return new Date(a.dueDate) - new Date(b.dueDate); // Sort by due date
+    });
+    console.log("All tasks:", allTasks);
+    return res.status(200).json(allTasks);
+  }
+  catch (error) {
     console.error("Error fetching task(s):", error);
     return res.status(500).json({ message: "Server Error" });
   }
