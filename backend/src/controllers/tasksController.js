@@ -5,40 +5,38 @@ const Group = require("../models/groupsModel");
 
 // Get all tasks or a single task by ID
 const getTasks = async (req, res) => {
-  try{
-    const personalTAsks = await Task.find({ username: req.user.username, completed: false });
+  try {
+    // Personal tasks
+    const personalTasks = await Task.find({ username: req.user.username, completed: false });
 
+    // Group tasks assigned to the user
     const groups = await Group.findUserGroups(req.user.username);
     let groupTasks = [];
     groups.forEach(group => {
       if (Array.isArray(group.tasks)) {
         group.tasks.forEach(task => {
-          // Only include tasks assigned to the user and not completed
           if (task.assignedTo === req.user.username && !task.completed) {
-            // Attach group info for frontend display
             groupTasks.push({
               ...task.toObject(),
               groupName: group.name,
               groupId: group._id,
-              groupTaskId: group.task._id // Unique ID for the task in the group context
+              groupTaskId: task._id // Correct reference to the task's _id
             });
           }
         });
       }
     });
 
-    const allTasks = [...personalTAsks, ...groupTasks];
-
-    allTasks.sort((a,b) => {
-      if (!a.dueDate && !b.dueDate) return 0; // Both have no due date
-      if (!a.dueDate) return 1; // a has no due date, b comes first
-      if (!b.dueDate) return -1; // b has no due date, a comes first
-      return new Date(a.dueDate) - new Date(b.dueDate); // Sort by due date
+    // Combine and sort all tasks by due date (nulls last)
+    const allTasks = [...personalTasks, ...groupTasks].sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
     });
-    console.log("All tasks:", allTasks);
+
     return res.status(200).json(allTasks);
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error fetching task(s):", error);
     return res.status(500).json({ message: "Server Error" });
   }
@@ -48,7 +46,7 @@ const getTasks = async (req, res) => {
 const createTask = async (req, res) => {
   try {
     const { title, description, dueDate, priority, subjects, group, subtasks } = req.body;
-    console.log("Request body:", req.body);
+    console.log("Create task request body:", req.body);
     // Validate required fields
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
@@ -61,10 +59,8 @@ const createTask = async (req, res) => {
       
       // Get current time in IST
       const now = new Date();
-      const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-
       // Check if dueDate is in the past
-      if (dueDateObj < istNow) {
+      if (dueDateObj < now) {
         return res.status(400).json({ message: "Cannot set a due date/time in the past." });
       }
     }
