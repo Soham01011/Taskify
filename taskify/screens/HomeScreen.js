@@ -1,26 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import { fetchuserTasks } from '../modules/fetchUserTasks'; // Adjust if needed
-
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { fetchuserTasks } from '../modules/fetchUserTasks';
 import AddTaskButton from '../components/addTask';
-
 
 export default function HomeScreen() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadTasks = async () => {
+    try {
+      const fetchedTasks = await fetchuserTasks();
+      setTasks(fetchedTasks);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const fetchedTasks = await fetchuserTasks();
-        setTasks(fetchedTasks);
-      } catch (error) {
-        console.error('Error loading tasks:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadTasks();
+  }, []);
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
     loadTasks();
   }, []);
 
@@ -40,7 +45,6 @@ export default function HomeScreen() {
       <Text>Priority: {item.priority}</Text>
       <Text>Due: {item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'No due date'}</Text>
       <Text>Group: {item.group}</Text>
-      
       {item.subtasks && item.subtasks.length > 0 && (
         <View style={styles.subtaskContainer}>
           <Text style={styles.subtaskHeader}>Subtasks:</Text>
@@ -54,14 +58,26 @@ export default function HomeScreen() {
     </View>
   );
 
+  // AddTaskButton handler (refresh tasks after adding)
+  const handleAddTask = async (taskData) => {
+    // TODO: Add your API call to create the task here
+    // After successful creation, reload tasks:
+    await loadTasks();
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Your Tasks</Text>
+      <Text style={styles.title}>Today</Text>
       <FlatList
         data={tasks}
-        keyExtractor={(item) => item._id} // MongoDB's _id
+        keyExtractor={(item) => item._id}
         renderItem={renderTaskItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
+      {/* Floating Add Task Button */}
+      <AddTaskButton onAddTask={handleAddTask} />
     </View>
   );
 }
@@ -81,7 +97,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: 'bold',
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   taskItem: {
     padding: 15,

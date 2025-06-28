@@ -13,7 +13,6 @@ export const fetchuserTasks = async () => {
         const tasks = await tasksResponse.json();
         if (!tasksResponse.ok) {throw new Error(tasks.message || "Failed to fetch tasks");}
 
-        console.log("Fetched tasks:", tasks);
         return tasks;
 
     } catch (error) {
