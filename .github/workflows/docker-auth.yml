@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: docker.io  # Docker Hub
-  IMAGE_NAME: sohamdalvi1011/taskify-auth  # Change to your Docker Hub username
+  IMAGE_NAME: sohamdalvi1011/taskify-auth:latest  # Change to your Docker Hub username
 
 jobs:
   build-and-push:
