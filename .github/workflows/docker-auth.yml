@@ -35,10 +35,6 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern=v{{major}}.{{minor}}.{{patch}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}
-            type=sha
-            type=ref,event=branch
             latest
 
       - name: Build and push Docker image
