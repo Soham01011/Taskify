@@ -3,6 +3,8 @@ name: Build and Push Auth Service to Docker Hub
 on:
   push:
     branches: [ "auth" ]
+    tags:
+      - 'v*'
     paths:
       - 'backend/auth/**'
 
