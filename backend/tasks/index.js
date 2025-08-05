@@ -1,8 +1,32 @@
 const express = require('express');
 const mongoose = require('mongoose');
 
+const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Taskify';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_EXPIRES_IN = '15m';
+const REFRESH_TOKEN_EXPIRES_IN = '7d';
+
 const app = express();
 app.use(express.json());
+
+let mongoReady = false;
+
+// Health check route for Kubernetes liveness/readiness probe
+app.get('/readyness', (req, res) => {
+  if (
+    mongoReady &&
+    PORT &&
+    MONGO_URI &&
+    JWT_SECRET &&
+    JWT_EXPIRES_IN &&
+    REFRESH_TOKEN_EXPIRES_IN
+  ) {
+    res.status(200).json({ status: 'ok' });
+  } else {
+    res.status(500).json({ status: 'not ready' });
+  }
+});
 
 // Subtask schema
 const SubtaskSchema = new mongoose.Schema({
@@ -13,7 +37,7 @@ const SubtaskSchema = new mongoose.Schema({
 
 // Task schema
 const TaskSchema = new mongoose.Schema({
-  userId: { type: String, required: true }, // Add userId here
+  userId: { type: String, required: true },
   title: { type: String, required: true },
   description: String,
   completed: { type: Boolean, default: false },
@@ -110,7 +134,12 @@ app.patch('/api/tasks/:taskId/subtasks/:subtaskId/complete', async (req, res) =>
 });
 
 // Connect to MongoDB and start server
-const PORT = process.env.PORT || 4000;
-mongoose.connect('mongodb://localhost:27017/taskify-tasks')
-  .then(() => app.listen(PORT, () => console.log(`Tasks service running on port ${PORT}`)))
-  .catch(err => console.error('MongoDB connection error:', err));
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    mongoReady = true;
+    app.listen(PORT, () => console.log(`Tasks service running on port ${PORT}`));
+  })
+  .catch(err => {
+    mongoReady = false;
+    console.error('MongoDB connection error:', err);
+  });

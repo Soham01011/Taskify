@@ -1,0 +1,61 @@
+name: Build and Push Tasks Service to Docker Hub
+
+on:
+  push:
+    branches: [ "tasks" ]
+    paths:
+      - 'backend/tasks/**'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: sohamdalvi1011/taskify-tasks
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get latest version from Docker Hub and bump patch
+        id: version
+        run: |
+          set -e
+          # Fetch tags from Docker Hub
+          tags=$(curl -s "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags?page_size=100" | jq -r '.results[].name')
+          # Extract semver tags and sort
+          latest=$(echo "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          if [ -z "$latest" ]; then
+            new_version="v0.0.1"
+          else
+            IFS='.' read -r major minor patch <<<"${latest#v}"
+            patch=$((patch + 1))
+            new_version="v${major}.${minor}.${patch}"
+          fi
+          echo "NEW_VERSION=$new_version" >> $GITHUB_ENV
+          echo "Latest version: $latest, New version: $new_version"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/tasks
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image info
+        run: |
+          echo "Image: ${{ env.IMAGE_NAME }}"
+          echo "Tags: ${{ env.NEW_VERSION }}, latest"
