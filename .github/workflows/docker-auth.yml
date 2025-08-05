@@ -7,8 +7,8 @@ on:
       - 'backend/auth/**'
 
 env:
-  REGISTRY: docker.io  # Docker Hub
-  IMAGE_NAME: sohamdalvi1011/taskify-auth:latest  # Change to your Docker Hub username
+  REGISTRY: docker.io
+  IMAGE_NAME: sohamdalvi1011/taskify-auth
 
 jobs:
   build-and-push:
@@ -32,10 +32,12 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
+            type=semver,pattern=v{{major}}.{{minor}}.{{patch}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
             type=sha
             type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            latest
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
