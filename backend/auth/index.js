@@ -86,7 +86,8 @@ const handleLogin = async (username, password) => {
 };
 
 const handleVerify = (token) => {
-  return jwt.verify(token, JWT_SECRET);
+  const decoded = jwt.verify(token, JWT_SECRET);
+  return { valid: true, userId: decoded.userId, ...decoded };
 };
 
 const handleRefresh = async (refreshToken) => {
