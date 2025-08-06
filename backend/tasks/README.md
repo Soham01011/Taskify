@@ -107,10 +107,10 @@ Returns 200 OK if the service and MongoDB are ready, otherwise 500.
 
 #### Status
 
-- `/api/tasks` (GET, POST): Ongoing
-- `/api/tasks/:id` (PUT): Ongoing
-- `/api/tasks/:id/complete` (PATCH): Ongoing
-- `/api/tasks/:id/subtasks` (POST): Ongoing
-- `/api/tasks/:taskId/subtasks/:subtaskId` (PUT): Ongoing
-- `/api/tasks/:taskId/subtasks/:subtaskId/complete` (PATCH): Ongoing
-- `/readyness` (GET): Ongoing
+- `/api/tasks` (GET, POST): To be tested
+- `/api/tasks/:id` (PUT): To be tested
+- `/api/tasks/:id/complete` (PATCH): To be tested
+- `/api/tasks/:id/subtasks` (POST): To be tested
+- `/api/tasks/:taskId/subtasks/:subtaskId` (PUT): To be tested
+- `/api/tasks/:taskId/subtasks/:subtaskId/complete` (PATCH): To be tested
+- `/readyness` (GET): To be tested
