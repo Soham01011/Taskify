@@ -27,4 +27,5 @@ jobs:
           git merge origin/${{ github.ref_name }}
 
       - name: Push changes to micro branch
-        run:
+        run: |
+          git push origin
