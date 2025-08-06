@@ -20,11 +20,10 @@ async function verifyToken(req, res, next) {
   try {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(401).json({ error: 'Authorization header missing' });
-
     const token = authHeader.replace('Bearer ', '');
     // Call Auth microservice to verify token
-    const verifyRes = await axios.post(f`http://${AUTH_SVC_URL}/api/auth/verify`, { token });
-    if (verifyRes.data && verifyRes.data.valid) {
+    const verifyRes = await axios.post(`http://${AUTH_SVC_URL}/api/auth/verify`, { token });
+    if (verifyRes.data && verifyRes.data.userId) {
       req.userId = verifyRes.data.userId;
       next();
     } else {
@@ -36,14 +35,24 @@ async function verifyToken(req, res, next) {
 }
 
 // Health check route for Kubernetes liveness/readiness probe
-app.get('/api/tasks/readyness', async(req, res) => {
-
-  try{
-    await axios.get(`http://${AUTH_SVC_URL}/api/auth/verify`, {token: 'test-token'});
+app.get('/api/tasks/readyness', async (req, res) => {
+  try {
+    const response = await axios.post(`http://${AUTH_SVC_URL}/api/auth/verify`, { token: 'test-token' });
     authReady = true;
-  }
-  catch{
-    authReady = false;
+  } catch (error) {
+    if (error.response) {
+      // Log the error response object
+
+      if ([400 ,401, 403, 402, 404, 405].includes(error.response.status)) {
+        authReady = true;
+      } else {
+        authReady = false;
+      }
+    } else {
+      // Log network or other errors
+      console.log('Auth verify error:', error.message);
+      authReady = false;
+    }
   }
 
   if (
@@ -57,7 +66,16 @@ app.get('/api/tasks/readyness', async(req, res) => {
   ) {
     res.status(200).json({ status: 'ok' });
   } else {
-    res.status(500).json({ status: 'not ready' });
+    res.status(500).json({
+      status: 'not ready',
+      mongoReady,
+      authReady,
+      PORT,
+      MONGO_URI,
+      JWT_SECRET,
+      JWT_EXPIRES_IN,
+      REFRESH_TOKEN_EXPIRES_IN
+    });
   }
 });
 
