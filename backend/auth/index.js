@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
 // Configuration
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Taskify';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = '15m';
@@ -86,8 +86,7 @@ const handleLogin = async (username, password) => {
 };
 
 const handleVerify = (token) => {
-  const decoded = jwt.verify(token, JWT_SECRET);
-  return { valid: true, userId: decoded.userId, ...decoded };
+  return jwt.verify(token, JWT_SECRET);
 };
 
 const handleRefresh = async (refreshToken) => {
