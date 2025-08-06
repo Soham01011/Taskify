@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: sohamdalvi1011/taskify-auth:auth  # Update with your image
+        image: sohamdalvi1011/taskify-auth:v0.0.5  # Update with your image
         ports:
         - containerPort: 3000
         env:
