@@ -36,42 +36,28 @@ async function verifyToken(req, res, next) {
 }
 
 // Health check route for Kubernetes liveness/readiness probe
-app.get('/api/tasks/readyness', async (req, res) => {
-  let status = {
-    mongoReady,
-    authReady: false,
-    PORT: !!PORT,
-    MONGO_URI: !!MONGO_URI,
-    JWT_SECRET: !!JWT_SECRET,
-    JWT_EXPIRES_IN: !!JWT_EXPIRES_IN,
-    REFRESH_TOKEN_EXPIRES_IN: !!REFRESH_TOKEN_EXPIRES_IN,
-    AUTH_SVC_URL: !!AUTH_SVC_URL
-  };
-  console.log('Checking service readiness:', status);
+app.get('/api/tasks/readyness', async(req, res) => {
 
-  // Check Auth microservice readiness by calling /api/auth/verify with a dummy token
-  try {
-    await axios.post(`http://${AUTH_SVC_URL}/api/auth/verify`, { token: 'dummy' });
-    // If we get here, auth microservice is running and accepted the request
-    status.authReady = true;
-  } catch (err) {
-    // If we get a 401, it means the service is up and rejecting invalid tokens (expected)
-    if (err.response && err.response.status === 400) {
-      status.authReady = true;
-    } else {
-      status.authReady = false;
-    }
+  try{
+    await axios.get(`http://${AUTH_SVC_URL}/api/auth/verify`, {token: 'test-token'});
+    authReady = true;
+  }
+  catch{
+    authReady = false;
   }
 
-  // Collect all not ready items
-  const notReady = Object.entries(status)
-    .filter(([_, v]) => !v)
-    .map(([k]) => k);
-
-  if (notReady.length === 0) {
-    res.status(200).json({ status: 'ok', details: status });
+  if (
+    mongoReady &&
+    authReady &&
+    PORT &&
+    MONGO_URI &&
+    JWT_SECRET &&
+    JWT_EXPIRES_IN &&
+    REFRESH_TOKEN_EXPIRES_IN
+  ) {
+    res.status(200).json({ status: 'ok' });
   } else {
-    res.status(500).json({ status: 'not ready', notReady, details: status });
+    res.status(500).json({ status: 'not ready' });
   }
 });
 
