@@ -1,0 +1,30 @@
+name: Sync micro branch with auth and tasks
+
+on:
+  push:
+    branches:
+      - auth
+      - tasks
+
+jobs:
+  sync-micro:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout micro branch
+        uses: actions/checkout@v4
+        with:
+          ref: micro
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Pull changes from source branch
+        run: |
+          git fetch origin ${{ github.ref_name }}
+          git merge origin/${{ github.ref_name }}
+
+      - name: Push changes to micro branch
+        run:
