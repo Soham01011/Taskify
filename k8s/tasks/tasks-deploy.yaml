@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskify-tasks
+  labels:
+    app: taskify-tasks
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: taskify-tasks
+  template:
+    metadata:
+      labels:
+        app: taskify-tasks
+    spec:
+      containers:
+        - name: taskify-tasks
+          image: sohamdalvi1011/taskify-tasks:v0.0.3
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: tasks-secret
+          readinessProbe:
+            httpGet:
+              path: /api/tasks/readyness
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/tasks/readyness
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 5
