@@ -5,7 +5,7 @@ const axios = require('axios');
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Taskify';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = '15m';
+const JWT_EXPIRES_IN = '5h';
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
 const AUTH_SVC_URL = process.env.AUTH_SVC_URL || 'localhost:3001';
 
