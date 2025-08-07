@@ -1,14 +1,14 @@
-name: Build and Push Tasks Service to Docker Hub
+name: Build and Push Groups Service to Docker Hub
 
 on:
   push:
-    branches: [ "tasks" ]
+    branches: [ "groups" ]
     paths:
-      - 'backend/tasks/**'
+      - 'backend/groups/**'
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: sohamdalvi1011/taskify-tasks
+  IMAGE_NAME: sohamdalvi1011/taskify-groups
 
 jobs:
   build-and-push:
@@ -47,7 +47,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/tasks
+          context: ./backend/groups
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION }}

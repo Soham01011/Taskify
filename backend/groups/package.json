@@ -1,9 +1,9 @@
 {
-  "name": "tasks",
+  "name": "groups",
   "version": "1.0.0",
-  "description": "",
+  "description": "Taskify microservice ",
   "license": "ISC",
-  "author": "",
+  "author": "Soham Dalvi",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {

@@ -1,10 +1,11 @@
-name: Sync micro branch with auth and tasks
+name: Sync micro branch with micro services
 
 on:
   push:
     branches:
       - auth
       - tasks
+      - groups
 
 jobs:
   sync-micro:
