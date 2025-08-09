@@ -1,99 +1,191 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  StatusBar,
+  Platform,
+} from "react-native";
+import * as SecureStore from "expo-secure-store";
+import { LinearGradient } from 'expo-linear-gradient';
 
-export default function LoginScreen({ setIsLoggedIn }) {
-  const [apiUrl, setApiUrl] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+// Your awesome new color scheme
+const colors = {
+  darkPurple: "#22092C",
+  darkMaroon: "#872341",
+  boldRed: "#BE3144",
+  vibrantOrange: "#F05941",
+  white: "#FFFFFF",
+  placeholder: "rgba(190, 49, 68, 0.7)", // A semi-transparent version of boldRed for placeholder text
+};
+
+export default function LoginScreen({ navigation }) {
+  const [apiUrl, setApiUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   // Load stored API URL if available
   useEffect(() => {
     const loadUrl = async () => {
-      const storedUrl = await SecureStore.getItemAsync('apiUrl');
-      if (storedUrl) setApiUrl(storedUrl);
+      try {
+        const storedUrl = await SecureStore.getItemAsync("apiUrl");
+        if (storedUrl) {
+          setApiUrl(storedUrl);
+        }
+      } catch (e) {
+        console.error("Failed to load API URL from secure store", e);
+      }
     };
     loadUrl();
   }, []);
 
+  // The login handler function remains the same
   const handleLogin = async () => {
     if (!apiUrl || !username || !password) {
-      Alert.alert('Error', 'Please enter all fields');
+      Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
-    // Save API URL for future logins
-    await SecureStore.setItemAsync('apiUrl', apiUrl);
+    // Save the API URL for future sessions
+    try {
+        await SecureStore.setItemAsync("apiUrl", apiUrl);
+    } catch (e) {
+        console.error("Failed to save API URL", e);
+        Alert.alert("Error", "Could not save API URL for next time.");
+    }
+
 
     try {
       const response = await fetch(`${apiUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.accessToken) {
-        await SecureStore.setItemAsync('accessToken', data.accessToken);
-        setIsLoggedIn(true);
+        await SecureStore.setItemAsync("accessToken", data.accessToken);
+        navigation.replace("Home");
       } else {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+        Alert.alert("Login Failed", data.message || "Invalid credentials. Please try again.");
       }
     } catch (error) {
-      Alert.alert('Error', 'Unable to connect to API');
+      console.error("Login API Error:", error);
+      Alert.alert("Connection Error", "Unable to connect to the server. Please check the API URL and your network connection.");
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+    // Use a LinearGradient for a rich, modern background
+    <LinearGradient
+      colors={[colors.darkMaroon, colors.darkPurple]}
+      style={styles.container}
+    >
+      {/* Set the status bar to light-content for better visibility on dark backgrounds */}
+      <StatusBar barStyle="light-content" />
 
-      <TextInput
-        style={styles.input}
-        placeholder="API Base URL (e.g., http://192.168.x.x:port)"
-        value={apiUrl}
-        onChangeText={setApiUrl}
-      />
+      <Text style={styles.title}>Welcome Back</Text>
+      <Text style={styles.subtitle}>Sign in to continue</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
-      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="API Base URL (e.g., http://...)"
+          placeholderTextColor={colors.placeholder}
+          value={apiUrl}
+          onChangeText={setApiUrl}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Username"
+          placeholderTextColor={colors.placeholder}
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor={colors.placeholder}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          autoCapitalize="none"
+        />
+      </View>
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 }
 
+// The new, "cooler" stylesheet
 const styles = StyleSheet.create({
   container: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#f5f5f5', padding: 20
+    flex: 1,
+    justifyContent: "center",
+    padding: 24,
   },
   title: {
-    fontSize: 24, fontWeight: 'bold', marginBottom: 20
+    color: colors.vibrantOrange,
+    fontSize: 42,
+    fontWeight: "bold",
+    textAlign: "left",
+    marginBottom: 8,
+  },
+  subtitle: {
+    color: colors.white,
+    fontSize: 18,
+    textAlign: 'left',
+    marginBottom: 50,
+  },
+  inputContainer: {
+    width: '100%',
   },
   input: {
-    width: '100%', padding: 10, borderWidth: 1, borderColor: '#ccc',
-    borderRadius: 5, marginBottom: 15, backgroundColor: '#fff'
+    width: "100%",
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.darkMaroon,
+    color: colors.white,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
+    fontSize: 16,
+    marginBottom: 25,
   },
   button: {
-    backgroundColor: '#007bff', padding: 15, borderRadius: 5, width: '100%', alignItems: 'center'
+    backgroundColor: colors.boldRed,
+    padding: 20,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+    marginTop: 20,
+    // Add a subtle shadow for depth and a premium feel
+    ...Platform.select({
+      ios: {
+        shadowColor: 'black',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   buttonText: {
-    color: '#fff', fontSize: 16
-  }
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: "bold",
+  },
 });
