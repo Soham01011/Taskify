@@ -8,55 +8,70 @@ import {
   Alert,
   StatusBar,
   Platform,
+  ActivityIndicator
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from 'expo-linear-gradient';
 
-// Your awesome new color scheme
 const colors = {
   darkPurple: "#22092C",
   darkMaroon: "#872341",
   boldRed: "#BE3144",
   vibrantOrange: "#F05941",
   white: "#FFFFFF",
-  placeholder: "rgba(190, 49, 68, 0.7)", // A semi-transparent version of boldRed for placeholder text
+  placeholder: "rgba(190, 49, 68, 0.7)",
 };
 
 export default function LoginScreen({ navigation }) {
   const [apiUrl, setApiUrl] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(true); // splash/verification state
 
-  // Load stored API URL if available
+  // Load stored API URL and check for token
   useEffect(() => {
-    const loadUrl = async () => {
+    const init = async () => {
       try {
         const storedUrl = await SecureStore.getItemAsync("apiUrl");
-        if (storedUrl) {
-          setApiUrl(storedUrl);
+        if (storedUrl) setApiUrl(storedUrl);
+
+        const token = await SecureStore.getItemAsync("accessToken");
+        if (token && storedUrl) {
+          // Verify token
+          const res = await fetch(`${storedUrl}/api/auth/verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          });
+
+          if (res.ok) {
+            navigation.replace("Home");
+            return;
+          } else {
+            await SecureStore.deleteItemAsync("accessToken");
+          }
         }
       } catch (e) {
-        console.error("Failed to load API URL from secure store", e);
+        console.error("Error during token verification", e);
       }
+      setLoading(false); // Show login screen if no valid token
     };
-    loadUrl();
+
+    init();
   }, []);
 
-  // The login handler function remains the same
   const handleLogin = async () => {
     if (!apiUrl || !username || !password) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
-    // Save the API URL for future sessions
     try {
-        await SecureStore.setItemAsync("apiUrl", apiUrl);
+      await SecureStore.setItemAsync("apiUrl", apiUrl);
     } catch (e) {
-        console.error("Failed to save API URL", e);
-        Alert.alert("Error", "Could not save API URL for next time.");
+      console.error("Failed to save API URL", e);
+      Alert.alert("Error", "Could not save API URL for next time.");
     }
-
 
     try {
       const response = await fetch(`${apiUrl}/api/auth/login`, {
@@ -79,13 +94,19 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  if (loading) {
+    // Splash screen while verifying
+    return (
+      <LinearGradient colors={[colors.darkMaroon, colors.darkPurple]} style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color={colors.vibrantOrange} />
+        <Text style={{ color: colors.white, marginTop: 20 }}>Verifying session...</Text>
+      </LinearGradient>
+    );
+  }
+
   return (
-    // Use a LinearGradient for a rich, modern background
-    <LinearGradient
-      colors={[colors.darkMaroon, colors.darkPurple]}
-      style={styles.container}
-    >
-      {/* Set the status bar to light-content for better visibility on dark backgrounds */}
+    <LinearGradient colors={[colors.darkMaroon, colors.darkPurple]} style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       <Text style={styles.title}>Welcome Back</Text>
@@ -101,7 +122,6 @@ export default function LoginScreen({ navigation }) {
           autoCapitalize="none"
           keyboardType="url"
         />
-
         <TextInput
           style={styles.input}
           placeholder="Username"
@@ -110,7 +130,6 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setUsername}
           autoCapitalize="none"
         />
-
         <TextInput
           style={styles.input}
           placeholder="Password"
@@ -129,13 +148,8 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-// The new, "cooler" stylesheet
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
+  container: { flex: 1, justifyContent: "center", padding: 24 },
   title: {
     color: colors.vibrantOrange,
     fontSize: 42,
@@ -143,18 +157,11 @@ const styles = StyleSheet.create({
     textAlign: "left",
     marginBottom: 8,
   },
-  subtitle: {
-    color: colors.white,
-    fontSize: 18,
-    textAlign: 'left',
-    marginBottom: 50,
-  },
-  inputContainer: {
-    width: '100%',
-  },
+  subtitle: { color: colors.white, fontSize: 18, textAlign: "left", marginBottom: 50 },
+  inputContainer: { width: "100%" },
   input: {
     width: "100%",
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderBottomWidth: 1.5,
     borderBottomColor: colors.darkMaroon,
     color: colors.white,
@@ -170,22 +177,10 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     marginTop: 20,
-    // Add a subtle shadow for depth and a premium feel
     ...Platform.select({
-      ios: {
-        shadowColor: 'black',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-      },
-      android: {
-        elevation: 8,
-      },
+      ios: { shadowColor: "black", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 5 },
+      android: { elevation: 8 },
     }),
   },
-  buttonText: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  buttonText: { color: colors.white, fontSize: 18, fontWeight: "bold" },
 });
