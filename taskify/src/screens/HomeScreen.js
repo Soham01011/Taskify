@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
+import AddTaskButton from "../ui_modules/addtasks_button";
+
 // Consistent color scheme from the login screen
 const colors = {
   darkPurple: "#22092C",
@@ -25,45 +27,45 @@ const colors = {
 
 export default function HomeScreen() {
   const [tasks, setTasks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
-  const [error, setError] = useState(null); // Add error state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const token = await SecureStore.getItemAsync("accessToken");
-        const apiUrl = await SecureStore.getItemAsync("apiUrl");
+  const fetchTasks = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = await SecureStore.getItemAsync("accessToken");
+      const apiUrl = await SecureStore.getItemAsync("apiUrl");
 
-        if (!token || !apiUrl) {
-          throw new Error("Authentication details not found.");
-        }
-
-        const res = await fetch(`${apiUrl}/api/tasks`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || "Failed to fetch tasks");
-        }
-
-        const data = await res.json();
-        setTasks(data);
-      } catch (err) {
-        console.error(err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+      if (!token || !apiUrl) {
+        throw new Error("Authentication details not found.");
       }
-    };
 
+      const res = await fetch(`${apiUrl}/api/tasks`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to fetch tasks");
+      }
+
+      const data = await res.json();
+      setTasks(data);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTasks();
   }, []);
 
@@ -74,7 +76,7 @@ export default function HomeScreen() {
   const formatLocalDate = (utcDate) => {
     if (!utcDate) return "No date";
     const date = new Date(utcDate);
-    return date.toLocaleString(); // converts to device's local time zone
+    return date.toLocaleString();
   };
 
   const renderTask = ({ item }) => (
@@ -112,7 +114,7 @@ export default function HomeScreen() {
       return <Text style={styles.errorText}>Error: {error}</Text>;
     }
     if (tasks.length === 0) {
-        return <Text style={styles.emptyText}>No tasks found. Great job!</Text>
+      return <Text style={styles.emptyText}>No tasks found. Great job!</Text>;
     }
     return (
       <FlatList
@@ -122,16 +124,18 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContent}
       />
     );
-  }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <Text style={styles.heading}>Today's Tasks</Text>
       {renderContent()}
+      <AddTaskButton onTaskAdded={fetchTasks} />
     </SafeAreaView>
   );
 }
+
 
 // The new, themed stylesheet
 const styles = StyleSheet.create({
