@@ -1,8 +1,9 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mongo
 spec:
+  serviceName: "mongo"   # headless service required
   replicas: 1
   selector:
     matchLabels:
@@ -25,7 +26,11 @@ spec:
               value: root
             - name: MONGO_INITDB_ROOT_PASSWORD
               value: admin
-      volumes:
-        - name: mongo-storage
-          persistentVolumeClaim:
-            claimName: mongo-pvc
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

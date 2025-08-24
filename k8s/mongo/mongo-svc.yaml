@@ -1,12 +1,11 @@
-# mongo-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo
+  name: mongo-headless
 spec:
-  selector:
-    app: mongo  # Must match your mongo deployment's labels
   ports:
-    - protocol: TCP
-      port: 27017
-      targetPort: 27017
+    - port: 27017
+      name: mongo
+  clusterIP: None   # <-- headless
+  selector:
+    app: mongo
