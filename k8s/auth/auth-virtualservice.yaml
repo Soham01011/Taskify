@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: auth-virtualservice
+  namespace: taskify
+spec:
+  hosts:
+  - "taskify.192.168.1.245.nip.io"
+  gateways:
+  - auth-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/auth
+    route:
+    - destination:
+        host: auth-service.taskify.svc.cluster.local
+        port:
+          number: 80

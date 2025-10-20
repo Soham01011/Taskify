@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-service
+  namespace: taskify
   labels:
     app: auth-service
 spec:
@@ -16,7 +17,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: sohamdalvi1011/taskify-auth:v0.0.5  # Update with your image
+        image: sohamdalvi1011/taskify-auth:v0.0.6  # Update with your image
         ports:
         - containerPort: 3000
         env:
