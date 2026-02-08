@@ -1,12 +1,13 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import 'react-native-reanimated';
+import { useEffect } from 'react';
 
 
-import { store, persistor } from '../src/store';
+import { store, persistor, RootState } from '../src/store';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
@@ -18,6 +19,23 @@ export const unstable_settings = {
 function AppContent() {
   const colorScheme = useColorScheme();
   const { isChecking } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const { currentUserId } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (isChecking) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (currentUserId && inAuthGroup) {
+      // User is logged in but trying to access auth screens, redirect to dashboard
+      router.replace('/(tabs)');
+    } else if (!currentUserId && !inAuthGroup) {
+      // User is not logged in but trying to access protected screens, redirect to login
+      router.replace('/(auth)');
+    }
+  }, [currentUserId, isChecking, segments]);
 
   // Optionally show nothing or a splash screen while checking initial token
   if (isChecking) {

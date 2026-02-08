@@ -6,20 +6,21 @@ import {
   Text,
   TouchableOpacity,
   RefreshControl,
-  SafeAreaView,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Filter, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
-import { RootState, AppDispatch } from '../../src/store';
-import { fetchTasks } from '../../src/store/slices/taskSlice';
-import { taskApi, Task } from '../../src/api/tasks';
-import { TaskCard } from '../../src/components/TaskCard';
-import { COLORS, SPACING, RADIUS } from '../../src/constants/theme';
+import { RootState, AppDispatch } from '@/src/store';
+import { fetchTasks } from '@/src/store/slices/taskSlice';
+import { taskApi, Task } from '@/src/api/tasks';
+import { TaskCard } from '@/src/components/TaskCard';
+import { COLORS } from '@/src/constants/theme';
+import { styles } from '@/assets/styles/mainscreen.styles';
 
-import { AppHeader } from '../../src/components/AppHeader';
+import { AppHeader } from '@/src/components/AppHeader';
 
 export default function TaskDashboard() {
   const router = useRouter();
@@ -108,71 +109,3 @@ export default function TaskDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: '#EEEEEE',
-    padding: 4,
-    borderRadius: RADIUS.md,
-  },
-  tab: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-  },
-  activeTab: {
-    backgroundColor: COLORS.white,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  activeTabText: {
-    color: COLORS.primary,
-  },
-  filterBtn: {
-    padding: SPACING.sm,
-  },
-  listContent: {
-    padding: SPACING.lg,
-    paddingBottom: 100,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 100,
-  },
-  emptyText: {
-    color: COLORS.textSecondary,
-    fontSize: 16,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: SPACING.xl,
-    right: SPACING.xl,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-});
