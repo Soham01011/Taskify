@@ -10,22 +10,28 @@ import {
     ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useDispatch } from 'react-redux';
-import { User, Phone, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { COLORS } from '@/src/constants/theme';
+import { useDispatch, useSelector } from 'react-redux';
+import { User as UserIcon, Phone, Lock, Eye, EyeOff, X, LogIn } from 'lucide-react-native';
+import { Modal } from 'react-native';
+import { RootState } from '@/src/store';
+import { COLORS, RADIUS, SPACING } from '@/src/constants/theme';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { setLoading, setError, loginSuccess } from '@/src/store/slices/authSlice';
 import { authApi } from '@/src/api/auth';
 import { styles } from '@/assets/styles/loginscreen.style';
+import { accountStyles } from '@/assets/styles/accountStyles.styles';
 
 export default function LoginScreen() {
     const router = useRouter();
     const dispatch = useDispatch();
+    const { users } = useSelector((state: RootState) => state.auth);
+
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [localError, setLocalError] = useState('');
+    const [showAccountSelector, setShowAccountSelector] = useState(users.length > 0);
 
     const handleLogin = async () => {
         if (!username || !password) {
@@ -85,7 +91,7 @@ export default function LoginScreen() {
                         value={username}
                         onChangeText={setUsername}
                         autoCapitalize="none"
-                        icon={<User size={20} color={COLORS.textSecondary} />}
+                        icon={<UserIcon size={20} color={COLORS.textSecondary} />}
                     />
 
                     <View style={styles.passwordHeader}>
@@ -128,7 +134,53 @@ export default function LoginScreen() {
                     </View>
                 </View>
             </ScrollView>
+
+            <Modal
+                visible={showAccountSelector}
+                transparent={true}
+                animationType="fade"
+            >
+                <View style={accountStyles.overlay}>
+                    <View style={accountStyles.modal}>
+                        <View style={accountStyles.modalHeader}>
+                            <Text style={accountStyles.modalTitle}>Choose Account</Text>
+                            <TouchableOpacity onPress={() => setShowAccountSelector(false)}>
+                                <X size={24} color={COLORS.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={accountStyles.accountList}>
+                            {users.map((user) => (
+                                <TouchableOpacity
+                                    key={user.id}
+                                    style={accountStyles.accountItem}
+                                    onPress={() => {
+                                        setUsername(user.username);
+                                        setShowAccountSelector(false);
+                                    }}
+                                >
+                                    <View style={accountStyles.accountAvatar}>
+                                        <Text style={accountStyles.avatarText}>
+                                            {user.username.charAt(0).toUpperCase()}
+                                        </Text>
+                                    </View>
+                                    <Text style={accountStyles.accountName}>{user.username}</Text>
+                                    <LogIn size={20} color={COLORS.primary} />
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <Button
+                            title="Login with another account"
+                            variant="outline"
+                            onPress={() => setShowAccountSelector(false)}
+                            style={accountStyles.anotherBtn}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
+
 

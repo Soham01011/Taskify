@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../../constants/theme';
 
 interface InputProps extends TextInputProps {
@@ -7,6 +7,7 @@ interface InputProps extends TextInputProps {
     error?: string;
     icon?: React.ReactNode;
     rightIcon?: React.ReactNode;
+    containerStyle?: ViewStyle;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -15,10 +16,11 @@ export const Input: React.FC<InputProps> = ({
     icon,
     rightIcon,
     style,
+    containerStyle,
     ...props
 }) => {
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, containerStyle]}>
             {label && <Text style={styles.label}>{label}</Text>}
             <View style={[
                 styles.inputContainer,

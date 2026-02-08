@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, User, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { COLORS } from '../../src/constants/theme';
-import { Input } from '../../src/components/ui/Input';
-import { Button } from '../../src/components/ui/Button';
-import { authApi } from '../../src/api/auth';
+import { COLORS } from '@/src/constants/theme';
+import { Input } from '@/src/components/ui/Input';
+import { Button } from '@/src/components/ui/Button';
+import { authApi } from '@/src/api/auth';
 import { styles } from '@/assets/styles/registerscreen.style';
 
 export default function RegisterScreen() {

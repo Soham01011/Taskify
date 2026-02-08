@@ -17,11 +17,18 @@ export const unstable_settings = {
 };
 
 function AppContent() {
-  const colorScheme = useColorScheme();
+  const systemColorScheme = useColorScheme();
   const { isChecking } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const { currentUserId } = useSelector((state: RootState) => state.auth);
+  const { currentUserId, users, globalPreferences } = useSelector((state: RootState) => state.auth);
+
+  const currentUser = users.find(u => u.id === currentUserId);
+  const themePreference = currentUser?.preferences?.theme || globalPreferences.theme;
+
+  const activeColorScheme = themePreference === 'system'
+    ? systemColorScheme
+    : themePreference;
 
   useEffect(() => {
     if (isChecking) return;
@@ -43,7 +50,7 @@ function AppContent() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={activeColorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

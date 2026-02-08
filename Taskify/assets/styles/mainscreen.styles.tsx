@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '@/src/constants/theme';
+import { Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
     container: {
@@ -68,4 +69,49 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
     },
+    fabTouch: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        zIndex: 98,
+    },
+    expandedModal: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        top: '15%', // Slide up from bottom but not full screen for "modal" feel
+        backgroundColor: COLORS.white,
+        borderTopLeftRadius: RADIUS.xl,
+        borderTopRightRadius: RADIUS.xl,
+        padding: SPACING.lg,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 10,
+            },
+            android: {
+                elevation: 20,
+            },
+        }),
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.lg,
+        paddingHorizontal: SPACING.md,
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: COLORS.text,
+    }
 });

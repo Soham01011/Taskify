@@ -10,14 +10,25 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Filter, Users } from 'lucide-react-native';
+import { Plus, Filter, Users, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  Layout,
+  ZoomIn,
+  ZoomOut,
+  useAnimatedStyle,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
+import { CreateTaskForm } from '@/src/components/CreateTaskForm';
 
 import { RootState, AppDispatch } from '@/src/store';
 import { fetchTasks } from '@/src/store/slices/taskSlice';
 import { taskApi, Task } from '@/src/api/tasks';
 import { TaskCard } from '@/src/components/TaskCard';
-import { COLORS } from '@/src/constants/theme';
+import { COLORS, SPACING, RADIUS } from '@/src/constants/theme';
 import { styles } from '@/assets/styles/mainscreen.styles';
 
 import { AppHeader } from '@/src/components/AppHeader';
@@ -28,6 +39,7 @@ export default function TaskDashboard() {
   const { tasks, isLoading } = useSelector((state: RootState) => state.tasks);
   const { currentUserId } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const loadTasks = useCallback(() => {
     if (currentUserId) {
@@ -99,13 +111,57 @@ export default function TaskDashboard() {
         }
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push('/modal')} // Using modal for task creation
-      >
-        <Plus size={28} color={COLORS.white} />
-      </TouchableOpacity>
+      {/* Fluid FAB to Modal Morph */}
+      {!isCreating ? (
+        <Animated.View
+          layout={Layout.springify()}
+          entering={ZoomIn}
+          exiting={ZoomOut}
+          style={[styles.fab, { zIndex: 99 }]}
+        >
+          <TouchableOpacity
+            style={styles.fabTouch}
+            onPress={() => setIsCreating(true)}
+          >
+            <Plus size={28} color={COLORS.white} />
+          </TouchableOpacity>
+        </Animated.View>
+      ) : (
+        <Animated.View
+          layout={Layout.springify()}
+          style={[styles.expandedModal, { zIndex: 100 }]}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>New Task</Text>
+            <TouchableOpacity onPress={() => setIsCreating(false)}>
+              <X size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+
+          <CreateTaskForm onSuccess={() => {
+            setIsCreating(false);
+            loadTasks();
+          }} />
+        </Animated.View>
+      )}
+
+      {/* Background Overlay when creating */}
+      {isCreating && (
+        <Animated.View
+          entering={FadeIn}
+          exiting={FadeOut}
+          style={styles.overlay}
+        >
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => setIsCreating(false)}
+            activeOpacity={1}
+          />
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
+
+
 

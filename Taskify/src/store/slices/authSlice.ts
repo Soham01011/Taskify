@@ -1,15 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+export interface UserPreferences {
+    theme: 'light' | 'dark' | 'system';
+}
+
 export interface User {
     id: string;
     username: string;
-    accessToken: string;
-    refreshToken: string;
+    accessToken?: string; // Optional because session might expire
+    refreshToken?: string;
+    preferences: UserPreferences;
 }
 
 interface AuthState {
     users: User[]; // Multiple accounts support
     currentUserId: string | null;
+    globalPreferences: UserPreferences;
     isLoading: boolean;
     error: string | null;
 }
@@ -17,6 +23,9 @@ interface AuthState {
 const initialState: AuthState = {
     users: [],
     currentUserId: null,
+    globalPreferences: {
+        theme: 'system',
+    },
     isLoading: false,
     error: null,
 };
@@ -31,12 +40,20 @@ const authSlice = createSlice({
         setError: (state, action: PayloadAction<string | null>) => {
             state.error = action.payload;
         },
-        loginSuccess: (state, action: PayloadAction<User>) => {
-            const newUser = action.payload;
-            const existingUserIndex = state.users.findIndex(u => u.id === newUser.id);
+        loginSuccess: (state, action: PayloadAction<Omit<User, 'preferences'> & { preferences?: UserPreferences }>) => {
+            const userData = action.payload;
+            const existingUserIndex = state.users.findIndex(u => u.id === userData.id);
+
+            const newUser: User = {
+                ...userData,
+                preferences: userData.preferences || state.globalPreferences
+            };
 
             if (existingUserIndex !== -1) {
-                state.users[existingUserIndex] = newUser;
+                state.users[existingUserIndex] = {
+                    ...state.users[existingUserIndex],
+                    ...newUser
+                };
             } else {
                 state.users.push(newUser);
             }
@@ -49,8 +66,20 @@ const authSlice = createSlice({
             }
         },
         logout: (state) => {
+            // "Logout" now just clears the currentUserId (session) 
+            // but keeps the account in the device list for easy switching
             if (state.currentUserId) {
-                state.users = state.users.filter(u => u.id !== state.currentUserId);
+                const user = state.users.find(u => u.id === state.currentUserId);
+                if (user) {
+                    delete user.accessToken;
+                    delete user.refreshToken;
+                }
+                state.currentUserId = null;
+            }
+        },
+        removeAccount: (state, action: PayloadAction<string>) => {
+            state.users = state.users.filter(u => u.id !== action.payload);
+            if (state.currentUserId === action.payload) {
                 state.currentUserId = state.users.length > 0 ? state.users[0].id : null;
             }
         },
@@ -60,9 +89,28 @@ const authSlice = createSlice({
                 user.accessToken = action.payload.accessToken;
                 user.refreshToken = action.payload.refreshToken;
             }
+        },
+        updateUserPreferences: (state, action: PayloadAction<{ userId: string, preferences: Partial<UserPreferences> }>) => {
+            const user = state.users.find(u => u.id === action.payload.userId);
+            if (user) {
+                user.preferences = { ...user.preferences, ...action.payload.preferences };
+            }
+        },
+        updateGlobalPreferences: (state, action: PayloadAction<Partial<UserPreferences>>) => {
+            state.globalPreferences = { ...state.globalPreferences, ...action.payload };
         }
     },
 });
 
-export const { setLoading, setError, loginSuccess, switchUser, logout, updateTokens } = authSlice.actions;
+export const {
+    setLoading,
+    setError,
+    loginSuccess,
+    switchUser,
+    logout,
+    removeAccount,
+    updateTokens,
+    updateUserPreferences,
+    updateGlobalPreferences
+} = authSlice.actions;
 export default authSlice.reducer;
