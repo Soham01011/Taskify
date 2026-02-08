@@ -12,11 +12,12 @@ import {
 import { useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { User, Phone, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { COLORS, SPACING, RADIUS } from '../../src/constants/theme';
-import { Input } from '../../src/components/ui/Input';
-import { Button } from '../../src/components/ui/Button';
-import { setLoading, setError, loginSuccess } from '../../src/store/slices/authSlice';
-import { authApi } from '../../src/api/auth';
+import { COLORS } from '@/src/constants/theme';
+import { Input } from '@/src/components/ui/Input';
+import { Button } from '@/src/components/ui/Button';
+import { setLoading, setError, loginSuccess } from '@/src/store/slices/authSlice';
+import { authApi } from '@/src/api/auth';
+import { styles } from '@/assets/styles/loginscreen.style';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -38,33 +39,10 @@ export default function LoginScreen() {
             const response = await authApi.login(username, password);
             console.log("LOGIN RESPONSE RECEIVED:", response.data);
 
-            const { accessToken, refreshToken, user } = response.data;
-
-            // Fallback for ID if user object is missing (common with some JWT setups)
-            let userId = user?.id || user?._id;
-            let finalUsername = user?.username || username;
-
-            if (!userId && accessToken) {
-                try {
-                    // Simple JWT payload extraction with base64url support
-                    const base64Url = accessToken.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const jsonPayload = decodeURIComponent(
-                        (typeof atob !== 'undefined' ? atob(base64) : (typeof Buffer !== 'undefined' ? Buffer.from(base64, 'base64').toString() : ''))
-                            .split('')
-                            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                            .join('')
-                    );
-                    const payload = JSON.parse(jsonPayload);
-                    userId = payload.userId || payload.sub || payload.id;
-                } catch (e) {
-                    console.log("Error decoding token:", e);
-                    userId = 'unknown-user';
-                }
+            const { accessToken, refreshToken, userId, finalUsername } = response.data;
+            if (!accessToken || !refreshToken || !userId || !finalUsername) {
+                throw new Error("Invalid response from server");
             }
-
-
-
             dispatch(loginSuccess({
                 id: userId,
                 username: finalUsername,
@@ -154,87 +132,3 @@ export default function LoginScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.background,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        padding: SPACING.xl,
-        justifyContent: 'center',
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: SPACING.xl * 2,
-    },
-    logoContainer: {
-        alignItems: 'center',
-    },
-    logoIcon: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: COLORS.white,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 8,
-        borderColor: '#e1f5fe',
-    },
-    logoText: {
-        fontSize: 40,
-        fontWeight: 'bold',
-        color: COLORS.primary,
-    },
-    brandName: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: COLORS.text,
-        marginTop: SPACING.md,
-    },
-    form: {
-        width: '100%',
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: COLORS.text,
-        marginBottom: SPACING.sm,
-    },
-    passwordHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    forgotBtn: {
-        alignSelf: 'flex-end',
-        marginBottom: SPACING.lg,
-    },
-    forgotText: {
-        color: COLORS.text,
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    loginBtn: {
-        marginTop: SPACING.sm,
-    },
-    errorText: {
-        color: COLORS.danger,
-        marginBottom: SPACING.md,
-        textAlign: 'center',
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: SPACING.xl,
-    },
-    footerText: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-    },
-    registerText: {
-        color: COLORS.primary,
-        fontSize: 14,
-        fontWeight: '700',
-    },
-});

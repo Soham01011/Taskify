@@ -24,12 +24,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const verifyCurrentToken = async () => {
         if (!currentUser?.accessToken) {
+            console.log('No access token found, logging out...');
+            dispatch(logout());
             setIsChecking(false);
             return;
         }
 
         try {
             await authApi.verify(currentUser.accessToken);
+            console.log('Token verification successful');
         } catch (error) {
             console.log('Token verification failed, logging out...');
             dispatch(logout());

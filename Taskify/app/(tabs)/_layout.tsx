@@ -24,7 +24,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="groups"
         options={{
           title: 'Groups',
           tabBarIcon: ({ color }) => <Users size={24} color={color} />,
