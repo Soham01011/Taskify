@@ -15,10 +15,29 @@ export interface Task {
     completed: boolean;
     dueDate: string;
     subtasks: Subtask[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface FetchTasksParams {
+    pageNumber?: number;
+    pageSize?: number;
+    created_at?: string;
+}
+
+export interface PaginatedTasksResponse {
+    tasks: Task[];
+    pagination: {
+        totalTasks: number;
+        currentPage: number;
+        pageSize: number;
+        totalPages: number;
+    };
 }
 
 export const taskApi = {
-    getAll: () => client.get<Task[]>('/tasks'),
+    getAll: (params?: FetchTasksParams) => client.get<Task[] | PaginatedTasksResponse>('/tasks', { params }),
+
 
     create: (data: { title: string; description?: string; dueDate?: string; subtasks?: { title: string; dueDate?: string }[] }) =>
         client.post<Task>('/tasks', data),
@@ -34,4 +53,11 @@ export const taskApi = {
 
     updateSubtask: (taskId: string, subtaskId: string, data: Partial<Subtask>) =>
         client.put<Task>(`/tasks/${taskId}/subtasks/${subtaskId}`, data),
+
+    delete: (id: string) =>
+        client.delete(`/tasks/${id}`),
+
+    deleteSubtask: (taskId: string, subtaskId: string) =>
+        client.delete<Task>(`/tasks/${taskId}/subtasks/${subtaskId}`),
 };
+

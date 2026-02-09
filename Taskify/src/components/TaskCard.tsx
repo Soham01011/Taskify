@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
+import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2 } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     withSpring,
@@ -12,7 +12,7 @@ import Animated, {
 import { Task, Subtask, taskApi } from '../api/tasks';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useDispatch } from 'react-redux';
-import { fetchTasks } from '../store/slices/taskSlice';
+import { fetchTasks, removeTask, updateTask } from '../store/slices/taskSlice';
 import { AppDispatch } from '../store';
 
 interface TaskCardProps {
@@ -32,11 +32,55 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
 
     const handleSubtaskToggle = async (subtaskId: string, currentStatus: boolean) => {
         try {
-            await taskApi.updateSubtask(task._id, subtaskId, { completed: !currentStatus });
-            dispatch(fetchTasks());
+            const response = await taskApi.updateSubtask(task._id, subtaskId, { completed: !currentStatus });
+            dispatch(updateTask(response.data));
         } catch (err) {
             console.error('Failed to toggle subtask', err);
         }
+    };
+
+    const handleDeleteTask = () => {
+        Alert.alert(
+            'Delete Task',
+            'Are you sure you want to delete this task?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await taskApi.delete(task._id);
+                            dispatch(removeTask(task._id));
+                        } catch (err) {
+                            console.error('Failed to delete task', err);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleDeleteSubtask = (subtaskId: string) => {
+        Alert.alert(
+            'Delete Subtask',
+            'Remove this subtask?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const response = await taskApi.deleteSubtask(task._id, subtaskId);
+                            dispatch(updateTask(response.data));
+                        } catch (err) {
+                            console.error('Failed to delete subtask', err);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const completedSubtasks = task.subtasks.filter(s => s.completed).length;
@@ -65,6 +109,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                     isExpanded && styles.expandedCard
                 ]}
                 onPress={toggleExpand}
+                onLongPress={handleDeleteTask}
                 activeOpacity={0.9}
             >
                 <View style={styles.content}>
@@ -123,27 +168,35 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                             <View style={styles.divider} />
                             <Text style={styles.subtaskHeader}>Subtasks</Text>
                             {task.subtasks.map((subtask) => (
-                                <TouchableOpacity
-                                    key={subtask._id}
-                                    style={styles.subtaskItem}
-                                    onPress={() => handleSubtaskToggle(subtask._id!, subtask.completed)}
-                                >
-                                    {subtask.completed ? (
-                                        <CheckSquare size={18} color={COLORS.secondary} />
-                                    ) : (
-                                        <Square size={18} color={COLORS.border} />
-                                    )}
-                                    <Text style={[
-                                        styles.subtaskTitle,
-                                        subtask.completed && styles.subtaskCompletedText
-                                    ]}>
-                                        {subtask.title}
-                                    </Text>
-                                </TouchableOpacity>
+                                <View key={subtask._id} style={styles.subtaskItem}>
+                                    <TouchableOpacity
+                                        style={styles.deleteSubtaskBtn}
+                                        onPress={() => handleDeleteSubtask(subtask._id!)}
+                                    >
+                                        <Trash2 size={16} color={COLORS.danger} opacity={0.6} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.subtaskMain}
+                                        onPress={() => handleSubtaskToggle(subtask._id!, subtask.completed)}
+                                    >
+                                        {subtask.completed ? (
+                                            <CheckSquare size={18} color={COLORS.secondary} />
+                                        ) : (
+                                            <Square size={18} color={COLORS.border} />
+                                        )}
+                                        <Text style={[
+                                            styles.subtaskTitle,
+                                            subtask.completed && styles.subtaskCompletedText
+                                        ]}>
+                                            {subtask.title}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             ))}
                         </View>
                     </Animated.View>
                 )}
+
             </TouchableOpacity>
         </View>
     );
@@ -251,7 +304,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: SPACING.xs,
     },
+    deleteSubtaskBtn: {
+        padding: SPACING.xs,
+        marginRight: SPACING.xs,
+    },
+    subtaskMain: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     subtaskTitle: {
+
         fontSize: 14,
         color: COLORS.text,
         marginLeft: SPACING.sm,

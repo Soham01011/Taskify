@@ -25,7 +25,8 @@ import Animated, {
 import { CreateTaskForm } from '@/src/components/CreateTaskForm';
 
 import { RootState, AppDispatch } from '@/src/store';
-import { fetchTasks } from '@/src/store/slices/taskSlice';
+import { fetchTasks, updateTask } from '@/src/store/slices/taskSlice';
+
 import { taskApi, Task } from '@/src/api/tasks';
 import { TaskCard } from '@/src/components/TaskCard';
 import { COLORS, SPACING, RADIUS } from '@/src/constants/theme';
@@ -36,16 +37,25 @@ import { AppHeader } from '@/src/components/AppHeader';
 export default function TaskDashboard() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { tasks, isLoading } = useSelector((state: RootState) => state.tasks);
+  const { tasks, isLoading, pagination } = useSelector((state: RootState) => state.tasks);
   const { currentUserId } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  const loadTasks = useCallback(() => {
+  const loadTasks = useCallback((page = 1) => {
     if (currentUserId) {
-      dispatch(fetchTasks());
+      dispatch(fetchTasks({ pageNumber: page, pageSize: 15 }));
     }
   }, [currentUserId, dispatch]);
+
+  const loadMoreTasks = () => {
+    if (!isLoading && pagination && pagination.currentPage < pagination.totalPages) {
+      dispatch(fetchTasks({
+        pageNumber: pagination.currentPage + 1,
+        pageSize: pagination.pageSize
+      }));
+    }
+  };
 
   useEffect(() => {
     loadTasks();
@@ -53,18 +63,35 @@ export default function TaskDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await dispatch(fetchTasks());
-    setRefreshing(false);
+    try {
+      // Find the most recent task to sync updates
+      const latestTask = tasks.length > 0
+        ? [...tasks].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+        : null;
+
+      if (latestTask?.created_at) {
+        await dispatch(fetchTasks({ created_at: latestTask.created_at }));
+      } else {
+        await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 }));
+      }
+    } catch (err) {
+      console.log('Incremental sync failed, doing full refresh', err);
+      await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 }));
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleComplete = async (id: string) => {
     try {
-      await taskApi.complete(id);
-      dispatch(fetchTasks());
+      const response = await taskApi.complete(id);
+      dispatch(updateTask(response.data));
     } catch (err) {
       console.error('Failed to complete task', err);
     }
   };
+
+
 
   const handleTaskPress = (task: Task) => {
     // Navigate to details if implemented
@@ -101,9 +128,12 @@ export default function TaskDashboard() {
         )}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContent}
+        onEndReached={loadMoreTasks}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No tasks found. Create one!</Text>

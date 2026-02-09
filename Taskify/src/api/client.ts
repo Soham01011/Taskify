@@ -40,10 +40,17 @@ client.interceptors.request.use(
 client.interceptors.response.use(
     (response) => response,
     async (error) => {
-        console.log(error);
         const originalRequest = error.config;
+        const errorData = error.response?.data;
 
-        if (error.response?.status === 401 && !originalRequest._retry && store) {
+        // Check if it's an authentication error (401)
+        const isAuthError = error.response?.status === 401;
+        // Check for specific "Token expired" indicators from the backend docs
+        const isTokenExpired = errorData?.code === 'TOKEN_EXPIRED' ||
+            errorData?.error === 'Token expired' ||
+            (isAuthError && !errorData); // Fallback for empty 401s
+
+        if (isAuthError && isTokenExpired && !originalRequest._retry && store) {
             originalRequest._retry = true;
 
             const state = store.getState();
@@ -52,30 +59,41 @@ client.interceptors.response.use(
 
             if (currentUser?.refreshToken) {
                 try {
+                    console.log("Access token expired. Attempting to refresh...");
+                    // Using axios directly to avoid interceptor recursion
                     const response = await axios.post(`${API_URL}/auth/refresh`, {
                         refreshToken: currentUser.refreshToken,
                     });
 
-                    const { accessToken, refreshToken } = response.data;
+                    const { accessToken, refreshToken, userId } = response.data;
+                    console.log("Tokens refreshed successfully.");
 
                     store.dispatch(updateTokens({
-                        userId: currentUser.id,
+                        userId: userId || currentUser.id,
                         accessToken,
-                        refreshToken
+                        refreshToken: refreshToken || currentUser.refreshToken // Server might provide same or new refresh token
                     }));
 
+                    // Update header and retry original request
                     originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                     return client(originalRequest);
-                } catch (refreshError) {
+                } catch (refreshError: any) {
+                    // If refresh fails, it means the refresh token is also expired or invalid
+                    console.log("Both tokens expired or invalid. Logging out user...");
                     store.dispatch(logout());
                     return Promise.reject(refreshError);
                 }
+            } else {
+                // No refresh token found, nothing to do but logout
+                store.dispatch(logout());
             }
         }
 
         return Promise.reject(error);
     }
 );
+
+
 
 export default client;
 
