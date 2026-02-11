@@ -19,6 +19,8 @@ import Animated, {
   Layout,
   ZoomIn,
   ZoomOut,
+  SlideInDown,
+  SlideOutDown,
   useAnimatedStyle,
   withSpring,
   withTiming
@@ -145,7 +147,7 @@ export default function TaskDashboard() {
       {/* Fluid FAB to Modal Morph */}
       {!isCreating ? (
         <Animated.View
-          layout={Layout.springify()}
+          key="fab-container"
           entering={ZoomIn}
           exiting={ZoomOut}
           style={[styles.fab, { zIndex: 99 }]}
@@ -159,13 +161,15 @@ export default function TaskDashboard() {
         </Animated.View>
       ) : (
         <Animated.View
-          layout={Layout.springify()}
+          key="modal-container"
+          entering={SlideInDown.springify()}
+          exiting={SlideOutDown.springify()}
           style={[styles.compactModalContainer, { zIndex: 100 }]}
           pointerEvents="box-none"
         >
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            behavior={Platform.OS === 'android' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 40}
             style={{ flex: 1, justifyContent: 'flex-end' }}
           >
             <CreateTaskForm

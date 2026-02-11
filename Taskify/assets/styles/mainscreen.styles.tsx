@@ -118,6 +118,5 @@ export const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'flex-end',
         backgroundColor: 'transparent',
-        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     }
 });

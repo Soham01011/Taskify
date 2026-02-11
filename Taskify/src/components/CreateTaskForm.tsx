@@ -8,13 +8,11 @@ import {
     Platform,
     ScrollView,
     KeyboardAvoidingView,
-    FlatList,
-    Modal
+    FlatList
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import {
     Calendar,
-    Flag,
     Bell,
     MoreHorizontal,
     ChevronDown,
@@ -41,7 +39,6 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [dueDate, setDueDate] = useState<Date | null>(new Date());
-    const [priority, setPriority] = useState<number>(4);
     const [alarmType, setAlarmType] = useState<'push' | 'alarm'>('push');
     const [alarmReminderTime, setAlarmReminderTime] = useState<Date | null>(null);
     const [subtasks, setSubtasks] = useState<string[]>([]);
@@ -439,11 +436,5 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: SPACING.sm,
         fontSize: 12,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        justifyContent: 'center',
-        alignItems: 'center',
     }
 });
