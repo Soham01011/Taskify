@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { AppState, AppStateStatus } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { logout } from '../store/slices/authSlice';
+import { logout, updateTokens } from '../store/slices/authSlice';
 import { authApi } from '../api/auth';
 
 interface AuthContextType {
@@ -34,8 +34,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await authApi.verify(currentUser.accessToken);
             console.log('Token verification successful');
         } catch (error) {
-            console.log('Token verification failed, logging out...');
-            dispatch(logout());
+            console.log('Token verification failed, attempting refresh...');
+
+            if (currentUser.refreshToken) {
+                try {
+                    const response = await authApi.refresh(currentUser.refreshToken);
+                    const { accessToken, refreshToken } = response.data;
+
+                    // The server provides a new refreshToken if it's about to expire
+                    // Otherwise it might just return the access token.
+                    // We dispatch updateTokens with whatever the server returns.
+                    // If refreshToken is not provided, we keep the old one.
+                    dispatch(updateTokens({
+                        userId: currentUser.id,
+                        accessToken,
+                        refreshToken: refreshToken || currentUser.refreshToken
+                    }));
+
+                    console.log('Token refresh successful');
+                } catch (refreshError) {
+                    console.log('Token refresh failed, logging out...');
+                    dispatch(logout());
+                }
+            } else {
+                console.log('No refresh token available, logging out...');
+                dispatch(logout());
+            }
         } finally {
             setIsChecking(false);
         }

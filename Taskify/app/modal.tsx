@@ -1,57 +1,57 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, Stack } from 'expo-router';
-import { X } from 'lucide-react-native';
-
-import { COLORS, SPACING, RADIUS } from '../src/constants/theme';
 import { CreateTaskForm } from '../src/components/CreateTaskForm';
 
 export default function ModalScreen() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'android' ? 'padding' : 'padding'}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 40}
+    >
       <Stack.Screen options={{
-        headerShown: true,
-        title: 'Create New Task',
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-            <X size={24} color={COLORS.text} />
-          </TouchableOpacity>
-        ),
+        headerShown: false,
+        presentation: 'transparentModal',
       }} />
-      <StatusBar style="light" />
+      <StatusBar style="auto" />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.formCard}>
-          <CreateTaskForm onSuccess={() => router.back()} />
-        </View>
-      </ScrollView>
-    </View>
+      {/* Background overlay to close modal */}
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={() => router.back()}
+      />
+
+      <View style={styles.modalContent}>
+        <CreateTaskForm
+          onSuccess={() => router.back()}
+          onCancel={() => router.back()}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  content: {
-    padding: SPACING.lg,
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  formCard: {
-    backgroundColor: COLORS.white,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+  modalContent: {
+    backgroundColor: 'transparent',
+    width: '100%',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Reduced to avoid double padding with KeyboardAvoidingView
   },
-  closeBtn: {
-    marginLeft: SPACING.md,
-  }
 });
-

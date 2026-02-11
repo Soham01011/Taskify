@@ -85,7 +85,7 @@ export const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        top: '15%', // Slide up from bottom but not full screen for "modal" feel
+        top: '15%',
         backgroundColor: COLORS.white,
         borderTopLeftRadius: RADIUS.xl,
         borderTopRightRadius: RADIUS.xl,
@@ -113,5 +113,11 @@ export const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: '800',
         color: COLORS.text,
+    },
+    compactModalContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'flex-end',
+        backgroundColor: 'transparent',
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     }
 });

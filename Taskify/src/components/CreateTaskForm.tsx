@@ -1,89 +1,61 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
+    TextInput,
     TouchableOpacity,
     Platform,
-    KeyboardAvoidingView
+    ScrollView,
+    KeyboardAvoidingView,
+    FlatList,
+    Modal
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { FileText, Calendar, Plus, Trash2, CheckSquare, Clock } from 'lucide-react-native';
-import { Input } from './ui/Input';
-import { Button } from './ui/Button';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import {
+    Calendar,
+    Flag,
+    Bell,
+    MoreHorizontal,
+    ChevronDown,
+    X,
+    Plus,
+    Trash2,
+    Clock,
+    Circle
+} from 'lucide-react-native';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+
+import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import { taskApi } from '../api/tasks';
 import { fetchTasks } from '../store/slices/taskSlice';
 import { AppDispatch } from '../store';
-import { DatePickerModal } from './ui/DatePickerModal';
-
-interface Subtask {
-    id: string;
-    title: string;
-    dueDate?: string;
-}
 
 interface CreateTaskFormProps {
     onSuccess: () => void;
+    onCancel?: () => void;
 }
 
-export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess }) => {
+export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCancel }) => {
     const dispatch = useDispatch<AppDispatch>();
-
-    // Main Task State
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [mainDate, setMainDate] = useState<Date | null>(null);
-    const [isPickerVisible, setIsPickerVisible] = useState(false);
-    const [activePickingId, setActivePickingId] = useState<'main' | string | null>(null);
+    const [dueDate, setDueDate] = useState<Date | null>(new Date());
+    const [priority, setPriority] = useState<number>(4);
+    const [alarmType, setAlarmType] = useState<'push' | 'alarm'>('push');
+    const [alarmReminderTime, setAlarmReminderTime] = useState<Date | null>(null);
+    const [subtasks, setSubtasks] = useState<string[]>([]);
+    const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+    const [showSubtaskInput, setShowSubtaskInput] = useState(false);
 
-    // Subtasks State
-    const [subtasks, setSubtasks] = useState<Subtask[]>([{ id: Date.now().toString(), title: '' }]);
-
+    const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+    const [isReminderPickerVisible, setReminderPickerVisibility] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleDateSelect = (date: Date) => {
-        if (activePickingId === 'main') {
-            setMainDate(date);
-        } else if (activePickingId) {
-            setSubtasks(prev => prev.map(st =>
-                st.id === activePickingId ? { ...st, dueDate: date.toISOString() } : st
-            ));
-        }
-        setIsPickerVisible(false);
-    };
-
-    const addSubtask = () => {
-        setSubtasks(prev => [...prev, {
-            id: Date.now().toString(),
-            title: '',
-            dueDate: mainDate?.toISOString()
-        }]);
-    };
-
-    const updateSubtaskTitle = (id: string, text: string) => {
-        setSubtasks(prev => {
-            const updated = prev.map(st => st.id === id ? { ...st, title: text } : st);
-            // Auto-add next field if this is the last one and it's being typed into
-            const lastSt = updated[updated.length - 1];
-            if (lastSt.id === id && text.length > 0) {
-                return [...updated, { id: (Date.now() + 1).toString(), title: '', dueDate: mainDate?.toISOString() }];
-            }
-            return updated;
-        });
-    };
-
-    const removeSubtask = (id: string) => {
-        if (subtasks.length > 1) {
-            setSubtasks(prev => prev.filter(st => st.id !== id));
-        }
-    };
-
     const handleCreate = async () => {
-        if (!title) {
-            setError('Title is required');
+        if (!title.trim()) {
+            setError('Task title is required');
             return;
         }
 
@@ -91,22 +63,18 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess }) => 
             setLoading(true);
             setError('');
 
-            // Filter out empty subtasks
-            const validSubtasks = subtasks
-                .filter(st => st.title.trim().length > 0)
-                .map(st => ({
-                    title: st.title,
-                    dueDate: st.dueDate || mainDate?.toISOString(),
-                    completed: false
-                }));
+            const taskData = {
+                title: title.trim(),
+                description: description.trim(),
+                dueDate: dueDate?.toISOString(),
+                subtasks: subtasks.map(s => ({ title: s, completed: false })),
+                alarm_type: alarmType,
+                alarm_reminder_time: alarmReminderTime?.toISOString() || dueDate?.toISOString(),
+                created_at: new Date(),
+                updated_at: new Date()
+            };
 
-            await taskApi.create({
-                title,
-                description,
-                dueDate: mainDate ? mainDate.toISOString() : undefined,
-                subtasks: validSubtasks
-            });
-
+            await taskApi.create(taskData);
             dispatch(fetchTasks());
             onSuccess();
         } catch (err: any) {
@@ -116,231 +84,366 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess }) => 
         }
     };
 
-    const formatDate = (date: Date | string | null | undefined) => {
-        if (!date) return 'Set Date & Time';
-        const d = typeof date === 'string' ? new Date(date) : date;
-        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const addSubtask = () => {
+        if (newSubtaskTitle.trim()) {
+            setSubtasks([...subtasks, newSubtaskTitle.trim()]);
+            setNewSubtaskTitle('');
+            setShowSubtaskInput(false);
+        }
+    };
+
+    const removeSubtask = (index: number) => {
+        setSubtasks(subtasks.filter((_, i) => i !== index));
+    };
+
+    const toggleAlarmType = () => {
+        setAlarmType(prev => prev === 'push' ? 'alarm' : 'push');
+    };
+
+    const showDatePicker = () => setDatePickerVisibility(true);
+    const hideDatePicker = () => setDatePickerVisibility(false);
+
+    const handleConfirmDate = (date: Date) => {
+        setDueDate(date);
+        hideDatePicker();
+    };
+
+    const showReminderPicker = () => setReminderPickerVisibility(true);
+    const hideReminderPicker = () => setReminderPickerVisibility(false);
+
+    const handleConfirmReminder = (date: Date) => {
+        setAlarmReminderTime(date);
+        hideReminderPicker();
     };
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.outerContainer}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-        >
-            <ScrollView
-                style={styles.container}
-                stickyHeaderIndices={[0]}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Main Task Section - Sticky */}
-                <View style={styles.stickyHeader}>
-                    <View style={styles.section}>
-                        <Text style={styles.label}>Task Title *</Text>
-                        <Input
-                            placeholder="What needs to be done?"
-                            value={title}
-                            onChangeText={setTitle}
-                            icon={<FileText size={18} color={COLORS.textSecondary} />}
-                        />
+        <View style={styles.container}>
+            <View style={styles.card}>
+                <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    style={styles.scrollArea}
+                >
+                    <TextInput
+                        style={styles.titleInput}
+                        placeholder="Task name"
+                        placeholderTextColor="#A0A0A0"
+                        value={title}
+                        onChangeText={setTitle}
+                        autoFocus
+                    />
+                    <TextInput
+                        style={styles.descriptionInput}
+                        placeholder="Description"
+                        placeholderTextColor="#C0C0C0"
+                        value={description}
+                        onChangeText={setDescription}
+                        multiline
+                    />
 
-                        <Text style={styles.label}>Description</Text>
-                        <Input
-                            placeholder="Add details..."
-                            value={description}
-                            onChangeText={setDescription}
-                            multiline
-                            numberOfLines={3}
-                            style={styles.textArea}
-                        />
+                    {/* Subtasks List */}
+                    {subtasks.length > 0 && (
+                        <View style={styles.subtaskContainer}>
+                            {subtasks.map((st, index) => (
+                                <View key={index} style={styles.subtaskItem}>
+                                    <Circle size={14} color="#808080" />
+                                    <Text style={styles.subtaskText}>{st}</Text>
+                                    <TouchableOpacity onPress={() => removeSubtask(index)}>
+                                        <X size={14} color="#808080" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    )}
 
+                    {showSubtaskInput ? (
+                        <View style={styles.subtaskInputRow}>
+                            <TextInput
+                                style={styles.subtaskInput}
+                                placeholder="Add subtask..."
+                                value={newSubtaskTitle}
+                                onChangeText={setNewSubtaskTitle}
+                                autoFocus
+                                onSubmitEditing={addSubtask}
+                            />
+                            <TouchableOpacity onPress={addSubtask}>
+                                <Plus size={20} color={COLORS.primary} />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
                         <TouchableOpacity
-                            style={styles.dateSelector}
-                            onPress={() => {
-                                setActivePickingId('main');
-                                setIsPickerVisible(true);
-                            }}
+                            style={styles.addSubtaskBtn}
+                            onPress={() => setShowSubtaskInput(true)}
                         >
-                            <Calendar size={18} color={COLORS.primary} />
-                            <Text style={mainDate ? styles.dateTextActive : styles.dateText}>
-                                {formatDate(mainDate)}
-                            </Text>
+                            <Plus size={14} color="#808080" />
+                            <Text style={styles.addSubtaskText}>Add subtask</Text>
+                        </TouchableOpacity>
+                    )}
+                </ScrollView>
+
+                <View style={styles.actionsRow}>
+                    <TouchableOpacity style={styles.pill} onPress={showDatePicker}>
+                        <Calendar size={14} color="#058527" />
+                        <Text style={[styles.pillText, { color: '#058527' }]}>
+                            {dueDate ? (dueDate.toDateString() === new Date().toDateString() ? 'Today' : dueDate.toLocaleDateString()) : 'No Date'}
+                        </Text>
+                        {dueDate && (
+                            <TouchableOpacity onPress={() => setDueDate(null)}>
+                                <X size={12} color="#058527" style={{ marginLeft: 4 }} />
+                            </TouchableOpacity>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.pill} onPress={toggleAlarmType}>
+                        {alarmType === 'push' ? (
+                            <Bell size={14} color="#808080" />
+                        ) : (
+                            <Clock size={14} color="#E67E22" />
+                        )}
+                        <Text style={[styles.pillText, alarmType === 'alarm' && { color: '#E67E22' }]}>
+                            {alarmType === 'push' ? 'Push' : 'Alarm'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.pill} onPress={showReminderPicker}>
+                        <Bell size={14} color="#808080" />
+                        <Text style={styles.pillText}>
+                            {alarmReminderTime ? alarmReminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reminders'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.iconButton}>
+                        <MoreHorizontal size={18} color="#808080" />
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity style={styles.projectDropdown}>
+                        <View style={styles.inboxIcon}>
+                            <View style={styles.trayIcon} />
+                        </View>
+                        <Text style={styles.projectText}>Inbox</Text>
+                        <ChevronDown size={14} color="#505050" />
+                    </TouchableOpacity>
+
+                    <View style={styles.buttonGroup}>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={onCancel || onSuccess}
+                        >
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.addButton,
+                                (!title.trim() || loading) && styles.addButtonDisabled
+                            ]}
+                            onPress={handleCreate}
+                            disabled={!title.trim() || loading}
+                        >
+                            <Text style={styles.addButtonText}>Add task</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-
-                {/* Subtasks Section */}
-                <View style={styles.subtasksContent}>
-                    <Text style={styles.sectionTitle}>Subtasks</Text>
-                    {subtasks.map((st, index) => (
-                        <View key={st.id} style={styles.subtaskItem}>
-                            <View style={styles.subtaskMain}>
-                                <CheckSquare size={18} color={COLORS.textSecondary} style={styles.subtaskIcon} />
-                                <Input
-                                    placeholder={`Subtask ${index + 1}`}
-                                    value={st.title}
-                                    onChangeText={(text) => updateSubtaskTitle(st.id, text)}
-                                    containerStyle={styles.subtaskInput}
-                                    style={styles.subtaskInputText}
-                                />
-                                {subtasks.length > 1 && (
-                                    <TouchableOpacity onPress={() => removeSubtask(st.id)} style={styles.removeBtn}>
-                                        <Trash2 size={16} color={COLORS.danger} />
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                            {st.title.length > 0 && (
-                                <TouchableOpacity
-                                    style={styles.subtaskDate}
-                                    onPress={() => {
-                                        setActivePickingId(st.id);
-                                        setIsPickerVisible(true);
-                                    }}
-                                >
-                                    <Clock size={12} color={COLORS.textSecondary} />
-                                    <Text style={styles.subtaskDateText}>
-                                        {formatDate(st.dueDate || mainDate)}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    ))}
-                </View>
-            </ScrollView>
-
-            <View style={styles.footer}>
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
-                <Button
-                    title="Create Task"
-                    onPress={handleCreate}
-                    loading={loading}
-                    style={styles.submitBtn}
-                />
             </View>
 
-            <DatePickerModal
-                visible={isPickerVisible}
-                onClose={() => setIsPickerVisible(false)}
-                onSelect={handleDateSelect}
-                initialDate={activePickingId === 'main' ? (mainDate || new Date()) :
-                    new Date((subtasks.find(s => s.id === activePickingId)?.dueDate) || mainDate || Date.now())}
-                title={activePickingId === 'main' ? 'Main Task Deadline' : 'Subtask Deadline'}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleConfirmDate}
+                onCancel={hideDatePicker}
             />
-        </KeyboardAvoidingView>
+
+            <DateTimePickerModal
+                isVisible={isReminderPickerVisible}
+                mode="datetime"
+                onConfirm={handleConfirmReminder}
+                onCancel={hideReminderPicker}
+            />
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    outerContainer: {
-        flex: 1,
-        height: '100%',
-    },
     container: {
-        flex: 1,
+        padding: SPACING.md,
+        width: '100%',
     },
-    stickyHeader: {
+    card: {
         backgroundColor: COLORS.white,
-        paddingBottom: SPACING.sm,
-    },
-    subtasksContent: {
+        borderRadius: RADIUS.lg,
         padding: SPACING.md,
-        paddingBottom: 100,
-    },
-    section: {
-        padding: SPACING.md,
-        backgroundColor: COLORS.white,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
-        marginBottom: SPACING.md,
-    },
-    label: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: COLORS.textSecondary,
-        marginBottom: SPACING.xs,
-        marginTop: SPACING.sm,
-    },
-    textArea: {
-        height: 80,
-        alignItems: 'flex-start',
-        paddingTop: SPACING.sm,
-    },
-    dateSelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F0F9FF',
-        padding: SPACING.md,
-        borderRadius: RADIUS.md,
-        marginTop: SPACING.md,
         borderWidth: 1,
-        borderColor: '#E0F2FE',
+        borderColor: '#EFEFEF',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+            },
+            android: {
+                elevation: 3,
+            },
+        }),
     },
-    dateText: {
-        marginLeft: SPACING.sm,
-        color: COLORS.textSecondary,
-        fontSize: 14,
+    scrollArea: {
+        maxHeight: 400,
     },
-    dateTextActive: {
-        marginLeft: SPACING.sm,
-        color: COLORS.primary,
-        fontWeight: '700',
+    titleInput: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        paddingVertical: SPACING.xs,
+        marginBottom: 4,
+    },
+    descriptionInput: {
         fontSize: 14,
+        color: '#666',
+        paddingVertical: 4,
+        minHeight: 40,
+    },
+    subtaskContainer: {
+        marginVertical: SPACING.xs,
     },
     subtaskItem: {
-        backgroundColor: COLORS.white,
-        borderRadius: RADIUS.md,
-        padding: SPACING.sm,
-        marginBottom: SPACING.sm,
-        ...SHADOWS.sm,
-    },
-    subtaskMain: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingVertical: 4,
+        gap: 8,
     },
-    subtaskIcon: {
-        marginRight: SPACING.xs,
+    subtaskText: {
+        fontSize: 13,
+        color: '#555',
+        flex: 1,
+    },
+    subtaskInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 4,
+        gap: 8,
     },
     subtaskInput: {
         flex: 1,
-        borderBottomWidth: 0,
-        backgroundColor: 'transparent',
+        fontSize: 13,
+        color: '#333',
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEE',
+        paddingVertical: 2,
     },
-    subtaskInputText: {
-        fontSize: 14,
-    },
-    removeBtn: {
-        padding: SPACING.xs,
-    },
-    subtaskDate: {
+    addSubtaskBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: 30,
-        marginTop: -5,
-        paddingBottom: 5,
+        paddingVertical: 6,
+        gap: 4,
     },
-    subtaskDateText: {
-        fontSize: 11,
-        color: COLORS.textSecondary,
+    addSubtaskText: {
+        fontSize: 12,
+        color: '#808080',
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: SPACING.sm,
+        gap: SPACING.xs,
+    },
+    pill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        backgroundColor: 'transparent',
+    },
+    pillText: {
+        fontSize: 12,
         marginLeft: 4,
+        color: '#505050',
     },
-    footer: {
-        padding: SPACING.md,
-        backgroundColor: COLORS.white,
-        borderTopWidth: 1,
-        borderTopColor: '#F0F0F0',
+    iconButton: {
+        padding: 4,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F3F3F3',
+        marginVertical: SPACING.md,
+    },
+    bottomBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    projectDropdown: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    inboxIcon: {
+        width: 16,
+        height: 16,
+        borderWidth: 1.5,
+        borderColor: '#505050',
+        borderRadius: 3,
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingBottom: 2,
+    },
+    trayIcon: {
+        width: 8,
+        height: 2,
+        backgroundColor: '#505050',
+        borderRadius: 1,
+    },
+    projectText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#505050',
+    },
+    buttonGroup: {
+        flexDirection: 'row',
+        gap: SPACING.sm,
+    },
+    cancelButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 5,
+        backgroundColor: '#F5F5F5',
+    },
+    cancelButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#444',
+    },
+    addButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 5,
+        backgroundColor: '#DE8C82',
+    },
+    addButtonDisabled: {
+        opacity: 0.6,
+    },
+    addButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.white,
     },
     errorText: {
         color: COLORS.danger,
         textAlign: 'center',
-        marginBottom: SPACING.sm,
+        marginTop: SPACING.sm,
         fontSize: 12,
     },
-    submitBtn: {
-        height: 50,
-    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    }
 });

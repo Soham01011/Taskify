@@ -15,6 +15,8 @@ export interface Task {
     completed: boolean;
     dueDate: string;
     subtasks: Subtask[];
+    alarm_type?: 'push' | 'alarm';
+    alarm_reminder_time?: string;
     created_at: string;
     updated_at: string;
 }
@@ -39,7 +41,16 @@ export const taskApi = {
     getAll: (params?: FetchTasksParams) => client.get<Task[] | PaginatedTasksResponse>('/tasks', { params }),
 
 
-    create: (data: { title: string; description?: string; dueDate?: string; subtasks?: { title: string; dueDate?: string }[] }) =>
+    create: (data: {
+        title: string;
+        description?: string;
+        dueDate?: string;
+        subtasks?: { title: string; dueDate?: string }[];
+        alarm_type?: 'push' | 'alarm';
+        alarm_reminder_time?: string;
+        created_at?: Date;
+        updated_at?: Date;
+    }) =>
         client.post<Task>('/tasks', data),
 
     update: (id: string, data: Partial<Task>) =>

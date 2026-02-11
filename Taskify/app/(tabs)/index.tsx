@@ -6,7 +6,8 @@ import {
   Text,
   TouchableOpacity,
   RefreshControl,
-  Platform
+  Platform,
+  KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -159,19 +160,22 @@ export default function TaskDashboard() {
       ) : (
         <Animated.View
           layout={Layout.springify()}
-          style={[styles.expandedModal, { zIndex: 100 }]}
+          style={[styles.compactModalContainer, { zIndex: 100 }]}
+          pointerEvents="box-none"
         >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>New Task</Text>
-            <TouchableOpacity onPress={() => setIsCreating(false)}>
-              <X size={24} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-
-          <CreateTaskForm onSuccess={() => {
-            setIsCreating(false);
-            loadTasks();
-          }} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            style={{ flex: 1, justifyContent: 'flex-end' }}
+          >
+            <CreateTaskForm
+              onSuccess={() => {
+                setIsCreating(false);
+                loadTasks();
+              }}
+              onCancel={() => setIsCreating(false)}
+            />
+          </KeyboardAvoidingView>
         </Animated.View>
       )}
 

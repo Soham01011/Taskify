@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
-import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2 } from 'lucide-react-native';
+import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2, Bell } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     withSpring,
@@ -154,6 +154,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                             ]}>
                                 {new Date(task.dueDate).toLocaleDateString()}
                             </Text>
+                            {task.alarm_type && (
+                                <View style={styles.alarmIndicator}>
+                                    {task.alarm_type === 'alarm' ? (
+                                        <Clock size={12} color="#E67E22" />
+                                    ) : (
+                                        <Bell size={12} color={COLORS.primary} />
+                                    )}
+                                    {task.alarm_reminder_time && (
+                                        <Text style={styles.alarmTime}>
+                                            {new Date(task.alarm_reminder_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </Text>
+                                    )}
+                                </View>
+                            )}
                         </View>
 
                         <Animated.View style={[styles.expandIcon, chevronStyle]}>
@@ -323,4 +337,19 @@ const styles = StyleSheet.create({
         textDecorationLine: 'line-through',
         color: COLORS.textSecondary,
     },
+    alarmIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: SPACING.md,
+        backgroundColor: '#FFF8F0',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: RADIUS.sm,
+        gap: 4,
+    },
+    alarmTime: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#E67E22',
+    }
 });
