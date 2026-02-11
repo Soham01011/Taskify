@@ -148,13 +148,17 @@ export default function TaskDashboard() {
       {!isCreating ? (
         <Animated.View
           key="fab-container"
-          entering={ZoomIn}
-          exiting={ZoomOut}
+          entering={ZoomIn.duration(400).springify()}
+          exiting={ZoomOut.duration(300).springify()}
           style={[styles.fab, { zIndex: 99 }]}
         >
           <TouchableOpacity
             style={styles.fabTouch}
-            onPress={() => setIsCreating(true)}
+            onPress={() => {
+              // Slight delay to let the tap animation (dip) finish
+              setTimeout(() => setIsCreating(true), 100);
+            }}
+            activeOpacity={0.6}
           >
             <Plus size={28} color={COLORS.white} />
           </TouchableOpacity>
@@ -162,8 +166,6 @@ export default function TaskDashboard() {
       ) : (
         <Animated.View
           key="modal-container"
-          entering={SlideInDown.springify()}
-          exiting={SlideOutDown.springify()}
           style={[styles.compactModalContainer, { zIndex: 100 }]}
           pointerEvents="box-none"
         >
