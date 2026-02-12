@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { taskApi, Task, FetchTasksParams, PaginatedTasksResponse } from '../../api/tasks';
+import { logout, removeAccount } from './authSlice';
 
 
 interface TaskState {
@@ -82,6 +83,17 @@ const taskSlice = createSlice({
             .addCase(fetchTasks.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.error.message || 'Failed to fetch tasks';
+            })
+            // Listen to auth actions for automatic cleanup
+            .addCase(logout, (state) => {
+                state.tasks = [];
+                state.pagination = null;
+                state.error = null;
+            })
+            .addCase(removeAccount, (state) => {
+                state.tasks = [];
+                state.pagination = null;
+                state.error = null;
             });
     },
 });

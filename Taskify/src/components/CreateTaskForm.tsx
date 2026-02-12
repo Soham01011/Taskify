@@ -189,7 +189,9 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                         <TouchableOpacity style={styles.pill} onPress={showDatePicker}>
                             <Calendar size={14} color="#058527" />
                             <Text style={[styles.pillText, { color: '#058527' }]}>
-                                {dueDate ? (dueDate.toDateString() === new Date().toDateString() ? 'Today' : dueDate.toLocaleDateString()) : 'No Date'}
+                                {dueDate ? (
+                                    `${dueDate.toDateString() === new Date().toDateString() ? 'Today' : dueDate.toLocaleDateString()} ${dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                ) : 'No Date'}
                             </Text>
                             {dueDate && (
                                 <TouchableOpacity onPress={() => setDueDate(null)}>
@@ -258,7 +260,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
             <DateTimePickerModal
                 isVisible={isDatePickerVisible}
-                mode="date"
+                mode="datetime"
                 onConfirm={handleConfirmDate}
                 onCancel={hideDatePicker}
             />

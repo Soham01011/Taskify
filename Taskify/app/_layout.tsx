@@ -11,6 +11,7 @@ import { store, persistor, RootState } from '../src/store';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
+import { NotificationManager } from '../src/components/NotificationManager';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -51,6 +52,7 @@ function AppContent() {
 
   return (
     <ThemeProvider value={activeColorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <NotificationManager />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

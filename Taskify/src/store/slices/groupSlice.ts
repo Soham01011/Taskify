@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { groupApi, Group } from '../../api/groups';
+import { logout, removeAccount } from './authSlice';
 
 interface GroupState {
     groups: Group[];
@@ -49,6 +50,17 @@ const groupSlice = createSlice({
             })
             .addCase(fetchGroupDetails.fulfilled, (state, action) => {
                 state.currentGroup = action.payload;
+            })
+            // Listen to auth actions for automatic cleanup
+            .addCase(logout, (state) => {
+                state.groups = [];
+                state.currentGroup = null;
+                state.error = null;
+            })
+            .addCase(removeAccount, (state) => {
+                state.groups = [];
+                state.currentGroup = null;
+                state.error = null;
             });
     },
 });
