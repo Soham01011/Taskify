@@ -1,9 +1,10 @@
-import { COLORS, SPACING, RADIUS, SHADOWS } from '@/src/constants/theme';
+import { SPACING, RADIUS, SHADOWS } from '@/src/constants/theme';
 import { StyleSheet } from 'react-native';
-export const styles = StyleSheet.create({
+
+export const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: colors.background,
     },
     subHeader: {
         paddingHorizontal: SPACING.lg,
@@ -12,13 +13,13 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
     },
 
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: COLORS.text,
+        color: colors.text,
     },
     addBtn: {
         padding: SPACING.sm,
@@ -28,7 +29,7 @@ export const styles = StyleSheet.create({
     },
     groupCard: {
         flexDirection: 'row',
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         padding: SPACING.md,
         borderRadius: RADIUS.lg,
         marginBottom: SPACING.md,
@@ -39,7 +40,7 @@ export const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: SPACING.md,
@@ -50,11 +51,11 @@ export const styles = StyleSheet.create({
     groupName: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.text,
+        color: colors.text,
     },
     groupDesc: {
         fontSize: 14,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginBottom: SPACING.xs,
     },
     groupMeta: {
@@ -68,13 +69,13 @@ export const styles = StyleSheet.create({
     },
     metaText: {
         fontSize: 12,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginLeft: 4,
     },
     adminBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#E8F5E9',
+        backgroundColor: colors.secondary + '20',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: RADIUS.sm,
@@ -82,7 +83,7 @@ export const styles = StyleSheet.create({
     adminText: {
         fontSize: 10,
         fontWeight: '700',
-        color: COLORS.secondary,
+        color: colors.secondary,
         marginLeft: 2,
     },
     emptyContainer: {
@@ -91,7 +92,7 @@ export const styles = StyleSheet.create({
         marginTop: 100,
     },
     emptyText: {
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         fontSize: 16,
     },
 });

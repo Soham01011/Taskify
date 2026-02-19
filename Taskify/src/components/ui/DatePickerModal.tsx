@@ -9,8 +9,9 @@ import {
     ScrollView,
 } from 'react-native';
 import { ChevronLeft, ChevronRight, X, Clock } from 'lucide-react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { SPACING, RADIUS } from '../../constants/theme';
 import { Button } from './Button';
+import { useAppTheme } from '@/hooks/use-theme';
 
 interface DatePickerProps {
     visible: boolean;
@@ -27,6 +28,8 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
     initialDate,
     title = 'Select Date',
 }) => {
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
     const [currentMonth, setCurrentMonth] = useState(initialDate || new Date());
     const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
     const [showTimePicker, setShowTimePicker] = useState(false);
@@ -97,7 +100,7 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
                     <View style={styles.header}>
                         <Text style={styles.title}>{title}</Text>
                         <TouchableOpacity onPress={onClose}>
-                            <X size={24} color={COLORS.text} />
+                            <X size={24} color={colors.text} />
                         </TouchableOpacity>
                     </View>
 
@@ -105,10 +108,10 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
                         <Text style={styles.monthName}>{monthName}</Text>
                         <View style={styles.navBtns}>
                             <TouchableOpacity onPress={handlePrevMonth} style={styles.navBtn}>
-                                <ChevronLeft size={24} color={COLORS.text} />
+                                <ChevronLeft size={24} color={colors.text} />
                             </TouchableOpacity>
                             <TouchableOpacity onPress={handleNextMonth} style={styles.navBtn}>
-                                <ChevronRight size={24} color={COLORS.text} />
+                                <ChevronRight size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -143,7 +146,7 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
 
                     <View style={styles.timeSection}>
                         <View style={styles.timeHeader}>
-                            <Clock size={20} color={COLORS.textSecondary} />
+                            <Clock size={20} color={colors.textSecondary} />
                             <Text style={styles.timeLabel}>Select Time</Text>
                         </View>
                         <View style={styles.timeInputRow}>
@@ -180,17 +183,17 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: colors.overlay,
         justifyContent: 'flex-end',
     },
     dismiss: {
         flex: 1,
     },
     container: {
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         borderTopLeftRadius: RADIUS.xl,
         borderTopRightRadius: RADIUS.xl,
         padding: SPACING.lg,
@@ -199,7 +202,7 @@ const styles = StyleSheet.create({
     handle: {
         width: 40,
         height: 5,
-        backgroundColor: '#E0E0E0',
+        backgroundColor: colors.border,
         borderRadius: 2.5,
         alignSelf: 'center',
         marginBottom: SPACING.md,
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: COLORS.text,
+        color: colors.text,
     },
     monthSelector: {
         flexDirection: 'row',
@@ -224,7 +227,7 @@ const styles = StyleSheet.create({
     monthName: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.text,
+        color: colors.text,
     },
     navBtns: {
         flexDirection: 'row',
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 12,
         fontWeight: '600',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     grid: {
         flexDirection: 'row',
@@ -258,15 +261,15 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     selectedDay: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         borderRadius: 22.5,
     },
     dayText: {
         fontSize: 16,
-        color: COLORS.text,
+        color: colors.text,
     },
     selectedDayText: {
-        color: COLORS.white,
+        color: colors.white,
         fontWeight: 'bold',
     },
     timeSection: {
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
     timeLabel: {
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.text,
+        color: colors.text,
         marginLeft: SPACING.xs,
     },
     timeInputRow: {
@@ -289,19 +292,19 @@ const styles = StyleSheet.create({
     timeChip: {
         paddingHorizontal: SPACING.md,
         paddingVertical: SPACING.sm,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: colors.border,
         borderRadius: RADIUS.md,
         marginRight: SPACING.sm,
     },
     activeTimeChip: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
     },
     timeChipText: {
         fontSize: 14,
-        color: COLORS.text,
+        color: colors.text,
     },
     activeTimeChipText: {
-        color: COLORS.white,
+        color: colors.white,
         fontWeight: 'bold',
     },
     confirmBtn: {

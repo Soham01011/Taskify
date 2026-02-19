@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../constants/theme';
+import { SPACING, RADIUS } from '../../constants/theme';
+import { useAppTheme } from '@/hooks/use-theme';
 
 interface InputProps extends TextInputProps {
     label?: string;
@@ -19,6 +20,9 @@ export const Input: React.FC<InputProps> = ({
     containerStyle,
     ...props
 }) => {
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
+
     return (
         <View style={[styles.container, containerStyle]}>
             {label && <Text style={styles.label}>{label}</Text>}
@@ -28,8 +32,8 @@ export const Input: React.FC<InputProps> = ({
             ]}>
                 {icon && <View style={styles.iconContainer}>{icon}</View>}
                 <TextInput
-                    style={styles.input}
-                    placeholderTextColor={COLORS.placeholder}
+                    style={[styles.input, style]}
+                    placeholderTextColor={colors.placeholder}
                     {...props}
                 />
                 {rightIcon && <View style={styles.iconContainer}>{rightIcon}</View>}
@@ -39,7 +43,7 @@ export const Input: React.FC<InputProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         marginBottom: SPACING.md,
         width: '100%',
@@ -47,34 +51,34 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.text,
+        color: colors.text,
         marginBottom: SPACING.xs,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.inputBg,
+        backgroundColor: colors.inputBg,
         borderRadius: RADIUS.md,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: colors.border,
         paddingHorizontal: SPACING.sm,
         height: 50,
     },
     input: {
         flex: 1,
         height: '100%',
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 16,
         paddingHorizontal: SPACING.sm,
     },
     inputError: {
-        borderColor: COLORS.danger,
+        borderColor: colors.danger,
     },
     iconContainer: {
         paddingHorizontal: SPACING.xs,
     },
     errorText: {
-        color: COLORS.danger,
+        color: colors.danger,
         fontSize: 12,
         marginTop: SPACING.xs,
         marginLeft: SPACING.xs,

@@ -4,10 +4,13 @@ import { User } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { SPACING, RADIUS } from '../constants/theme';
+import { useAppTheme } from '@/hooks/use-theme';
 
 export const AppHeader = () => {
     const router = useRouter();
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
     const { tasks } = useSelector((state: RootState) => state.tasks);
 
@@ -25,31 +28,31 @@ export const AppHeader = () => {
                 onPress={() => router.push('/profile')}
             >
                 <View style={styles.avatarContainer}>
-                    <User size={24} color={COLORS.primary} strokeWidth={2.5} />
+                    <User size={24} color={colors.primary} strokeWidth={2.5} />
                 </View>
             </TouchableOpacity>
         </View>
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     header: {
         paddingHorizontal: SPACING.lg,
-        paddingTop: Platform.OS === 'android' ? SPACING.xl * 1.5 : SPACING.md,
+        paddingTop: Platform.OS === 'android' ? SPACING.md : SPACING.xl,
         paddingBottom: SPACING.md,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
     },
     greeting: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: COLORS.text,
+        color: colors.text,
     },
     subtitle: {
         fontSize: 14,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginTop: 2,
     },
     profileBtn: {
@@ -64,10 +67,10 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#F0F9FF',
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1.5,
-        borderColor: '#E1F5FE',
+        borderColor: colors.border,
     },
 });

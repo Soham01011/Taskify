@@ -1,10 +1,10 @@
-import { COLORS, SPACING, RADIUS } from '../../src/constants/theme';
-import { StyleSheet } from 'react-native';
-import { Platform } from 'react-native';
-export const styles = StyleSheet.create({
+import { SPACING, RADIUS } from '../../src/constants/theme';
+import { StyleSheet, Platform } from 'react-native';
+
+export const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: colors.background,
     },
     appBar: {
         flexDirection: 'row',
@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? 60 : 40,
         paddingBottom: SPACING.md,
         paddingHorizontal: SPACING.md,
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
     },
     backBtn: {
         padding: SPACING.xs,
@@ -21,7 +21,7 @@ export const styles = StyleSheet.create({
     appBarTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: COLORS.text,
+        color: colors.text,
     },
     content: {
         flex: 1,
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
         paddingBottom: SPACING.xl * 2,
     },
     section: {
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         padding: SPACING.lg,
         borderRadius: RADIUS.lg,
         marginBottom: SPACING.lg,
@@ -39,17 +39,17 @@ export const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.text,
+        color: colors.text,
         marginBottom: SPACING.lg,
     },
     label: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.text,
+        color: colors.text,
         marginBottom: SPACING.xs,
     },
     errorText: {
-        color: COLORS.danger,
+        color: colors.danger,
         textAlign: 'center',
         marginBottom: SPACING.md,
     },
@@ -57,6 +57,6 @@ export const styles = StyleSheet.create({
         marginTop: SPACING.md,
     },
     submitBtn: {
-        backgroundColor: '#8E8E8E', // Gray as seen in screenshot "Continue"
+        backgroundColor: colors.primary,
     },
 });

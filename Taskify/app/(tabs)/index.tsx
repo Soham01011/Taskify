@@ -34,14 +34,17 @@ import { fetchTasks, updateTask } from '@/src/store/slices/taskSlice';
 
 import { taskApi, Task } from '@/src/api/tasks';
 import { TaskCard } from '@/src/components/TaskCard';
-import { COLORS, SPACING, RADIUS } from '@/src/constants/theme';
-import { styles } from '@/assets/styles/mainscreen.styles';
+import { SPACING, RADIUS } from '@/src/constants/theme';
+import { getStyles } from '@/assets/styles/mainscreen.styles';
+import { useAppTheme } from '@/hooks/use-theme';
 
 import { AppHeader } from '@/src/components/AppHeader';
 
 export default function TaskDashboard() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors);
   const { tasks, isLoading, pagination } = useSelector((state: RootState) => state.tasks);
   const { currentUserId } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = useState(false);
@@ -176,9 +179,9 @@ export default function TaskDashboard() {
         >
           <Text style={styles.sortText}>Time</Text>
           {sortOrder === 'asc' ? (
-            <ArrowUp size={14} color={COLORS.primary} />
+            <ArrowUp size={14} color={colors.primary} />
           ) : (
-            <ArrowDown size={14} color={COLORS.primary} />
+            <ArrowDown size={14} color={colors.primary} />
           )}
         </TouchableOpacity>
       </View>
@@ -197,7 +200,12 @@ export default function TaskDashboard() {
         onEndReached={loadMoreTasks}
         onEndReachedThreshold={0.5}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
 
         ListEmptyComponent={
@@ -225,7 +233,7 @@ export default function TaskDashboard() {
             }}
             activeOpacity={0.6}
           >
-            <Plus size={28} color={COLORS.white} />
+            <Plus size={28} color={colors.white} />
           </TouchableOpacity>
         </Animated.View>
       ) : (

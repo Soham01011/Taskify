@@ -1,9 +1,10 @@
-import { COLORS, SPACING } from '@/src/constants/theme';
+import { SPACING } from '@/src/constants/theme';
 import { StyleSheet } from 'react-native';
-export const styles = StyleSheet.create({
+
+export const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: colors.background,
     },
     scrollContent: {
         flexGrow: 1,
@@ -21,21 +22,21 @@ export const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 8,
-        borderColor: '#e1f5fe',
+        borderColor: colors.border,
     },
     logoText: {
         fontSize: 40,
         fontWeight: 'bold',
-        color: COLORS.primary,
+        color: colors.primary,
     },
     brandName: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: COLORS.text,
+        color: colors.text,
         marginTop: SPACING.md,
     },
     form: {
@@ -44,7 +45,7 @@ export const styles = StyleSheet.create({
     label: {
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.text,
+        color: colors.text,
         marginBottom: SPACING.sm,
     },
     passwordHeader: {
@@ -57,7 +58,7 @@ export const styles = StyleSheet.create({
         marginBottom: SPACING.lg,
     },
     forgotText: {
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 14,
         fontWeight: '500',
     },
@@ -65,7 +66,7 @@ export const styles = StyleSheet.create({
         marginTop: SPACING.sm,
     },
     errorText: {
-        color: COLORS.danger,
+        color: colors.danger,
         marginBottom: SPACING.md,
         textAlign: 'center',
     },
@@ -75,11 +76,11 @@ export const styles = StyleSheet.create({
         marginTop: SPACING.xl,
     },
     footerText: {
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         fontSize: 14,
     },
     registerText: {
-        color: COLORS.primary,
+        color: colors.primary,
         fontSize: 14,
         fontWeight: '700',
     },

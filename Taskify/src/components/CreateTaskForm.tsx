@@ -23,8 +23,8 @@ import {
     Circle
 } from 'lucide-react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { styles } from '@/assets/styles/CreateTaskForm.styles';
-import { COLORS } from '@/src/constants/theme';
+import { getStyles } from '@/assets/styles/CreateTaskForm.styles';
+import { useAppTheme } from '@/hooks/use-theme';
 import { taskApi } from '../api/tasks';
 import { fetchTasks } from '../store/slices/taskSlice';
 import { AppDispatch } from '../store';
@@ -36,6 +36,8 @@ interface CreateTaskFormProps {
 }
 
 export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCancel }) => {
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
     const dispatch = useDispatch<AppDispatch>();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -126,14 +128,14 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                         <TextInput
                             style={styles.titleInput}
                             placeholder="Task name"
-                            placeholderTextColor="#A0A0A0"
+                            placeholderTextColor={colors.placeholder}
                             value={title}
                             onChangeText={setTitle}
                         />
                         <TextInput
                             style={styles.descriptionInput}
                             placeholder="Description"
-                            placeholderTextColor="#C0C0C0"
+                            placeholderTextColor={colors.placeholder}
                             value={description}
                             onChangeText={setDescription}
                             multiline
@@ -144,10 +146,10 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             <View style={styles.subtaskContainer}>
                                 {subtasks.map((st, index) => (
                                     <View key={index} style={styles.subtaskItem}>
-                                        <Circle size={14} color="#808080" />
+                                        <Circle size={14} color={colors.textSecondary} />
                                         <Text style={styles.subtaskText}>{st}</Text>
                                         <TouchableOpacity onPress={() => removeSubtask(index)}>
-                                            <X size={14} color="#808080" />
+                                            <X size={14} color={colors.textSecondary} />
                                         </TouchableOpacity>
                                     </View>
                                 ))}
@@ -165,7 +167,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                     onSubmitEditing={addSubtask}
                                 />
                                 <TouchableOpacity onPress={addSubtask}>
-                                    <Plus size={20} color={COLORS.primary} />
+                                    <Plus size={20} color={colors.primary} />
                                 </TouchableOpacity>
                             </View>
                         ) : (
@@ -173,7 +175,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                 style={styles.addSubtaskBtn}
                                 onPress={() => setShowSubtaskInput(true)}
                             >
-                                <Plus size={14} color="#808080" />
+                                <Plus size={14} color={colors.textSecondary} />
                                 <Text style={styles.addSubtaskText}>Add subtask</Text>
                             </TouchableOpacity>
                         )}
@@ -196,24 +198,24 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
                         <TouchableOpacity style={styles.pill} onPress={toggleAlarmType}>
                             {alarmType === 'push' ? (
-                                <Bell size={14} color="#808080" />
+                                <Bell size={14} color={colors.textSecondary} />
                             ) : (
-                                <Clock size={14} color="#E67E22" />
+                                <Clock size={14} color={colors.primary} />
                             )}
-                            <Text style={[styles.pillText, alarmType === 'alarm' && { color: '#E67E22' }]}>
+                            <Text style={[styles.pillText, alarmType === 'alarm' && { color: colors.primary }]}>
                                 {alarmType === 'push' ? 'Push' : 'Alarm'}
                             </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.pill} onPress={showReminderPicker}>
-                            <Bell size={14} color="#808080" />
+                            <Bell size={14} color={colors.textSecondary} />
                             <Text style={styles.pillText}>
                                 {alarmReminderTime ? alarmReminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reminders'}
                             </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.iconButton}>
-                            <MoreHorizontal size={18} color="#808080" />
+                            <MoreHorizontal size={18} color={colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
 
@@ -225,7 +227,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                 <View style={styles.trayIcon} />
                             </View>
                             <Text style={styles.projectText}>Inbox</Text>
-                            <ChevronDown size={14} color="#505050" />
+                            <ChevronDown size={14} color={colors.textSecondary} />
                         </TouchableOpacity>
 
                         <View style={styles.buttonGroup}>

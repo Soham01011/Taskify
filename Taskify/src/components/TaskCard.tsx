@@ -10,11 +10,12 @@ import Animated, {
     Extrapolate
 } from 'react-native-reanimated';
 import { Task, Subtask, taskApi } from '../api/tasks';
-import { COLORS, SPACING, } from '../constants/theme';
+import { SPACING, } from '../constants/theme';
 import { useDispatch } from 'react-redux';
 import { fetchTasks, removeTask, updateTask } from '../store/slices/taskSlice';
 import { AppDispatch } from '../store';
-import { styles } from '@/assets/styles/TaskCard.styles';
+import { getStyles } from '@/assets/styles/TaskCard.styles';
+import { useAppTheme } from '@/hooks/use-theme';
 
 interface TaskCardProps {
     task: Task;
@@ -23,6 +24,8 @@ interface TaskCardProps {
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete }) => {
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
     const dispatch = useDispatch<AppDispatch>();
     const [isExpanded, setIsExpanded] = useState(false);
     const isOverdue = new Date(task.dueDate) < new Date() && !task.completed;
@@ -135,9 +138,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                             onPress={() => onComplete(task._id)}
                         >
                             {task.completed ? (
-                                <CheckCircle size={24} color={COLORS.secondary} />
+                                <CheckCircle size={24} color={colors.secondary} />
                             ) : (
-                                <Circle size={24} color={COLORS.border} />
+                                <Circle size={24} color={colors.border} />
                             )}
                         </TouchableOpacity>
                     </View>
@@ -148,7 +151,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
 
                     <View style={styles.footer}>
                         <View style={styles.meta}>
-                            <Clock size={14} color={isOverdue ? COLORS.danger : COLORS.textSecondary} />
+                            <Clock size={14} color={isOverdue ? colors.danger : colors.textSecondary} />
                             <Text style={[
                                 styles.metaText,
                                 isOverdue ? styles.overdueText : null
@@ -158,9 +161,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                             {task.alarm_type && (
                                 <View style={styles.alarmIndicator}>
                                     {task.alarm_type === 'alarm' ? (
-                                        <Clock size={12} color="#E67E22" />
+                                        <Clock size={12} color={colors.primary} />
                                     ) : (
-                                        <Bell size={12} color={COLORS.primary} />
+                                        <Bell size={12} color={colors.primary} />
                                     )}
                                     {task.alarm_reminder_time && (
                                         <Text style={styles.alarmTime}>
@@ -172,7 +175,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                         </View>
 
                         <Animated.View style={[styles.expandIcon, chevronStyle]}>
-                            <ChevronDown size={20} color={COLORS.textSecondary} />
+                            <ChevronDown size={20} color={colors.textSecondary} />
                         </Animated.View>
                     </View>
                 </View>
@@ -188,16 +191,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                                         style={styles.deleteSubtaskBtn}
                                         onPress={() => handleDeleteSubtask(subtask._id!)}
                                     >
-                                        <Trash2 size={16} color={COLORS.danger} opacity={0.6} />
+                                        <Trash2 size={16} color={colors.danger} opacity={0.6} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.subtaskMain}
                                         onPress={() => handleSubtaskToggle(subtask._id!, subtask.completed)}
                                     >
                                         {subtask.completed ? (
-                                            <CheckSquare size={18} color={COLORS.secondary} />
+                                            <CheckSquare size={18} color={colors.secondary} />
                                         ) : (
-                                            <Square size={18} color={COLORS.border} />
+                                            <Square size={18} color={colors.border} />
                                         )}
                                         <Text style={[
                                             styles.subtaskTitle,

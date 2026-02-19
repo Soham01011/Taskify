@@ -1,16 +1,17 @@
 import { StyleSheet, Platform } from "react-native";
-import { COLORS, RADIUS, SPACING } from "@/src/constants/theme";
-export const styles = StyleSheet.create({
+import { RADIUS, SPACING } from "@/src/constants/theme";
+
+export const getStyles = (colors: any) => StyleSheet.create({
     container: {
         padding: SPACING.md,
         width: '100%',
     },
     card: {
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         borderRadius: RADIUS.lg,
         padding: SPACING.md,
         borderWidth: 1,
-        borderColor: '#EFEFEF',
+        borderColor: colors.border,
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
@@ -29,13 +30,13 @@ export const styles = StyleSheet.create({
     titleInput: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#333',
+        color: colors.text,
         paddingVertical: SPACING.xs,
         marginBottom: 4,
     },
     descriptionInput: {
         fontSize: 14,
-        color: '#666',
+        color: colors.textSecondary,
         paddingVertical: 4,
         minHeight: 40,
     },
@@ -50,7 +51,7 @@ export const styles = StyleSheet.create({
     },
     subtaskText: {
         fontSize: 13,
-        color: '#555',
+        color: colors.text,
         flex: 1,
     },
     subtaskInputRow: {
@@ -62,9 +63,9 @@ export const styles = StyleSheet.create({
     subtaskInput: {
         flex: 1,
         fontSize: 13,
-        color: '#333',
+        color: colors.text,
         borderBottomWidth: 1,
-        borderBottomColor: '#EEE',
+        borderBottomColor: colors.border,
         paddingVertical: 2,
     },
     addSubtaskBtn: {
@@ -75,7 +76,7 @@ export const styles = StyleSheet.create({
     },
     addSubtaskText: {
         fontSize: 12,
-        color: '#808080',
+        color: colors.textSecondary,
     },
     actionsRow: {
         flexDirection: 'row',
@@ -90,20 +91,20 @@ export const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 5,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: colors.border,
         backgroundColor: 'transparent',
     },
     pillText: {
         fontSize: 12,
         marginLeft: 4,
-        color: '#505050',
+        color: colors.text,
     },
     iconButton: {
         padding: 4,
     },
     divider: {
         height: 1,
-        backgroundColor: '#F3F3F3',
+        backgroundColor: colors.border,
         marginVertical: SPACING.md,
     },
     bottomBar: {
@@ -120,7 +121,7 @@ export const styles = StyleSheet.create({
         width: 16,
         height: 16,
         borderWidth: 1.5,
-        borderColor: '#505050',
+        borderColor: colors.text,
         borderRadius: 3,
         justifyContent: 'flex-end',
         alignItems: 'center',
@@ -129,13 +130,13 @@ export const styles = StyleSheet.create({
     trayIcon: {
         width: 8,
         height: 2,
-        backgroundColor: '#505050',
+        backgroundColor: colors.text,
         borderRadius: 1,
     },
     projectText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#505050',
+        color: colors.text,
     },
     buttonGroup: {
         flexDirection: 'row',
@@ -145,18 +146,18 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 5,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: colors.border,
     },
     cancelButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#444',
+        color: colors.textSecondary,
     },
     addButton: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 5,
-        backgroundColor: '#DE8C82',
+        backgroundColor: colors.primary,
     },
     addButtonDisabled: {
         opacity: 0.6,
@@ -164,10 +165,10 @@ export const styles = StyleSheet.create({
     addButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.white,
+        color: colors.white,
     },
     errorText: {
-        color: COLORS.danger,
+        color: colors.danger,
         textAlign: 'center',
         marginTop: SPACING.sm,
         fontSize: 12,

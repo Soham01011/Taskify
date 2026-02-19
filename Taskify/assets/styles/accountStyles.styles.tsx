@@ -1,14 +1,15 @@
 import { StyleSheet } from 'react-native';
-import { SPACING, COLORS, RADIUS } from '@/src/constants/theme';
-export const accountStyles = StyleSheet.create({
+import { SPACING, RADIUS } from '@/src/constants/theme';
+
+export const getAccountStyles = (colors: any) => StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: colors.overlay,
         justifyContent: 'center',
         padding: SPACING.xl,
     },
     modal: {
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         borderRadius: RADIUS.xl,
         padding: SPACING.lg,
         maxHeight: '80%',
@@ -22,7 +23,7 @@ export const accountStyles = StyleSheet.create({
     modalTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: COLORS.text,
+        color: colors.text,
     },
     accountList: {
         marginBottom: SPACING.lg,
@@ -31,7 +32,7 @@ export const accountStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: SPACING.md,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.background,
         borderRadius: RADIUS.lg,
         marginBottom: SPACING.sm,
     },
@@ -39,13 +40,13 @@ export const accountStyles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: SPACING.md,
     },
     avatarText: {
-        color: COLORS.white,
+        color: colors.white,
         fontWeight: 'bold',
         fontSize: 18,
     },
@@ -53,7 +54,7 @@ export const accountStyles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.text,
+        color: colors.text,
     },
     anotherBtn: {
         marginTop: SPACING.sm,

@@ -14,17 +14,21 @@ import { useDispatch, useSelector } from 'react-redux';
 import { User as UserIcon, Phone, Lock, Eye, EyeOff, X, LogIn } from 'lucide-react-native';
 import { Modal } from 'react-native';
 import { RootState } from '@/src/store';
-import { COLORS, RADIUS, SPACING } from '@/src/constants/theme';
+import { RADIUS, SPACING } from '@/src/constants/theme';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { setLoading, setError, loginSuccess } from '@/src/store/slices/authSlice';
 import { authApi } from '@/src/api/auth';
-import { styles } from '@/assets/styles/loginscreen.style';
-import { accountStyles } from '@/assets/styles/accountStyles.styles';
+import { getStyles } from '@/assets/styles/loginscreen.style';
+import { getAccountStyles } from '@/assets/styles/accountStyles.styles';
+import { useAppTheme } from '@/hooks/use-theme';
 
 export default function LoginScreen() {
     const router = useRouter();
     const dispatch = useDispatch();
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
+    const accountStyles = getAccountStyles(colors);
     const { users } = useSelector((state: RootState) => state.auth);
 
     const [username, setUsername] = useState('');
@@ -91,7 +95,7 @@ export default function LoginScreen() {
                         value={username}
                         onChangeText={setUsername}
                         autoCapitalize="none"
-                        icon={<UserIcon size={20} color={COLORS.textSecondary} />}
+                        icon={<UserIcon size={20} color={colors.textSecondary} />}
                     />
 
                     <View style={styles.passwordHeader}>
@@ -102,13 +106,13 @@ export default function LoginScreen() {
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry={!showPassword}
-                        icon={<Lock size={20} color={COLORS.textSecondary} />}
+                        icon={<Lock size={20} color={colors.textSecondary} />}
                         rightIcon={
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                                 {showPassword ? (
-                                    <EyeOff size={20} color={COLORS.textSecondary} />
+                                    <EyeOff size={20} color={colors.textSecondary} />
                                 ) : (
-                                    <Eye size={20} color={COLORS.textSecondary} />
+                                    <Eye size={20} color={colors.textSecondary} />
                                 )}
                             </TouchableOpacity>
                         }
@@ -145,7 +149,7 @@ export default function LoginScreen() {
                         <View style={accountStyles.modalHeader}>
                             <Text style={accountStyles.modalTitle}>Choose Account</Text>
                             <TouchableOpacity onPress={() => setShowAccountSelector(false)}>
-                                <X size={24} color={COLORS.text} />
+                                <X size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
 
@@ -165,7 +169,7 @@ export default function LoginScreen() {
                                         </Text>
                                     </View>
                                     <Text style={accountStyles.accountName}>{user.username}</Text>
-                                    <LogIn size={20} color={COLORS.primary} />
+                                    <LogIn size={20} color={colors.primary} />
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>

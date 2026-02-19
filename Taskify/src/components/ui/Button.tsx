@@ -7,7 +7,8 @@ import {
     ViewStyle,
     TextStyle
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { useAppTheme } from '@/hooks/use-theme';
 
 interface ButtonProps {
     title: string;
@@ -28,6 +29,9 @@ export const Button: React.FC<ButtonProps> = ({
     style,
     textStyle
 }) => {
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
+
     const getButtonStyle = () => {
         switch (variant) {
             case 'secondary': return styles.secondary;
@@ -57,7 +61,7 @@ export const Button: React.FC<ButtonProps> = ({
             activeOpacity={0.8}
         >
             {loading ? (
-                <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.white} />
+                <ActivityIndicator color={variant === 'outline' ? colors.primary : colors.white} />
             ) : (
                 <Text style={[getTextStyle(), textStyle]}>{title}</Text>
             )}
@@ -65,7 +69,7 @@ export const Button: React.FC<ButtonProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     button: {
         height: 50,
         borderRadius: RADIUS.md,
@@ -75,26 +79,26 @@ const styles = StyleSheet.create({
         ...SHADOWS.sm,
     },
     primary: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
     },
     secondary: {
-        backgroundColor: COLORS.secondary,
+        backgroundColor: colors.secondary,
     },
     danger: {
-        backgroundColor: COLORS.danger,
+        backgroundColor: colors.danger,
     },
     outline: {
         backgroundColor: 'transparent',
         borderWidth: 1,
-        borderColor: COLORS.primary,
+        borderColor: colors.primary,
     },
     buttonText: {
-        color: COLORS.white,
+        color: colors.white,
         fontSize: 16,
         fontWeight: '700',
     },
     outlineText: {
-        color: COLORS.primary,
+        color: colors.primary,
         fontSize: 16,
         fontWeight: '700',
     },

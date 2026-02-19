@@ -1,20 +1,21 @@
 import { StyleSheet } from "react-native";
-import { COLORS, SPACING, RADIUS, SHADOWS } from "@/src/constants/theme";
-export const styles = StyleSheet.create({
+import { SPACING, RADIUS, SHADOWS } from "@/src/constants/theme";
+
+export const getStyles = (colors: any) => StyleSheet.create({
     cardContainer: {
         marginBottom: SPACING.md,
     },
     card: {
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         borderRadius: RADIUS.lg,
         padding: SPACING.md,
         ...SHADOWS.sm,
-        overflow: 'hidden', // Fixes rounded corners clipping
+        overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'transparent', // Default border to avoid jump
+        borderColor: 'transparent',
     },
     expandedCard: {
-        borderColor: COLORS.primary,
+        borderColor: colors.primary,
     },
     content: {
         flex: 1,
@@ -33,15 +34,15 @@ export const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.text,
+        color: colors.text,
         marginRight: SPACING.sm,
     },
     completedTextStrike: {
         textDecorationLine: 'line-through',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     subtaskCountBadge: {
-        backgroundColor: '#F0F9FF',
+        backgroundColor: colors.primary + '15',
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.sm,
@@ -49,11 +50,11 @@ export const styles = StyleSheet.create({
     subtaskCountText: {
         fontSize: 10,
         fontWeight: '700',
-        color: COLORS.primary,
+        color: colors.primary,
     },
     description: {
         fontSize: 14,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginBottom: SPACING.md,
     },
     footer: {
@@ -61,7 +62,7 @@ export const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         borderTopWidth: 1,
-        borderTopColor: '#F0F0F0',
+        borderTopColor: colors.border,
         paddingTop: SPACING.sm,
     },
     meta: {
@@ -70,11 +71,11 @@ export const styles = StyleSheet.create({
     },
     metaText: {
         fontSize: 12,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginLeft: SPACING.xs,
     },
     overdueText: {
-        color: COLORS.danger,
+        color: colors.danger,
         fontWeight: '600',
     },
     expandIcon: {
@@ -85,13 +86,13 @@ export const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: colors.border,
         marginVertical: SPACING.md,
     },
     subtaskHeader: {
         fontSize: 14,
         fontWeight: '700',
-        color: COLORS.text,
+        color: colors.text,
         marginBottom: SPACING.sm,
     },
     subtasksList: {
@@ -112,20 +113,19 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
     },
     subtaskTitle: {
-
         fontSize: 14,
-        color: COLORS.text,
+        color: colors.text,
         marginLeft: SPACING.sm,
     },
     subtaskCompletedText: {
         textDecorationLine: 'line-through',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     alarmIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
         marginLeft: SPACING.md,
-        backgroundColor: '#FFF8F0',
+        backgroundColor: colors.primary + '10',
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.sm,
@@ -134,6 +134,6 @@ export const styles = StyleSheet.create({
     alarmTime: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#E67E22',
+        color: colors.primary,
     }
 });

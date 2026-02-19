@@ -10,14 +10,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, User, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { COLORS } from '@/src/constants/theme';
+import { authApi } from '@/src/api/auth';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
-import { authApi } from '@/src/api/auth';
-import { styles } from '@/assets/styles/registerscreen.style';
+import { getStyles } from '@/assets/styles/registerscreen.style';
+import { useAppTheme } from '@/hooks/use-theme';
 
 export default function RegisterScreen() {
     const router = useRouter();
+    const { colors } = useAppTheme();
+    const styles = getStyles(colors);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -52,7 +54,7 @@ export default function RegisterScreen() {
         <View style={styles.container}>
             <View style={styles.appBar}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <ChevronLeft size={24} color={COLORS.text} />
+                    <ChevronLeft size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.appBarTitle}>Registration</Text>
             </View>
@@ -71,7 +73,7 @@ export default function RegisterScreen() {
                             value={username}
                             onChangeText={setUsername}
                             autoCapitalize="none"
-                            icon={<User size={18} color={COLORS.textSecondary} />}
+                            icon={<User size={18} color={colors.textSecondary} />}
                         />
 
                         <Text style={styles.label}>Password *</Text>
@@ -80,13 +82,13 @@ export default function RegisterScreen() {
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
-                            icon={<Lock size={18} color={COLORS.textSecondary} />}
+                            icon={<Lock size={18} color={colors.textSecondary} />}
                             rightIcon={
                                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                                     {showPassword ? (
-                                        <EyeOff size={18} color={COLORS.textSecondary} />
+                                        <EyeOff size={18} color={colors.textSecondary} />
                                     ) : (
-                                        <Eye size={18} color={COLORS.textSecondary} />
+                                        <Eye size={18} color={colors.textSecondary} />
                                     )}
                                 </TouchableOpacity>
                             }
@@ -98,7 +100,7 @@ export default function RegisterScreen() {
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             secureTextEntry={!showPassword}
-                            icon={<Lock size={18} color={COLORS.textSecondary} />}
+                            icon={<Lock size={18} color={colors.textSecondary} />}
                         />
                     </View>
 

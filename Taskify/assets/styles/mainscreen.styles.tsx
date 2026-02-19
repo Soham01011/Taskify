@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '@/src/constants/theme';
+import { SPACING, RADIUS } from '@/src/constants/theme';
 import { Platform } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: colors.background,
     },
 
     toolbar: {
@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     },
     tabs: {
         flexDirection: 'row',
-        backgroundColor: '#EEEEEE',
+        backgroundColor: colors.border,
         padding: 4,
         borderRadius: RADIUS.md,
     },
@@ -27,15 +27,15 @@ export const styles = StyleSheet.create({
         borderRadius: RADIUS.sm,
     },
     activeTab: {
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
     },
     tabText: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     activeTabText: {
-        color: COLORS.primary,
+        color: colors.primary,
     },
     filterBtn: {
         padding: SPACING.sm,
@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
         marginTop: 100,
     },
     emptyText: {
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         fontSize: 16,
     },
     fab: {
@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 5,
@@ -77,7 +77,7 @@ export const styles = StyleSheet.create({
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        backgroundColor: colors.overlay,
         zIndex: 98,
     },
     expandedModal: {
@@ -86,7 +86,7 @@ export const styles = StyleSheet.create({
         left: 0,
         right: 0,
         top: '15%',
-        backgroundColor: COLORS.white,
+        backgroundColor: colors.card,
         borderTopLeftRadius: RADIUS.xl,
         borderTopRightRadius: RADIUS.xl,
         padding: SPACING.lg,
@@ -112,7 +112,7 @@ export const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 22,
         fontWeight: '800',
-        color: COLORS.text,
+        color: colors.text,
     },
     compactModalContainer: {
         ...StyleSheet.absoluteFillObject,
@@ -131,21 +131,21 @@ export const styles = StyleSheet.create({
         paddingHorizontal: SPACING.lg,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: colors.border,
         borderWidth: 1,
-        borderColor: '#EEEEEE',
+        borderColor: 'transparent',
     },
     activeFilterChip: {
-        backgroundColor: COLORS.primary + '10',
-        borderColor: COLORS.primary,
+        backgroundColor: colors.primary + '15',
+        borderColor: colors.primary,
     },
     filterChipText: {
         fontSize: 13,
         fontWeight: '600',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     activeFilterChipText: {
-        color: COLORS.primary,
+        color: colors.primary,
     },
     sortBtn: {
         flexDirection: 'row',
@@ -153,13 +153,13 @@ export const styles = StyleSheet.create({
         paddingVertical: 6,
         paddingHorizontal: 10,
         borderRadius: RADIUS.sm,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: colors.border,
         marginLeft: 8,
     },
     sortText: {
         fontSize: 12,
         fontWeight: '600',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginRight: 4,
     }
 });
