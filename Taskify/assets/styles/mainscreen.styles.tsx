@@ -136,7 +136,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         borderColor: 'transparent',
     },
     activeFilterChip: {
-        backgroundColor: colors.primary + '15',
+        backgroundColor: colors.primary15,
         borderColor: colors.primary,
     },
     filterChipText: {

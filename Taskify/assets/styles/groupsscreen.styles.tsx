@@ -75,7 +75,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
     adminBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.secondary + '20',
+        backgroundColor: colors.secondary20,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: RADIUS.sm,

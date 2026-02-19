@@ -142,7 +142,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
     },
     modalOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
@@ -162,7 +162,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: colors.danger + '10',
+        backgroundColor: colors.danger10,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: SPACING.lg,

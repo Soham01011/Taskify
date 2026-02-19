@@ -42,7 +42,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
     },
     subtaskCountBadge: {
-        backgroundColor: colors.primary + '15',
+        backgroundColor: colors.primary15,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.sm,
@@ -125,7 +125,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginLeft: SPACING.md,
-        backgroundColor: colors.primary + '10',
+        backgroundColor: colors.primary10,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.sm,

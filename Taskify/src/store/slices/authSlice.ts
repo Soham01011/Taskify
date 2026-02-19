@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface UserPreferences {
     theme: 'light' | 'dark' | 'system';
+    primaryColor?: string;
 }
 
 export interface User {
@@ -25,6 +26,7 @@ const initialState: AuthState = {
     currentUserId: null,
     globalPreferences: {
         theme: 'system',
+        primaryColor: '#00AEEF',
     },
     isLoading: false,
     error: null,
