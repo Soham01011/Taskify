@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 
 import { store, persistor, RootState } from '../src/store';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { NotificationManager } from '../src/components/NotificationManager';
@@ -66,13 +67,15 @@ function AppContent() {
 
 export default function RootLayout() {
   return (
-    <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </PersistGate>
-    </Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor}>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </PersistGate>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 

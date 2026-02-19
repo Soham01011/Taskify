@@ -1,71 +1,74 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
     withTiming,
     withSpring,
     Easing,
-    interpolate,
 } from 'react-native-reanimated';
 
 interface GenieAnimationProps {
     children: React.ReactNode;
-    isVisible: boolean;
 }
 
-export const GenieAnimation: React.FC<GenieAnimationProps> = ({ children, isVisible }) => {
-    const progress = useSharedValue(0);
-
-    useEffect(() => {
-        if (isVisible) {
-            progress.value = withSpring(1, {
-                damping: 18,
-                stiffness: 90,
-                mass: 1.2,
-            });
-        } else {
-            progress.value = withTiming(0, {
-                duration: 300,
-                easing: Easing.bezier(0.4, 0.0, 0.2, 1),
-            });
-        }
-    }, [isVisible, progress]);
-
-    const animatedStyle = useAnimatedStyle(() => {
-        'worklet';
-        // Use sine curve for top edge (faster expansion)
-        const topProgress = Math.sin(progress.value * Math.PI / 2);
-
-        // Use cosine curve for bottom edge (slower catch-up)
-        const bottomProgress = 1 - Math.cos(progress.value * Math.PI / 2);
-
-        // Scale and translate transformations
-        const scaleY = interpolate(progress.value, [0, 1], [0.1, 1]);
-        const scaleX = interpolate(topProgress, [0, 1], [0.2, 1]);
-
-        // Top moves faster (sine curve)
-        const translateY = interpolate(topProgress, [0, 1], [300, 0]);
-
-        // 3D rotation for genie effect (bottom catches up slower)
-        const rotateX = interpolate(bottomProgress, [0, 1], [15, 0]);
-
-        const opacity = interpolate(progress.value, [0, 0.3, 1], [0, 0.8, 1]);
-
-        return {
-            opacity,
+export const CustomGenieIn = () => {
+    'worklet';
+    return {
+        initialValues: {
+            opacity: 0,
             transform: [
                 { perspective: 1000 },
-                { translateY },
-                { scaleY },
-                { scaleX },
-                { rotateX: `${rotateX}deg` },
+                { translateY: 300 },
+                { scaleY: 0.1 },
+                { scaleX: 0.2 },
+                { rotateX: '15deg' },
             ],
-        };
-    });
+        },
+        animations: {
+            opacity: withTiming(1, { duration: 400 }),
+            transform: [
+                { perspective: withTiming(1000) },
+                { translateY: withSpring(0, { damping: 18, stiffness: 90, mass: 1.2 }) },
+                { scaleY: withSpring(1, { damping: 18, stiffness: 90, mass: 1.2 }) },
+                { scaleX: withSpring(1, { damping: 18, stiffness: 90, mass: 1.2 }) },
+                { rotateX: withSpring('0deg', { damping: 18, stiffness: 90 }) },
+            ],
+        },
+    };
+};
 
+export const CustomGenieOut = () => {
+    'worklet';
+    return {
+        initialValues: {
+            opacity: 1,
+            transform: [
+                { perspective: 1000 },
+                { translateY: 0 },
+                { scaleY: 1 },
+                { scaleX: 1 },
+                { rotateX: '0deg' },
+            ],
+        },
+        animations: {
+            opacity: withTiming(0, { duration: 300 }),
+            transform: [
+                { perspective: withTiming(1000) },
+                { translateY: withTiming(300, { duration: 300, easing: Easing.bezier(0.4, 0.0, 0.2, 1) }) },
+                { scaleY: withTiming(0.1, { duration: 300 }) },
+                { scaleX: withTiming(0.2, { duration: 300 }) },
+                { rotateX: withTiming('15deg', { duration: 300 }) },
+            ],
+        },
+    };
+};
+
+export const GenieAnimation: React.FC<GenieAnimationProps> = ({ children }) => {
     return (
-        <Animated.View style={[styles.container, animatedStyle]}>
+        <Animated.View
+            entering={CustomGenieIn}
+            exiting={CustomGenieOut}
+            style={styles.container}
+        >
             {children}
         </Animated.View>
     );

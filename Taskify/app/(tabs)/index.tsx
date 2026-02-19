@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Filter, Users, X } from 'lucide-react-native';
+import { Plus, Filter, Users, X, ArrowUp, ArrowDown, ListFilter } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
   FadeIn,
@@ -25,7 +25,9 @@ import Animated, {
   withSpring,
   withTiming
 } from 'react-native-reanimated';
+import { ScrollView } from 'react-native-gesture-handler';
 import { CreateTaskForm } from '@/src/components/CreateTaskForm';
+import { useMemo } from 'react';
 
 import { RootState, AppDispatch } from '@/src/store';
 import { fetchTasks, updateTask } from '@/src/store/slices/taskSlice';
@@ -44,6 +46,35 @@ export default function TaskDashboard() {
   const { currentUserId } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [filter, setFilter] = useState<'active' | 'due' | 'upcoming' | 'completed'>('active');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const filteredAndSortedTasks = useMemo(() => {
+    let result = [...tasks];
+
+    const now = new Date();
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    // Apply Filter
+    if (filter === 'active') {
+      result = result.filter(t => !t.completed);
+    } else if (filter === 'due') {
+      result = result.filter(t => !t.completed && new Date(t.dueDate) <= endOfToday);
+    } else if (filter === 'upcoming') {
+      result = result.filter(t => !t.completed && new Date(t.dueDate) > endOfToday);
+    } else if (filter === 'completed') {
+      result = result.filter(t => t.completed);
+    }
+
+    // Apply Sort
+    result.sort((a, b) => {
+      const dateA = new Date(a.dueDate).getTime();
+      const dateB = new Date(b.dueDate).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+
+    return result;
+  }, [tasks, filter, sortOrder]);
 
   const loadTasks = useCallback((page = 1) => {
     if (currentUserId) {
@@ -107,21 +138,53 @@ export default function TaskDashboard() {
 
 
       <View style={styles.toolbar}>
-        <View style={styles.tabs}>
-          <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-            <Text style={[styles.tabText, styles.activeTabText]}>All Tasks</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabText}>Groups</Text>
-          </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScroll}
+            contentContainerStyle={styles.filterContainer}
+          >
+            {[
+              { id: 'active', label: 'Active' },
+              { id: 'due', label: 'Due' },
+              { id: 'upcoming', label: 'Upcoming' },
+              { id: 'completed', label: 'Completed' }
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.filterChip,
+                  filter === item.id && styles.activeFilterChip
+                ]}
+                onPress={() => setFilter(item.id as any)}
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  filter === item.id && styles.activeFilterChipText
+                ]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-        <TouchableOpacity style={styles.filterBtn}>
-          <Filter size={20} color={COLORS.textSecondary} />
+
+        <TouchableOpacity
+          style={styles.sortBtn}
+          onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+        >
+          <Text style={styles.sortText}>Time</Text>
+          {sortOrder === 'asc' ? (
+            <ArrowUp size={14} color={COLORS.primary} />
+          ) : (
+            <ArrowDown size={14} color={COLORS.primary} />
+          )}
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={tasks}
+        data={filteredAndSortedTasks}
         renderItem={({ item }) => (
           <TaskCard
             task={item}
@@ -139,7 +202,9 @@ export default function TaskDashboard() {
 
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No tasks found. Create one!</Text>
+            <Text style={styles.emptyText}>
+              {filter === 'completed' ? 'No completed tasks.' : 'No tasks found.'}
+            </Text>
           </View>
         }
       />
@@ -166,6 +231,7 @@ export default function TaskDashboard() {
       ) : (
         <Animated.View
           key="modal-container"
+          exiting={FadeOut.duration(400)}
           style={[styles.compactModalContainer, { zIndex: 100 }]}
           pointerEvents="box-none"
         >

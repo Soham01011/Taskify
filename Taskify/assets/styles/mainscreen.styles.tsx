@@ -118,5 +118,48 @@ export const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'flex-end',
         backgroundColor: 'transparent',
+    },
+    filterScroll: {
+        maxHeight: 50,
+        marginBottom: 8,
+    },
+    filterContainer: {
+        paddingHorizontal: SPACING.md,
+        gap: 8,
+    },
+    filterChip: {
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F5F5F5',
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+    },
+    activeFilterChip: {
+        backgroundColor: COLORS.primary + '10',
+        borderColor: COLORS.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+    },
+    activeFilterChipText: {
+        color: COLORS.primary,
+    },
+    sortBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: RADIUS.sm,
+        backgroundColor: '#F5F5F5',
+        marginLeft: 8,
+    },
+    sortText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        marginRight: 4,
     }
 });

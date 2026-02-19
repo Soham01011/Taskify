@@ -50,12 +50,6 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
     const [isReminderPickerVisible, setReminderPickerVisibility] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [isVisible, setIsVisible] = useState(false);
-
-    React.useEffect(() => {
-        const timer = setTimeout(() => setIsVisible(true), 50);
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleCreate = async () => {
         if (!title.trim()) {
@@ -122,7 +116,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
     return (
         <View style={styles.container}>
-            <GenieAnimation isVisible={isVisible}>
+            <GenieAnimation>
                 <View style={styles.card}>
                     <ScrollView
                         keyboardShouldPersistTaps="handled"

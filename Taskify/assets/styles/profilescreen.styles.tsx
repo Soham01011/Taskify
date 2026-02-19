@@ -5,8 +5,8 @@ export const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
     },
-    mainContent: {
-        flex: 1,
+    scrollContent: {
+        flexGrow: 1,
         padding: SPACING.lg,
     },
     profileHeader: {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useDispatch, useSelector } from 'react-redux';
@@ -74,7 +74,10 @@ export default function ProfileScreen() {
             }} />
             <StatusBar style="dark" />
 
-            <View style={styles.mainContent}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
                 <View style={styles.profileHeader}>
                     <View style={styles.avatarLarge}>
                         <User size={40} color={COLORS.primary} strokeWidth={2.5} />
@@ -132,7 +135,7 @@ export default function ProfileScreen() {
                     onPress={handleLogout}
                     style={styles.logoutBtn}
                 />
-            </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }
