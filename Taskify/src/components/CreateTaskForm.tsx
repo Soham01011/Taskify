@@ -20,14 +20,19 @@ import {
     Plus,
     Trash2,
     Clock,
-    Circle
+    Circle,
+    User,
+    Check
 } from 'lucide-react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { getStyles } from '@/assets/styles/CreateTaskForm.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { taskApi } from '../api/tasks';
+import { groupApi } from '../api/groups';
 import { fetchTasks } from '../store/slices/taskSlice';
-import { AppDispatch } from '../store';
+import { fetchGroups } from '../store/slices/groupSlice';
+import { AppDispatch, RootState } from '../store';
+import { useSelector } from 'react-redux';
 import { GenieAnimation } from './GenieAnimation';
 
 interface CreateTaskFormProps {
@@ -53,6 +58,16 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const { groups } = useSelector((state: RootState) => state.groups);
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [assignee, setAssignee] = useState<{ id: string, username: string } | null>(null);
+
+    // simple inline modal replacement for pickers
+    const [showGroupPicker, setShowGroupPicker] = useState(false);
+    const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+
+    const activeGroup = groups.find(g => g._id === selectedGroupId);
+
     const handleCreate = async () => {
         if (!title.trim()) {
             setError('Task title is required');
@@ -63,19 +78,30 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
             setLoading(true);
             setError('');
 
-            const taskData = {
-                title: title.trim(),
-                description: description.trim(),
-                dueDate: dueDate?.toISOString(),
-                subtasks: subtasks.map(s => ({ title: s, completed: false })),
-                alarm_type: alarmType,
-                alarm_reminder_time: alarmReminderTime?.toISOString() || dueDate?.toISOString(),
-                created_at: new Date(),
-                updated_at: new Date()
-            };
+            if (selectedGroupId) {
+                await groupApi.assignTask(selectedGroupId, {
+                    userId: assignee?.id || '',
+                    username: assignee?.username || '',
+                    task: title.trim(),
+                    duedate: dueDate?.toISOString() || new Date().toISOString()
+                });
+                dispatch(fetchGroups('')); // Refresh groups
+            } else {
+                const taskData = {
+                    title: title.trim(),
+                    description: description.trim(),
+                    dueDate: dueDate?.toISOString(),
+                    subtasks: subtasks.map(s => ({ title: s, completed: false })),
+                    alarm_type: alarmType,
+                    alarm_reminder_time: alarmReminderTime?.toISOString() || dueDate?.toISOString(),
+                    created_at: new Date(),
+                    updated_at: new Date()
+                };
 
-            await taskApi.create(taskData);
-            dispatch(fetchTasks());
+                await taskApi.create(taskData);
+                dispatch(fetchTasks());
+            }
+
             onSuccess();
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to create task');
@@ -222,13 +248,23 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     <View style={styles.divider} />
 
                     <View style={styles.bottomBar}>
-                        <TouchableOpacity style={styles.projectDropdown}>
-                            <View style={styles.inboxIcon}>
-                                <View style={styles.trayIcon} />
-                            </View>
-                            <Text style={styles.projectText}>Inbox</Text>
-                            <ChevronDown size={14} color={colors.textSecondary} />
-                        </TouchableOpacity>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <TouchableOpacity style={styles.projectDropdown} onPress={() => setShowGroupPicker(!showGroupPicker)}>
+                                <View style={styles.inboxIcon}>
+                                    <View style={styles.trayIcon} />
+                                </View>
+                                <Text style={styles.projectText}>{activeGroup ? activeGroup.name : 'Inbox'}</Text>
+                                <ChevronDown size={14} color={colors.textSecondary} />
+                            </TouchableOpacity>
+
+                            {activeGroup && (
+                                <TouchableOpacity style={styles.projectDropdown} onPress={() => setShowAssigneePicker(!showAssigneePicker)}>
+                                    <User size={14} color={colors.primary} />
+                                    <Text style={[styles.projectText, { marginLeft: 4 }]}>{assignee ? assignee.username : 'Assignee'}</Text>
+                                    <ChevronDown size={14} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                            )}
+                        </ScrollView>
 
                         <View style={styles.buttonGroup}>
                             <TouchableOpacity
@@ -249,6 +285,57 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             </TouchableOpacity>
                         </View>
                     </View>
+
+                    {showGroupPicker && (
+                        <View style={{ backgroundColor: colors.card, marginTop: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                            <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+                                <TouchableOpacity
+                                    onPress={() => { setSelectedGroupId(null); setAssignee(null); setShowGroupPicker(false); }}
+                                    style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                                    <View style={[styles.inboxIcon, { marginRight: 8 }]}><View style={styles.trayIcon} /></View>
+                                    <Text style={{ color: colors.text, fontWeight: '600' }}>Inbox (Personal)</Text>
+                                    {!selectedGroupId && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
+                                </TouchableOpacity>
+                                {groups.map(g => (
+                                    <TouchableOpacity
+                                        key={g._id}
+                                        onPress={() => { setSelectedGroupId(g._id); setAssignee(null); setShowGroupPicker(false); }}
+                                        style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                                        <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 28 }}>{g.name}</Text>
+                                        {selectedGroupId === g._id && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+                    {showAssigneePicker && activeGroup && (
+                        <View style={{ backgroundColor: colors.card, marginTop: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                            <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+                                <TouchableOpacity
+                                    onPress={() => { setAssignee(null); setShowAssigneePicker(false); }}
+                                    style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                                    <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>None (Unassigned)</Text>
+                                    {!assignee && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
+                                </TouchableOpacity>
+                                {activeGroup.members?.map((member: any) => {
+                                    const username = typeof member === 'string' ? member : (member.username || member._id);
+                                    const id = typeof member === 'string' ? member : member._id;
+                                    // if username is just the id because populated docs failed, we show abbreviated id or username if different
+                                    const displayName = username === id ? `User ${id.substring(0, 6)}` : username;
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={id}
+                                            onPress={() => { setAssignee({ id, username: displayName }); setShowAssigneePicker(false); }}
+                                            style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                                            <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>{displayName}</Text>
+                                            {assignee?.id === id && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    )}
                 </View>
             </GenieAnimation>
 

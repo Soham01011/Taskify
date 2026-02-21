@@ -9,7 +9,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { Colors } from '../constants/theme';
-import {ThemedText} from './themed-text';
+import { ThemedText } from './themed-text';
 
 type PrimaryButtonProps = {
   title?: string;
@@ -48,7 +48,7 @@ const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor, ...(Platform.OS === 'web' ? { cursor: disabled ? 'not-allowed' : 'pointer' } : {}) },
+        { backgroundColor, ...(Platform.OS === 'web' ? { cursor: (disabled ? 'not-allowed' : 'pointer') as any } : {}) },
         pressed && !disabled && styles.pressed,
         style,
       ]}

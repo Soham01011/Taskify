@@ -58,7 +58,9 @@ function AppContent() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="profile" options={{ presentation: 'card' }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'transparentModal' }} />
+        <Stack.Screen name="group-modal" options={{ presentation: 'transparentModal' }} />
+        <Stack.Screen name="group-members-modal" options={{ presentation: 'transparentModal' }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

@@ -18,7 +18,7 @@ import { fetchGroups } from '@/src/store/slices/groupSlice';
 import { Group } from '@/src/api/groups';
 import { getStyles } from '@/assets/styles/groupsscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
-
+import { GroupCard } from '@/src/components/GroupCard';
 import { AppHeader } from '@/src/components/AppHeader';
 
 export default function GroupsScreen() {
@@ -49,31 +49,7 @@ export default function GroupsScreen() {
   };
 
   const renderGroup = ({ item }: { item: Group }) => (
-    <TouchableOpacity style={styles.groupCard} activeOpacity={0.7}>
-      <View style={styles.groupIcon}>
-        <Users size={24} color={colors.white} />
-      </View>
-      <View style={styles.groupInfo}>
-        <Text style={styles.groupName}>{item.name}</Text>
-        <Text style={styles.groupDesc} numberOfLines={1}>{item.description}</Text>
-        <View style={styles.groupMeta}>
-          <View style={styles.metaItem}>
-            <Users size={14} color={colors.textSecondary} />
-            <Text style={styles.metaText}>{item.members.length} members</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <MessageSquare size={14} color={colors.textSecondary} />
-            <Text style={styles.metaText}>{item.tasks.length} tasks</Text>
-          </View>
-        </View>
-      </View>
-      {item.adminId === currentUserId && (
-        <View style={styles.adminBadge}>
-          <Shield size={12} color={colors.secondary} />
-          <Text style={styles.adminText}>Admin</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+    <GroupCard group={item} />
   );
 
   return (
@@ -82,7 +58,7 @@ export default function GroupsScreen() {
 
       <View style={styles.subHeader}>
         <Text style={styles.title}>Your Groups</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/modal')}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/group-modal')}>
           <Plus size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>

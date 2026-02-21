@@ -19,7 +19,7 @@ export interface Group {
     name: string;
     description: string;
     adminId: string;
-    members: string[]; // Array of User IDs
+    members: any[]; // Array of User IDs or Objects with _id and username
     tasks: GroupTask[];
 }
 
@@ -46,4 +46,7 @@ export const groupApi = {
 
     getMembers: (groupId: string) =>
         client.get<string[]>(`/groups/${groupId}/members`),
+
+    delete: (groupId: string) =>
+        client.delete<{ message: string }>(`/groups/${groupId}`),
 };

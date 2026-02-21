@@ -1,21 +1,37 @@
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { Task } from '../api/tasks';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
-// Configure how notifications are handled when the app is foregrounded
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let Notifications: any = null;
+
+if (!isExpoGo) {
+    try {
+        Notifications = require('expo-notifications');
+        // Configure how notifications are handled when the app is foregrounded
+        Notifications.setNotificationHandler({
+            handleNotification: async () => ({
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: true,
+                shouldShowBanner: true,
+                shouldShowList: true,
+            }),
+        });
+    } catch (e) {
+        console.log('Could not load expo-notifications', e);
+    }
+}
 
 export class NotificationService {
     static async requestPermissions() {
+        if (isExpoGo || !Notifications) {
+            console.log('Push notifications not available in Expo Go');
+            return false;
+        }
+
         if (!Device.isDevice) {
             console.log('Must use physical device for push notifications');
             return false;
@@ -55,6 +71,8 @@ export class NotificationService {
     }
 
     static async scheduleTaskNotification(task: Task) {
+        if (isExpoGo || !Notifications) return;
+
         if (!task.alarm_reminder_time) return;
 
         const triggerTime = new Date(task.alarm_reminder_time);
@@ -85,10 +103,12 @@ export class NotificationService {
     }
 
     static async cancelTaskNotification(taskId: string) {
+        if (isExpoGo || !Notifications) return;
         await Notifications.cancelScheduledNotificationAsync(taskId);
     }
 
     static async cancelAllNotifications() {
+        if (isExpoGo || !Notifications) return;
         await Notifications.cancelAllScheduledNotificationsAsync();
     }
 

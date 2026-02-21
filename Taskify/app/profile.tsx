@@ -4,7 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter, Stack } from 'expo-router';
-import { User, LogOut, UserPlus, CheckCircle2, ChevronRight, Settings, Bell, Shield, Info, AlertTriangle } from 'lucide-react-native';
+import { User, LogOut, UserPlus, CheckCircle2, ChevronRight, Settings, Bell, Shield, Info, AlertTriangle, Copy } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { GenieAnimation } from '@/src/components/GenieAnimation';
 
@@ -41,7 +42,14 @@ export default function ProfileScreen() {
         setShowLogoutModal(true);
     };
 
-    const renderMenuItem = (icon: React.ReactNode, title: string, subtitle?: string, onPress?: () => void, isLast = false) => (
+    const handleCopyUserId = async () => {
+        if (currentUserId) {
+            await Clipboard.setStringAsync(currentUserId);
+            Alert.alert('Copied!', 'Your User ID has been copied to the clipboard. Share it with others so they can add you to their groups.');
+        }
+    };
+
+    const renderMenuItem = (icon: React.ReactNode, title: string, subtitle?: string, onPress?: () => void, isLast = false, rightIcon?: React.ReactNode) => (
         <TouchableOpacity
             style={[styles.menuItem, isLast && styles.lastMenuItem]}
             onPress={onPress}
@@ -54,7 +62,7 @@ export default function ProfileScreen() {
                 <Text style={styles.menuTitle}>{title}</Text>
                 {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
             </View>
-            <ChevronRight size={18} color={colors.textSecondary} />
+            {rightIcon || <ChevronRight size={18} color={colors.textSecondary} />}
         </TouchableOpacity>
     );
 
@@ -127,6 +135,7 @@ export default function ProfileScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Settings</Text>
                     <View style={styles.menuCard}>
+                        {renderMenuItem(<Copy size={20} color={colors.primary} />, 'Copy User ID', currentUserId || 'Not available', handleCopyUserId)}
                         {renderMenuItem(<Settings size={20} color={colors.primary} />, 'Preferences', 'Theme, language, and more', () => router.push('/preferences'))}
                         {renderMenuItem(<Bell size={20} color="#6366f1" />, 'Notifications', 'Manage alerts and updates')}
                         {renderMenuItem(<Shield size={20} color="#10b981" />, 'Privacy & Security', 'Password, biometric lock')}

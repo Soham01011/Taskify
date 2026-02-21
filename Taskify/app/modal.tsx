@@ -6,6 +6,14 @@ import { CreateTaskForm } from '../src/components/CreateTaskForm';
 
 export default function ModalScreen() {
   const router = useRouter();
+  const [isClosing, setIsClosing] = React.useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      router.back();
+    }, 300);
+  };
 
   return (
     <KeyboardAvoidingView
@@ -23,14 +31,16 @@ export default function ModalScreen() {
       <TouchableOpacity
         style={styles.overlay}
         activeOpacity={1}
-        onPress={() => router.back()}
+        onPress={handleClose}
       />
 
       <View style={styles.modalContent}>
-        <CreateTaskForm
-          onSuccess={() => router.back()}
-          onCancel={() => router.back()}
-        />
+        {!isClosing && (
+          <CreateTaskForm
+            onSuccess={handleClose}
+            onCancel={handleClose}
+          />
+        )}
       </View>
     </KeyboardAvoidingView>
   );
