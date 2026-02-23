@@ -29,8 +29,13 @@ client.interceptors.request.use(
         const currentUserId = state.auth.currentUserId;
         const currentUser = state.auth.users.find((u: User) => u.id === currentUserId);
 
-        if (currentUser?.accessToken) {
-            config.headers.Authorization = `Bearer ${currentUser.accessToken}`;
+        if (currentUser) {
+            if (currentUser.apiEndpoint) {
+                config.baseURL = currentUser.apiEndpoint;
+            }
+            if (currentUser.accessToken) {
+                config.headers.Authorization = `Bearer ${currentUser.accessToken}`;
+            }
         }
         return config;
     },
@@ -60,8 +65,9 @@ client.interceptors.response.use(
             if (currentUser?.refreshToken) {
                 try {
                     console.log("Access token expired. Attempting to refresh...");
+                    const baseURL = currentUser.apiEndpoint || API_URL;
                     // Using axios directly to avoid interceptor recursion
-                    const response = await axios.post(`${API_URL}/auth/refresh`, {
+                    const response = await axios.post(`${baseURL}/auth/refresh`, {
                         refreshToken: currentUser.refreshToken,
                     });
 

@@ -83,7 +83,8 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     userId: assignee?.id || '',
                     username: assignee?.username || '',
                     task: title.trim(),
-                    duedate: dueDate?.toISOString() || new Date().toISOString()
+                    duedate: dueDate?.toISOString() || new Date().toISOString(),
+                    subtasks: subtasks.map(s => ({ title: s, completed: false }))
                 });
                 dispatch(fetchGroups('')); // Refresh groups
             } else {
@@ -168,7 +169,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                         />
 
                         {/* Subtasks List */}
-                        {subtasks.length > 0 && (
+                        {!selectedGroupId && subtasks.length > 0 && (
                             <View style={styles.subtaskContainer}>
                                 {subtasks.map((st, index) => (
                                     <View key={index} style={styles.subtaskItem}>
@@ -182,28 +183,30 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             </View>
                         )}
 
-                        {showSubtaskInput ? (
-                            <View style={styles.subtaskInputRow}>
-                                <TextInput
-                                    style={styles.subtaskInput}
-                                    placeholder="Add subtask..."
-                                    value={newSubtaskTitle}
-                                    onChangeText={setNewSubtaskTitle}
-                                    autoFocus
-                                    onSubmitEditing={addSubtask}
-                                />
-                                <TouchableOpacity onPress={addSubtask}>
-                                    <Plus size={20} color={colors.primary} />
+                        {!selectedGroupId && (
+                            showSubtaskInput ? (
+                                <View style={styles.subtaskInputRow}>
+                                    <TextInput
+                                        style={styles.subtaskInput}
+                                        placeholder="Add subtask..."
+                                        value={newSubtaskTitle}
+                                        onChangeText={setNewSubtaskTitle}
+                                        autoFocus
+                                        onSubmitEditing={addSubtask}
+                                    />
+                                    <TouchableOpacity onPress={addSubtask}>
+                                        <Plus size={20} color={colors.primary} />
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.addSubtaskBtn}
+                                    onPress={() => setShowSubtaskInput(true)}
+                                >
+                                    <Plus size={14} color={colors.textSecondary} />
+                                    <Text style={styles.addSubtaskText}>Add subtask</Text>
                                 </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <TouchableOpacity
-                                style={styles.addSubtaskBtn}
-                                onPress={() => setShowSubtaskInput(true)}
-                            >
-                                <Plus size={14} color={colors.textSecondary} />
-                                <Text style={styles.addSubtaskText}>Add subtask</Text>
-                            </TouchableOpacity>
+                            )
                         )}
                     </ScrollView>
 

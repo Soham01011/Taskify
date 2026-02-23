@@ -7,17 +7,18 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
-    ScrollView
+    ScrollView,
+    Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
-import { User as UserIcon, Phone, Lock, Eye, EyeOff, X, LogIn } from 'lucide-react-native';
+import { User as UserIcon, Phone, Lock, Eye, EyeOff, X, LogIn, Globe, Trash2 } from 'lucide-react-native';
 import { Modal } from 'react-native';
 import { RootState } from '@/src/store';
 import { RADIUS, SPACING } from '@/src/constants/theme';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
-import { setLoading, setError, loginSuccess } from '@/src/store/slices/authSlice';
+import { setLoading, setError, loginSuccess, removeAccount } from '@/src/store/slices/authSlice';
 import { authApi } from '@/src/api/auth';
 import { getStyles } from '@/assets/styles/loginscreen.style';
 import { getAccountStyles } from '@/assets/styles/accountStyles.styles';
@@ -33,6 +34,7 @@ export default function LoginScreen() {
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [apiEndpoint, setApiEndpoint] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [localError, setLocalError] = useState('');
     const [showAccountSelector, setShowAccountSelector] = useState(users.length > 0);
@@ -46,7 +48,8 @@ export default function LoginScreen() {
         try {
             dispatch(setLoading(true));
             setLocalError('');
-            const response = await authApi.login(username, password);
+            const finalEndpoint = apiEndpoint.trim();
+            const response = await authApi.login(username, password, finalEndpoint ? finalEndpoint : undefined);
             console.log("LOGIN RESPONSE RECEIVED:", response.data);
 
             const { accessToken, refreshToken, userId, finalUsername } = response.data;
@@ -57,7 +60,8 @@ export default function LoginScreen() {
                 id: userId,
                 username: finalUsername,
                 accessToken,
-                refreshToken
+                refreshToken,
+                apiEndpoint: finalEndpoint || undefined
             }));
 
             router.replace('/(tabs)');
@@ -122,6 +126,16 @@ export default function LoginScreen() {
                         <Text style={styles.forgotText}>Forgot password?</Text>
                     </TouchableOpacity>
 
+                    <Text style={[styles.label, { marginTop: SPACING.md }]}>Server Endpoint (Optional)</Text>
+                    <Input
+                        placeholder="e.g. http://192.168.1.50:3000/api"
+                        value={apiEndpoint}
+                        onChangeText={setApiEndpoint}
+                        autoCapitalize="none"
+                        keyboardType="url"
+                        icon={<Globe size={20} color={colors.textSecondary} />}
+                    />
+
                     {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
 
                     <Button
@@ -155,22 +169,45 @@ export default function LoginScreen() {
 
                         <ScrollView style={accountStyles.accountList}>
                             {users.map((user) => (
-                                <TouchableOpacity
-                                    key={user.id}
-                                    style={accountStyles.accountItem}
-                                    onPress={() => {
-                                        setUsername(user.username);
-                                        setShowAccountSelector(false);
-                                    }}
-                                >
-                                    <View style={accountStyles.accountAvatar}>
-                                        <Text style={accountStyles.avatarText}>
-                                            {user.username.charAt(0).toUpperCase()}
-                                        </Text>
-                                    </View>
-                                    <Text style={accountStyles.accountName}>{user.username}</Text>
-                                    <LogIn size={20} color={colors.primary} />
-                                </TouchableOpacity>
+                                <View key={user.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 12, overflow: 'hidden' }}>
+                                    <TouchableOpacity
+                                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', padding: 14 }}
+                                        onPress={() => {
+                                            setUsername(user.username);
+                                            setApiEndpoint(user.apiEndpoint || '');
+                                            setShowAccountSelector(false);
+                                        }}
+                                    >
+                                        <View style={accountStyles.accountAvatar}>
+                                            <Text style={accountStyles.avatarText}>
+                                                {user.username.charAt(0).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <Text style={accountStyles.accountName}>{user.username}</Text>
+                                        <LogIn size={20} color={colors.textSecondary} />
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={{ padding: 14, borderLeftWidth: 1, borderLeftColor: colors.border, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.danger + '10' }}
+                                        onPress={() => {
+                                            Alert.alert(
+                                                "Remove Account",
+                                                `Are you sure you want to remove ${user.username} from this device?`,
+                                                [
+                                                    { text: "Cancel", style: "cancel" },
+                                                    {
+                                                        text: "Remove", style: "destructive", onPress: () => {
+                                                            dispatch(removeAccount(user.id));
+                                                            if (users.length <= 1) setShowAccountSelector(false);
+                                                        }
+                                                    }
+                                                ]
+                                            );
+                                        }}
+                                    >
+                                        <Trash2 size={20} color={colors.danger} />
+                                    </TouchableOpacity>
+                                </View>
                             ))}
                         </ScrollView>
 

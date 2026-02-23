@@ -10,6 +10,7 @@ export interface User {
     username: string;
     accessToken?: string; // Optional because session might expire
     refreshToken?: string;
+    apiEndpoint?: string;
     preferences: UserPreferences;
 }
 

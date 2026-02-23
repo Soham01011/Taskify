@@ -19,6 +19,82 @@ interface GroupCardProps {
     group: Group;
 }
 
+const GroupTaskItem = ({ t, group, currentUserId, colors }: { t: any, group: Group, currentUserId: string | null, colors: any }) => {
+    const dispatch = useDispatch<AppDispatch>();
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const handleTaskToggle = async (taskId: string, currentStatus: boolean) => {
+        try {
+            await groupApi.updateTask(group._id, taskId, { completed: !currentStatus });
+            if (currentUserId) dispatch(fetchGroups(currentUserId));
+        } catch (err) {
+            console.error('Failed to toggle group task', err);
+        }
+    };
+
+    const handleSubtaskToggle = async (taskId: string, subtaskId: string, currentStatus: boolean) => {
+        try {
+            await groupApi.updateSubtask(group._id, taskId, subtaskId, { completed: !currentStatus });
+            if (currentUserId) dispatch(fetchGroups(currentUserId));
+        } catch (err) {
+            console.error('Failed to toggle subtask', err);
+        }
+    };
+
+    const progress = useDerivedValue(() => withSpring(isExpanded ? 1 : 0, { damping: 20, stiffness: 90 }));
+
+    const chevronStyle = useAnimatedStyle(() => ({
+        transform: [{ rotate: `${progress.value * 180}deg` }]
+    }));
+
+    const contentStyle = useAnimatedStyle(() => ({
+        opacity: progress.value,
+        height: isExpanded ? 'auto' : 0,
+        marginTop: interpolate(progress.value, [0, 1], [0, 8]),
+    }));
+
+    return (
+        <View style={{ backgroundColor: colors.background, padding: 10, borderRadius: 8, marginBottom: 10 }}>
+            <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+                activeOpacity={t.subtasks && t.subtasks.length > 0 ? 0.7 : 1}
+                onPress={() => t.subtasks && t.subtasks.length > 0 && setIsExpanded(!isExpanded)}
+            >
+                <TouchableOpacity onPress={() => handleTaskToggle(t._id, t.completed)} style={{ marginRight: 10 }}>
+                    {t.completed ? <CheckCircle size={20} color={colors.secondary} /> : <Circle size={20} color={colors.border} />}
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                    <Text style={[{ fontSize: 15, color: colors.text, fontWeight: '500' }, t.completed && { textDecorationLine: 'line-through', color: colors.textSecondary }]}>{t.task}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                        {t.username ? `Assigned to: ${t.username}` : 'Unassigned'} • Due: {new Date(t.duedate).toLocaleDateString()}
+                    </Text>
+                </View>
+                {t.subtasks && t.subtasks.length > 0 && (
+                    <Animated.View style={chevronStyle}>
+                        <ChevronDown size={20} color={colors.textSecondary} />
+                    </Animated.View>
+                )}
+            </TouchableOpacity>
+
+            {t.subtasks && t.subtasks.length > 0 && (
+                <Animated.View style={[{ overflow: 'hidden' }, contentStyle]}>
+                    <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 8, marginTop: 4 }} />
+                    {t.subtasks.map((st: any) => (
+                        <View key={st._id || Math.random().toString()} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingLeft: 30 }}>
+                            <TouchableOpacity onPress={() => st._id && handleSubtaskToggle(t._id, st._id, st.completed)} style={{ marginRight: 8 }}>
+                                {st.completed ? <CheckSquare size={16} color={colors.secondary} /> : <Square size={16} color={colors.border} />}
+                            </TouchableOpacity>
+                            <Text style={[{ flex: 1, fontSize: 13, color: colors.text }, st.completed && { textDecorationLine: 'line-through', color: colors.textSecondary }]}>
+                                {st.title}
+                            </Text>
+                        </View>
+                    ))}
+                </Animated.View>
+            )}
+        </View>
+    );
+};
+
 export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
@@ -29,14 +105,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
 
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
-    const handleTaskToggle = async (taskId: string, currentStatus: boolean) => {
-        try {
-            await groupApi.updateTask(group._id, taskId, { completed: !currentStatus });
-            if (currentUserId) dispatch(fetchGroups(currentUserId));
-        } catch (err) {
-            console.error('Failed to toggle group task', err);
-        }
-    };
+
 
     const progress = useDerivedValue(() => {
         return withSpring(isExpanded ? 1 : 0, { damping: 20, stiffness: 90 });
@@ -102,17 +171,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
                         <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 12 }} />
                         <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 8 }}>Group Tasks</Text>
                         {group.tasks.map((t) => (
-                            <View key={t._id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, backgroundColor: colors.background, padding: 10, borderRadius: 8 }}>
-                                <TouchableOpacity onPress={() => handleTaskToggle(t._id, t.completed)} style={{ marginRight: 10 }}>
-                                    {t.completed ? <CheckCircle size={20} color={colors.secondary} /> : <Circle size={20} color={colors.border} />}
-                                </TouchableOpacity>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[{ fontSize: 15, color: colors.text, fontWeight: '500' }, t.completed && { textDecorationLine: 'line-through', color: colors.textSecondary }]}>{t.task}</Text>
-                                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
-                                        {t.username ? `Assigned to: ${t.username}` : 'Unassigned'} • Due: {new Date(t.duedate).toLocaleDateString()}
-                                    </Text>
-                                </View>
-                            </View>
+                            <GroupTaskItem key={t._id} t={t} group={group} currentUserId={currentUserId} colors={colors} />
                         ))}
                     </Animated.View>
                 )}

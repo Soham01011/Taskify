@@ -14,16 +14,16 @@ export interface RefreshResponse {
 }
 
 export const authApi = {
-    register: (username: string, password: string) =>
-        client.post('/auth/register', { username, password }),
+    register: (username: string, password: string, apiEndpoint?: string) =>
+        client.post('/auth/register', { username, password }, apiEndpoint ? { baseURL: apiEndpoint } : undefined),
 
-    login: (username: string, password: string) =>
-        client.post('/auth/login', { username, password }),
+    login: (username: string, password: string, apiEndpoint?: string) =>
+        client.post('/auth/login', { username, password }, apiEndpoint ? { baseURL: apiEndpoint } : undefined),
 
-    verify: (token: string) =>
-        client.post<VerifyResponse>('/auth/verify', { token }),
+    verify: (token: string, apiEndpoint?: string) =>
+        client.post<VerifyResponse>('/auth/verify', { token }, apiEndpoint ? { baseURL: apiEndpoint } : undefined),
 
-    refresh: (refreshToken: string) =>
-        client.post<RefreshResponse>('/auth/refresh', { refreshToken }),
+    refresh: (refreshToken: string, apiEndpoint?: string) =>
+        client.post<RefreshResponse>('/auth/refresh', { refreshToken }, apiEndpoint ? { baseURL: apiEndpoint } : undefined),
 };
 

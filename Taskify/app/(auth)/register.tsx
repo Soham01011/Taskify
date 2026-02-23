@@ -9,7 +9,7 @@ import {
     ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, User, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { ChevronLeft, User, Lock, Eye, EyeOff, Globe } from 'lucide-react-native';
 import { authApi } from '@/src/api/auth';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
@@ -23,6 +23,7 @@ export default function RegisterScreen() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [apiEndpoint, setApiEndpoint] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -41,7 +42,8 @@ export default function RegisterScreen() {
         try {
             setLoading(true);
             setError('');
-            await authApi.register(username, password);
+            const finalEndpoint = apiEndpoint.trim();
+            await authApi.register(username, password, finalEndpoint ? finalEndpoint : undefined);
             router.replace('/(auth)' as any);
         } catch (err: any) {
             setError(err.response?.data?.message || 'Registration failed');
@@ -101,6 +103,16 @@ export default function RegisterScreen() {
                             onChangeText={setConfirmPassword}
                             secureTextEntry={!showPassword}
                             icon={<Lock size={18} color={colors.textSecondary} />}
+                        />
+
+                        <Text style={styles.label}>Server Endpoint (Optional)</Text>
+                        <Input
+                            placeholder="e.g. http://192.168.1.50:3000/api"
+                            value={apiEndpoint}
+                            onChangeText={setApiEndpoint}
+                            autoCapitalize="none"
+                            keyboardType="url"
+                            icon={<Globe size={18} color={colors.textSecondary} />}
                         />
                     </View>
 

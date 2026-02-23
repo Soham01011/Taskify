@@ -12,6 +12,7 @@ export interface GroupTask {
     task: string;
     duedate: string;
     completed: boolean;
+    subtasks?: { _id?: string; title: string; completed: boolean }[];
 }
 
 export interface Group {
@@ -32,11 +33,16 @@ export const groupApi = {
     getDetails: (id: string) =>
         client.get<Group>(`/groups/${id}`),
 
-    assignTask: (id: string, data: { userId: string; username: string; task: string; duedate: string }) =>
+    assignTask: (id: string, data: { userId: string; username: string; task: string; duedate: string; subtasks?: { title: string; completed: boolean }[] }) =>
         client.post<Group>(`/groups/${id}/tasks`, data),
 
     updateTask: (groupId: string, taskId: string, data: Partial<GroupTask>) =>
         client.put<Group>(`/groups/${groupId}/tasks/${taskId}`, data),
+
+    updateSubtask: (groupId: string, taskId: string, subtaskId: string, data: { completed: boolean }) =>
+        client.put<Group>(`/groups/${groupId}/tasks/${taskId}/subtasks/${subtaskId}`, data),
+
+
 
     addMember: (groupId: string, userId: string) =>
         client.post<Group>(`/groups/${groupId}/members`, { userId }),
