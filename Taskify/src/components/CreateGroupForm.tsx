@@ -123,7 +123,6 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
                                     placeholder="Add member (User ID)..."
                                     value={newMemberId}
                                     onChangeText={setNewMemberId}
-                                    autoFocus
                                     onSubmitEditing={addMember}
                                 />
                                 <TouchableOpacity onPress={addMember}>

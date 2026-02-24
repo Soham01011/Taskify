@@ -191,7 +191,6 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                         placeholder="Add subtask..."
                                         value={newSubtaskTitle}
                                         onChangeText={setNewSubtaskTitle}
-                                        autoFocus
                                         onSubmitEditing={addSubtask}
                                     />
                                     <TouchableOpacity onPress={addSubtask}>

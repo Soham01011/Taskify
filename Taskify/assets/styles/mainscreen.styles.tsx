@@ -63,11 +63,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.3)',
     },
     fabTouch: {
         width: '100%',
@@ -90,17 +86,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         borderTopLeftRadius: RADIUS.xl,
         borderTopRightRadius: RADIUS.xl,
         padding: SPACING.lg,
-        ...Platform.select({
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 10,
-            },
-            android: {
-                elevation: 20,
-            },
-        }),
+        boxShadow: '0 -4px 10px 0 rgba(0, 0, 0, 0.1)',
     },
     modalHeader: {
         flexDirection: 'row',
