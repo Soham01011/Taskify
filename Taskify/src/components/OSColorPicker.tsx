@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useReducer } from 'react';
 import { View, Text, Platform, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Check } from 'lucide-react-native';
@@ -59,12 +59,52 @@ const rgbaToHex = (r: number, g: number, b: number, a: number) => {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(a * 255)}`;
 };
 
+type ColorState = { r: number; g: number; b: number; a: number };
+type ColorAction =
+    | { type: 'SET_ALL'; payload: ColorState }
+    | { type: 'UPDATE_COLOR'; rgbKey: keyof ColorState; value: number };
+
+const colorReducer = (state: ColorState, action: ColorAction): ColorState => {
+    switch (action.type) {
+        case 'SET_ALL':
+            return action.payload;
+        case 'UPDATE_COLOR':
+            return { ...state, [action.rgbKey]: action.value };
+        default:
+            return state;
+    }
+};
+
 export const OSColorPicker: React.FC<OSColorPickerProps> = ({
     color,
     onColorChange,
     onColorComplete,
     styles: customStyles,
 }) => {
+    // Hooks MUST be unconditionally invoked at the top of the component
+    const [state, dispatch] = useReducer(colorReducer, { r: 0, g: 0, b: 0, a: 1 });
+
+    useEffect(() => {
+        // Sync incoming color prop to local state
+        const initialColors = parseColorString(color);
+        dispatch({ type: 'SET_ALL', payload: initialColors });
+    }, [color]);
+
+    const handleValueChange = (rgbKey: keyof ColorState, val: number) => {
+        dispatch({ type: 'UPDATE_COLOR', rgbKey, value: val });
+        // Calculate the predicted hex value state explicitly to bypass any async hook state lag 
+        // while bubbling update upstream:
+        const nextState = { ...state, [rgbKey]: val };
+        const newHex = rgbaToHex(nextState.r, nextState.g, nextState.b, nextState.a);
+        onColorChange({ hex: newHex });
+    };
+
+    const handleSlidingComplete = () => {
+        const newHex = rgbaToHex(state.r, state.g, state.b, state.a);
+        onColorComplete({ hex: newHex });
+    };
+
+    // Note: Early return for iOS is intentionally placed after all top-level Hook invocations to satisfy React's compiler and strict Hook rules.
     if (Platform.OS === 'ios') {
         const { Host, ColorPicker: NativePicker } = require('@expo/ui/swift-ui');
         return (
@@ -74,7 +114,6 @@ export const OSColorPicker: React.FC<OSColorPickerProps> = ({
                         label="Choose Accent Color"
                         selection={color}
                         onValueChanged={(res: any) => {
-                            // res is the native event or value depending on extraction, but based on use:
                             if (res && res.nativeEvent && res.nativeEvent.value) {
                                 onColorComplete({ hex: res.nativeEvent.value });
                             } else if (typeof res === 'string') {
@@ -93,35 +132,6 @@ export const OSColorPicker: React.FC<OSColorPickerProps> = ({
         );
     }
 
-    // Android / Default implementation using Sliders
-    const [r, setR] = useState(0);
-    const [g, setG] = useState(0);
-    const [b, setB] = useState(0);
-    const [a, setA] = useState(1);
-
-    useEffect(() => {
-        // Sync incoming color prop to local state
-        const { r: initialR, g: initialG, b: initialB, a: initialA } = parseColorString(color);
-        setR(initialR);
-        setG(initialG);
-        setB(initialB);
-        setA(initialA);
-    }, [color]);
-
-    const handleValueChange = (newR: number, newG: number, newB: number, newA: number) => {
-        setR(newR);
-        setG(newG);
-        setB(newB);
-        setA(newA);
-        const newHex = rgbaToHex(newR, newG, newB, newA);
-        onColorChange({ hex: newHex });
-    };
-
-    const handleSlidingComplete = () => {
-        const newHex = rgbaToHex(r, g, b, a);
-        onColorComplete({ hex: newHex });
-    };
-
     return (
         <View style={styles.androidContainer}>
             <View style={styles.previewRow}>
@@ -133,15 +143,15 @@ export const OSColorPicker: React.FC<OSColorPickerProps> = ({
             <View style={styles.sliderGroup}>
                 <View style={styles.sliderHeader}>
                     <Text style={styles.sliderLabel}>Red</Text>
-                    <Text style={styles.sliderValue}>{Math.round(r)}</Text>
+                    <Text style={styles.sliderValue}>{Math.round(state.r)}</Text>
                 </View>
                 <Slider
                     style={styles.slider}
                     minimumValue={0}
                     maximumValue={255}
                     step={1}
-                    value={r}
-                    onValueChange={(val) => handleValueChange(val, g, b, a)}
+                    value={state.r}
+                    onValueChange={(val) => handleValueChange('r', val)}
                     onSlidingComplete={handleSlidingComplete}
                     minimumTrackTintColor="#FF3B30"
                     maximumTrackTintColor="#E5E5EA"
@@ -152,15 +162,15 @@ export const OSColorPicker: React.FC<OSColorPickerProps> = ({
             <View style={styles.sliderGroup}>
                 <View style={styles.sliderHeader}>
                     <Text style={styles.sliderLabel}>Green</Text>
-                    <Text style={styles.sliderValue}>{Math.round(g)}</Text>
+                    <Text style={styles.sliderValue}>{Math.round(state.g)}</Text>
                 </View>
                 <Slider
                     style={styles.slider}
                     minimumValue={0}
                     maximumValue={255}
                     step={1}
-                    value={g}
-                    onValueChange={(val) => handleValueChange(r, val, b, a)}
+                    value={state.g}
+                    onValueChange={(val) => handleValueChange('g', val)}
                     onSlidingComplete={handleSlidingComplete}
                     minimumTrackTintColor="#34C759"
                     maximumTrackTintColor="#E5E5EA"
@@ -171,15 +181,15 @@ export const OSColorPicker: React.FC<OSColorPickerProps> = ({
             <View style={styles.sliderGroup}>
                 <View style={styles.sliderHeader}>
                     <Text style={styles.sliderLabel}>Blue</Text>
-                    <Text style={styles.sliderValue}>{Math.round(b)}</Text>
+                    <Text style={styles.sliderValue}>{Math.round(state.b)}</Text>
                 </View>
                 <Slider
                     style={styles.slider}
                     minimumValue={0}
                     maximumValue={255}
                     step={1}
-                    value={b}
-                    onValueChange={(val) => handleValueChange(r, g, val, a)}
+                    value={state.b}
+                    onValueChange={(val) => handleValueChange('b', val)}
                     onSlidingComplete={handleSlidingComplete}
                     minimumTrackTintColor="#007AFF"
                     maximumTrackTintColor="#E5E5EA"
@@ -190,15 +200,15 @@ export const OSColorPicker: React.FC<OSColorPickerProps> = ({
             <View style={styles.sliderGroup}>
                 <View style={styles.sliderHeader}>
                     <Text style={styles.sliderLabel}>Opacity</Text>
-                    <Text style={styles.sliderValue}>{Math.round(a * 100)}%</Text>
+                    <Text style={styles.sliderValue}>{Math.round(state.a * 100)}%</Text>
                 </View>
                 <Slider
                     style={styles.slider}
                     minimumValue={0}
                     maximumValue={1}
                     step={0.01}
-                    value={a}
-                    onValueChange={(val) => handleValueChange(r, g, b, val)}
+                    value={state.a}
+                    onValueChange={(val) => handleValueChange('a', val)}
                     onSlidingComplete={handleSlidingComplete}
                     minimumTrackTintColor="#8E8E93"
                     maximumTrackTintColor="#E5E5EA"

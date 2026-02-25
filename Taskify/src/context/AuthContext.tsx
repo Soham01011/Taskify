@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await authApi.verify(currentUser.accessToken);
             console.log('Token verification successful');
+            setIsChecking(false);
         } catch (error) {
             console.log('Token verification failed, attempting refresh...');
 
@@ -52,16 +53,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }));
 
                     console.log('Token refresh successful');
+                    setIsChecking(false);
                 } catch (refreshError) {
                     console.log('Token refresh failed, logging out...');
                     dispatch(logout());
+                    setIsChecking(false);
                 }
             } else {
                 console.log('No refresh token available, logging out...');
                 dispatch(logout());
+                setIsChecking(false);
             }
-        } finally {
-            setIsChecking(false);
         }
     };
 

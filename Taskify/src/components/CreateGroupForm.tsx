@@ -122,9 +122,13 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
             dispatch({ type: 'SUBMIT_SUCCESS' });
             onSuccess();
         } catch (err: any) {
+            let errorMsg = 'Failed to create group';
+            if (err && err.response && err.response.data && err.response.data.message) {
+                errorMsg = err.response.data.message;
+            }
             dispatch({
                 type: 'SUBMIT_ERROR',
-                error: err.response?.data?.message || 'Failed to create group'
+                error: errorMsg
             });
         }
     };

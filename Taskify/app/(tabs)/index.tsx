@@ -100,40 +100,51 @@ export default function TaskDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    try {
-      // Find the most recent task to sync updates
-      const latestTask = tasks.length > 0
-        ? [...tasks].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-        : null;
 
-      if (latestTask?.created_at) {
-        await dispatch(fetchTasks({ created_at: latestTask.created_at }));
+    // Find the most recent task to sync updates
+    let latestTaskCreatedAt = null;
+    if (tasks.length > 0) {
+      const sortedTasks = [...tasks].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      if (sortedTasks.length > 0) {
+        latestTaskCreatedAt = sortedTasks[0].created_at;
+      }
+    }
+
+    try {
+      if (latestTaskCreatedAt) {
+        await dispatch(fetchTasks({ created_at: latestTaskCreatedAt }));
       } else {
         await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 }));
       }
+      setRefreshing(false);
     } catch (err) {
       console.log('Incremental sync failed, doing full refresh', err);
       await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 }));
-    } finally {
       setRefreshing(false);
     }
   };
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = useCallback(async (id: string) => {
     try {
       const response = await taskApi.complete(id);
       dispatch(updateTask(response.data));
     } catch (err) {
       console.error('Failed to complete task', err);
     }
-  };
+  }, [dispatch]);
 
-
-
-  const handleTaskPress = (task: Task) => {
+  const handleTaskPress = useCallback((task: Task) => {
     // Navigate to details if implemented
     console.log('Task pressed', task._id);
-  };
+  }, []);
+
+  const renderTaskItem = useCallback(({ item }: { item: Task }) => (
+    <TaskCard
+      task={item}
+      onPress={handleTaskPress}
+      onComplete={handleComplete}
+    />
+  ), [handleTaskPress, handleComplete]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -188,13 +199,7 @@ export default function TaskDashboard() {
 
       <FlatList
         data={filteredAndSortedTasks}
-        renderItem={({ item }) => (
-          <TaskCard
-            task={item}
-            onPress={handleTaskPress}
-            onComplete={handleComplete}
-          />
-        )}
+        renderItem={renderTaskItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContent}
         onEndReached={loadMoreTasks}

@@ -239,7 +239,7 @@ const GroupPickers = ({ state, dispatch, colors, styles, groups, activeGroup }: 
                     </ScrollView>
                 </View>
             )}
-            
+
             {state.showAssigneePicker && activeGroup && (
                 <View style={{ backgroundColor: colors.card, marginTop: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
                     <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
@@ -281,9 +281,9 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
     const reduxDispatch = useDispatch<AppDispatch>();
-    
+
     const [state, dispatch] = useReducer(formReducer, initialState);
-    
+
     const { groups } = useSelector((rootState: RootState) => rootState.groups);
     const activeGroup = groups.find(g => g._id === state.selectedGroupId);
 
@@ -293,26 +293,37 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
             return;
         }
 
+        const taskTitle = state.title.trim();
+        const taskDescription = state.description.trim();
+        const dueDateIso = state.dueDate ? state.dueDate.toISOString() : undefined;
+        const duedateFallback = dueDateIso ? dueDateIso : new Date().toISOString();
+        const alarmReminderTimeIso = state.alarmReminderTime ? state.alarmReminderTime.toISOString() : dueDateIso;
+
+        const assigneeId = (state.assignee && state.assignee.id) ? state.assignee.id : '';
+        const assigneeUsername = (state.assignee && state.assignee.username) ? state.assignee.username : '';
+
+        const subtasksFormatted = state.subtasks.map((s: any) => ({ title: s.title, completed: false }));
+
         try {
             dispatch({ type: 'SUBMIT_START' });
 
             if (state.selectedGroupId) {
                 await groupApi.assignTask(state.selectedGroupId, {
-                    userId: state.assignee?.id || '',
-                    username: state.assignee?.username || '',
-                    task: state.title.trim(),
-                    duedate: state.dueDate?.toISOString() || new Date().toISOString(),
-                    subtasks: state.subtasks.map(s => ({ title: s.title, completed: false }))
+                    userId: assigneeId,
+                    username: assigneeUsername,
+                    task: taskTitle,
+                    duedate: duedateFallback,
+                    subtasks: subtasksFormatted
                 });
                 reduxDispatch(fetchGroups('')); // Refresh groups
             } else {
                 const taskData = {
-                    title: state.title.trim(),
-                    description: state.description.trim(),
-                    dueDate: state.dueDate?.toISOString(),
-                    subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
+                    title: taskTitle,
+                    description: taskDescription,
+                    dueDate: dueDateIso,
+                    subtasks: subtasksFormatted,
                     alarm_type: state.alarmType,
-                    alarm_reminder_time: state.alarmReminderTime?.toISOString() || state.dueDate?.toISOString(),
+                    alarm_reminder_time: alarmReminderTimeIso,
                     created_at: new Date(),
                     updated_at: new Date()
                 };
@@ -324,9 +335,13 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
             dispatch({ type: 'SUBMIT_SUCCESS' });
             onSuccess();
         } catch (err: any) {
-             dispatch({ 
-                type: 'SUBMIT_ERROR', 
-                error: err.response?.data?.message || 'Failed to create task' 
+            let errorMsg = 'Failed to create task';
+            if (err && err.response && err.response.data && err.response.data.message) {
+                errorMsg = err.response.data.message;
+            }
+            dispatch({
+                type: 'SUBMIT_ERROR',
+                error: errorMsg
             });
         }
     };
@@ -365,8 +380,8 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
                     <View style={styles.bottomBar}>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <TouchableOpacity 
-                                style={styles.projectDropdown} 
+                            <TouchableOpacity
+                                style={styles.projectDropdown}
                                 onPress={() => dispatch({ type: 'SET_FIELD', field: 'showGroupPicker', value: !state.showGroupPicker })}
                             >
                                 <View style={styles.inboxIcon}>
@@ -377,8 +392,8 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             </TouchableOpacity>
 
                             {activeGroup && (
-                                <TouchableOpacity 
-                                    style={styles.projectDropdown} 
+                                <TouchableOpacity
+                                    style={styles.projectDropdown}
                                     onPress={() => dispatch({ type: 'SET_FIELD', field: 'showAssigneePicker', value: !state.showAssigneePicker })}
                                 >
                                     <User size={14} color={colors.primary} />

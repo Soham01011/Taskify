@@ -1,4 +1,8 @@
-import React, { useReducer, useMemo } from 'react';
+const fs = require('fs');
+
+const content = fs.readFileSync('src/components/ui/DatePickerModal.tsx', 'utf8');
+
+const newCode = `import React, { useReducer, useMemo } from 'react';
 import {
     View,
     Text,
@@ -91,11 +95,11 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
         const items = [];
         // Add empty slots for the first week
         for (let i = 0; i < firstDayOfMonth; i++) {
-            items.push({ id: `empty-${i}`, dayNum: null });
+            items.push({ id: \`empty-\${i}\`, dayNum: null });
         }
         // Add actual days
         for (let i = 1; i <= daysInMonth; i++) {
-            items.push({ id: `day-${i}`, dayNum: i });
+            items.push({ id: \`day-\${i}\`, dayNum: i });
         }
         return items;
     }, [daysInMonth, firstDayOfMonth]);
@@ -190,7 +194,7 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                 {Array.from({ length: 24 }).map((_, i) => (
                                     <TouchableOpacity
-                                        key={`hour-${i}`}
+                                        key={\`hour-\${i}\`}
                                         style={[styles.timeChip, hours === i && styles.activeTimeChip]}
                                         onPress={() => {
                                             dispatch({ type: 'SET_HOURS', payload: i });
@@ -218,131 +222,6 @@ export const DatePickerModal: React.FC<DatePickerProps> = ({
         </Modal>
     );
 };
-const getStyles = (colors: any) => StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: colors.overlay,
-        justifyContent: 'flex-end',
-    },
-    dismiss: {
-        flex: 1,
-    },
-    container: {
-        backgroundColor: colors.card,
-        borderTopLeftRadius: RADIUS.xl,
-        borderTopRightRadius: RADIUS.xl,
-        padding: SPACING.lg,
-        paddingBottom: Platform.OS === 'ios' ? 40 : SPACING.xl,
-    },
-    handle: {
-        width: 40,
-        height: 5,
-        backgroundColor: colors.border,
-        borderRadius: 2.5,
-        alignSelf: 'center',
-        marginBottom: SPACING.md,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: SPACING.xl,
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: colors.text,
-    },
-    monthSelector: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: SPACING.lg,
-    },
-    monthName: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-    },
-    navBtns: {
-        flexDirection: 'row',
-    },
-    navBtn: {
-        padding: SPACING.xs,
-        marginLeft: SPACING.sm,
-    },
-    weekHeaders: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: SPACING.md,
-    },
-    weekDay: {
-        width: '14.28%',
-        textAlign: 'center',
-        fontSize: 12,
-        fontWeight: '600',
-        color: colors.textSecondary,
-    },
-    grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginBottom: SPACING.xl,
-    },
-    dayBox: {
-        width: '14.28%',
-        height: 45,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    selectedDay: {
-        backgroundColor: colors.primary,
-        borderRadius: 22.5,
-    },
-    dayText: {
-        fontSize: 16,
-        color: colors.text,
-    },
-    selectedDayText: {
-        color: colors.white,
-        fontWeight: 'bold',
-    },
-    timeSection: {
-        marginBottom: SPACING.xl,
-    },
-    timeHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    timeLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-        marginLeft: SPACING.xs,
-    },
-    timeInputRow: {
-        flexDirection: 'row',
-    },
-    timeChip: {
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
-        backgroundColor: colors.border,
-        borderRadius: RADIUS.md,
-        marginRight: SPACING.sm,
-    },
-    activeTimeChip: {
-        backgroundColor: colors.primary,
-    },
-    timeChipText: {
-        fontSize: 14,
-        color: colors.text,
-    },
-    activeTimeChipText: {
-        color: colors.white,
-        fontWeight: 'bold',
-    },
-    confirmBtn: {
-        height: 55,
-    },
-});
+` + content.slice(content.indexOf('const getStyles'));
+
+fs.writeFileSync('src/components/ui/DatePickerModal.tsx', newCode);
