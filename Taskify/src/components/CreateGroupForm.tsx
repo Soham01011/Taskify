@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useReducer } from 'react';
 import {
     View,
     Text,
@@ -14,7 +14,7 @@ import { X, Plus, Users, Shield } from 'lucide-react-native';
 import { useAppTheme } from '@/hooks/use-theme';
 import { GenieAnimation } from './GenieAnimation';
 import { groupApi } from '../api/groups';
-import { fetchGroups } from '../store/slices/groupSlice';
+import { addGroup } from '../store/slices/groupSlice';
 import { AppDispatch, RootState } from '../store';
 import { getStyles } from '@/assets/styles/CreateTaskForm.styles';
 
@@ -23,58 +23,118 @@ interface CreateGroupFormProps {
     onCancel?: () => void;
 }
 
+interface FormState {
+    name: string;
+    description: string;
+    members: string[];
+    newMemberId: string;
+    showMemberInput: boolean;
+    loading: boolean;
+    error: string;
+}
+
+type FormAction =
+    | { type: 'SET_FIELD'; field: keyof FormState; value: any }
+    | { type: 'ADD_MEMBER' }
+    | { type: 'REMOVE_MEMBER'; memberId: string }
+    | { type: 'SUBMIT_START' }
+    | { type: 'SUBMIT_SUCCESS' }
+    | { type: 'SUBMIT_ERROR'; error: string };
+
+const initialState: FormState = {
+    name: '',
+    description: '',
+    members: [],
+    newMemberId: '',
+    showMemberInput: false,
+    loading: false,
+    error: '',
+};
+
+function formReducer(state: FormState, action: FormAction): FormState {
+    switch (action.type) {
+        case 'SET_FIELD':
+            return { ...state, [action.field]: action.value };
+        case 'ADD_MEMBER': {
+            const newId = state.newMemberId.trim();
+            if (newId && !state.members.includes(newId)) {
+                return {
+                    ...state,
+                    members: [...state.members, newId],
+                    newMemberId: '',
+                    showMemberInput: false
+                };
+            }
+            return { ...state, newMemberId: '', showMemberInput: false };
+        }
+        case 'REMOVE_MEMBER':
+            return {
+                ...state,
+                members: state.members.filter(m => m !== action.memberId)
+            };
+        case 'SUBMIT_START':
+            return { ...state, loading: true, error: '' };
+        case 'SUBMIT_SUCCESS':
+            return { ...state, loading: false };
+        case 'SUBMIT_ERROR':
+            return { ...state, loading: false, error: action.error };
+        default:
+            return state;
+    }
+}
+
 export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onCancel }) => {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
-    const dispatch = useDispatch<AppDispatch>();
+    const reduxDispatch = useDispatch<AppDispatch>();
     const { currentUserId } = useSelector((state: RootState) => state.auth);
 
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [members, setMembers] = useState<string[]>([]);
-    const [newMemberId, setNewMemberId] = useState('');
-    const [showMemberInput, setShowMemberInput] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [state, dispatch] = useReducer(formReducer, initialState);
 
     const handleCreate = async () => {
-        if (!name.trim()) {
-            setError('Group name is required');
+        if (!state.name.trim()) {
+            dispatch({ type: 'SET_FIELD', field: 'error', value: 'Group name is required' });
             return;
         }
 
         try {
-            setLoading(true);
-            setError('');
+            dispatch({ type: 'SUBMIT_START' });
+
+            const finalMembers = [...state.members];
+            const pendingMemberId = state.newMemberId.trim();
+            if (pendingMemberId && !finalMembers.includes(pendingMemberId)) {
+                finalMembers.push(pendingMemberId);
+            }
 
             const groupData = {
-                name: name.trim(),
-                description: description.trim(),
-                members: members.filter(m => m.trim() !== '')
+                name: state.name.trim(),
+                description: state.description.trim(),
+                members: finalMembers.filter(m => m.trim() !== '')
             };
 
-            await groupApi.create(groupData);
-            if (currentUserId) {
-                dispatch(fetchGroups(currentUserId));
+            const response = await groupApi.create(groupData);
+            console.log("actual group data:", JSON.stringify(groupData, null, 2), "Create group response:", JSON.stringify(response.data, null, 2));
+
+            if (response.data) {
+                reduxDispatch(addGroup(response.data));
             }
+
+            dispatch({ type: 'SUBMIT_SUCCESS' });
             onSuccess();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to create group');
-        } finally {
-            setLoading(false);
+            dispatch({
+                type: 'SUBMIT_ERROR',
+                error: err.response?.data?.message || 'Failed to create group'
+            });
         }
     };
 
     const addMember = () => {
-        if (newMemberId.trim()) {
-            setMembers([...members, newMemberId.trim()]);
-            setNewMemberId('');
-            setShowMemberInput(false);
-        }
+        dispatch({ type: 'ADD_MEMBER' });
     };
 
-    const removeMember = (index: number) => {
-        setMembers(members.filter((_, i) => i !== index));
+    const removeMember = (memberId: string) => {
+        dispatch({ type: 'REMOVE_MEMBER', memberId });
     };
 
     return (
@@ -90,25 +150,25 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
                             style={styles.titleInput}
                             placeholder="Group Name"
                             placeholderTextColor={colors.placeholder}
-                            value={name}
-                            onChangeText={setName}
+                            value={state.name}
+                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'name', value: val })}
                         />
                         <TextInput
                             style={styles.descriptionInput}
                             placeholder="Description"
                             placeholderTextColor={colors.placeholder}
-                            value={description}
-                            onChangeText={setDescription}
+                            value={state.description}
+                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'description', value: val })}
                             multiline
                         />
 
-                        {members.length > 0 && (
+                        {state.members.length > 0 && (
                             <View style={styles.subtaskContainer}>
-                                {members.map((m, index) => (
-                                    <View key={index} style={styles.subtaskItem}>
+                                {state.members.map((m) => (
+                                    <View key={m} style={styles.subtaskItem}>
                                         <Users size={14} color={colors.textSecondary} />
                                         <Text style={styles.subtaskText}>{m}</Text>
-                                        <TouchableOpacity onPress={() => removeMember(index)}>
+                                        <TouchableOpacity onPress={() => removeMember(m)}>
                                             <X size={14} color={colors.textSecondary} />
                                         </TouchableOpacity>
                                     </View>
@@ -116,13 +176,13 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
                             </View>
                         )}
 
-                        {showMemberInput ? (
+                        {state.showMemberInput ? (
                             <View style={styles.subtaskInputRow}>
                                 <TextInput
                                     style={styles.subtaskInput}
                                     placeholder="Add member (User ID)..."
-                                    value={newMemberId}
-                                    onChangeText={setNewMemberId}
+                                    value={state.newMemberId}
+                                    onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'newMemberId', value: val })}
                                     onSubmitEditing={addMember}
                                 />
                                 <TouchableOpacity onPress={addMember}>
@@ -132,7 +192,7 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
                         ) : (
                             <TouchableOpacity
                                 style={styles.addSubtaskBtn}
-                                onPress={() => setShowMemberInput(true)}
+                                onPress={() => dispatch({ type: 'SET_FIELD', field: 'showMemberInput', value: true })}
                             >
                                 <Plus size={14} color={colors.textSecondary} />
                                 <Text style={styles.addSubtaskText}>Add member by User ID</Text>
@@ -158,10 +218,10 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
                             <TouchableOpacity
                                 style={[
                                     styles.addButton,
-                                    (!name.trim() || loading) && styles.addButtonDisabled
+                                    (!state.name.trim() || state.loading) && styles.addButtonDisabled
                                 ]}
                                 onPress={handleCreate}
-                                disabled={!name.trim() || loading}
+                                disabled={!state.name.trim() || state.loading}
                             >
                                 <Text style={styles.addButtonText}>Create Group</Text>
                             </TouchableOpacity>
@@ -170,7 +230,7 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
                 </View>
             </GenieAnimation>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {state.error ? <Text style={styles.errorText}>{state.error}</Text> : null}
         </View>
     );
 };

@@ -13,6 +13,26 @@ import { useAppTheme } from '@/hooks/use-theme';
 import { PALETTE } from '@/src/constants/theme';
 import { styles } from '@/assets/styles/PreferanceScreen.styles';
 
+const ThemeOption = ({ id, label, icon: Icon, colors, currentTheme, isDark, handleThemeChange }: { id: 'light' | 'dark' | 'system', label: string, icon: any, colors: any, currentTheme: string, isDark: boolean, handleThemeChange: (id: 'light' | 'dark' | 'system') => void }) => (
+    <TouchableOpacity
+        style={[
+            styles.option,
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
+            currentTheme === id && { borderColor: colors.primary, borderWidth: 1 }
+        ]}
+        onPress={() => handleThemeChange(id)}
+        activeOpacity={0.7}
+    >
+        <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#F0F9FF' }]}>
+            <Icon size={20} color={currentTheme === id ? colors.primary : colors.textSecondary} />
+        </View>
+        <Text style={[styles.optionLabel, { color: colors.text }]}>{label}</Text>
+        {currentTheme === id && (
+            <Check size={20} color={colors.primary} />
+        )}
+    </TouchableOpacity>
+);
+
 export default function PreferencesScreen() {
     const dispatch = useDispatch();
     const { colors, isDark, customPrimaryColor } = useAppTheme();
@@ -62,25 +82,7 @@ export default function PreferencesScreen() {
         }
     }, [isDark, currentUserId, dispatch]);
 
-    const ThemeOption = ({ id, label, icon: Icon }: { id: 'light' | 'dark' | 'system', label: string, icon: any }) => (
-        <TouchableOpacity
-            style={[
-                styles.option,
-                { backgroundColor: colors.card, borderBottomColor: colors.border },
-                currentTheme === id && { borderColor: colors.primary, borderWidth: 1 }
-            ]}
-            onPress={() => handleThemeChange(id)}
-            activeOpacity={0.7}
-        >
-            <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#F0F9FF' }]}>
-                <Icon size={20} color={currentTheme === id ? colors.primary : colors.textSecondary} />
-            </View>
-            <Text style={[styles.optionLabel, { color: colors.text }]}>{label}</Text>
-            {currentTheme === id && (
-                <Check size={20} color={colors.primary} />
-            )}
-        </TouchableOpacity>
-    );
+
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -97,9 +99,9 @@ export default function PreferencesScreen() {
                 <View style={styles.section}>
                     <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>
                     <View style={[styles.optionsCard, { backgroundColor: colors.card }]}>
-                        <ThemeOption id="light" label="Light Mode" icon={Sun} />
-                        <ThemeOption id="dark" label="Dark Mode" icon={Moon} />
-                        <ThemeOption id="system" label="System Default" icon={Monitor} />
+                        <ThemeOption id="light" label="Light Mode" icon={Sun} colors={colors} currentTheme={currentTheme} isDark={isDark} handleThemeChange={handleThemeChange} />
+                        <ThemeOption id="dark" label="Dark Mode" icon={Moon} colors={colors} currentTheme={currentTheme} isDark={isDark} handleThemeChange={handleThemeChange} />
+                        <ThemeOption id="system" label="System Default" icon={Monitor} colors={colors} currentTheme={currentTheme} isDark={isDark} handleThemeChange={handleThemeChange} />
                     </View>
                 </View>
 
