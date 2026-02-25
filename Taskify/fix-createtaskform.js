@@ -1,4 +1,5 @@
-import React, { useReducer } from 'react';
+const fs = require('fs');
+const content = `import React, { useReducer } from 'react';
 import {
     View,
     Text,
@@ -172,7 +173,7 @@ const TaskActionsRow = ({ state, dispatch, colors, styles }: any) => (
             <Calendar size={14} color="#058527" />
             <Text style={[styles.pillText, { color: '#058527' }]}>
                 {state.dueDate ? (
-                    `${state.dueDate.toDateString() === new Date().toDateString() ? 'Today' : state.dueDate.toLocaleDateString()} ${state.dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    \`\${state.dueDate.toDateString() === new Date().toDateString() ? 'Today' : state.dueDate.toLocaleDateString()} \${state.dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\`
                 ) : 'No Date'}
             </Text>
             {state.dueDate && (
@@ -255,7 +256,7 @@ const GroupPickers = ({ state, dispatch, colors, styles, groups, activeGroup }: 
                         {activeGroup.members?.map((member: any) => {
                             const username = typeof member === 'string' ? member : (member.username || member._id);
                             const id = typeof member === 'string' ? member : member._id;
-                            const displayName = username === id ? `User ${id.substring(0, 6)}` : username;
+                            const displayName = username === id ? \`User \${id.substring(0, 6)}\` : username;
 
                             return (
                                 <TouchableOpacity
@@ -436,3 +437,5 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
         </View>
     );
 };
+`
+fs.writeFileSync('/home/soham-dalvi/Projects/Taskify/Taskify/src/components/CreateTaskForm.tsx', content);

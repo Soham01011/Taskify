@@ -62,9 +62,9 @@ export default function GroupMembersModalScreen() {
             Alert.alert('Success', 'Member added successfully');
             setNewMemberId('');
             if (currentUserId) dispatch(fetchGroups(currentUserId));
+            setLoading(false);
         } catch (err: any) {
             Alert.alert('Error', err.response?.data?.message || 'Failed to add member');
-        } finally {
             setLoading(false);
         }
     };
@@ -83,9 +83,9 @@ export default function GroupMembersModalScreen() {
                             setLoading(true);
                             await groupApi.removeMember(group._id, userId);
                             if (currentUserId) dispatch(fetchGroups(currentUserId));
+                            setLoading(false);
                         } catch (err: any) {
                             Alert.alert('Error', err.response?.data?.message || 'Failed to remove member');
-                        } finally {
                             setLoading(false);
                         }
                     }
@@ -108,10 +108,10 @@ export default function GroupMembersModalScreen() {
                             setLoading(true);
                             await groupApi.delete(group._id);
                             if (currentUserId) dispatch(fetchGroups(currentUserId));
+                            setLoading(false);
                             handleClose();
                         } catch (err: any) {
                             Alert.alert('Error', err.response?.data?.message || 'Failed to delete group');
-                        } finally {
                             setLoading(false);
                         }
                     }
