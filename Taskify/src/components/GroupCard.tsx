@@ -79,8 +79,8 @@ const GroupTaskItem = ({ t, group, currentUserId, colors }: { t: any, group: Gro
             {t.subtasks && t.subtasks.length > 0 && (
                 <Animated.View style={[{ overflow: 'hidden' }, contentStyle]}>
                     <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 8, marginTop: 4 }} />
-                    {t.subtasks.map((st: any) => (
-                        <View key={st._id || Math.random().toString()} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingLeft: 30 }}>
+                    {t.subtasks.map((st: any, index: number) => (
+                        <View key={st._id || `subtask-fallback-${index}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingLeft: 30 }}>
                             <TouchableOpacity onPress={() => st._id && handleSubtaskToggle(t._id, st._id, st.completed)} style={{ marginRight: 8 }}>
                                 {st.completed ? <CheckSquare size={16} color={colors.secondary} /> : <Square size={16} color={colors.border} />}
                             </TouchableOpacity>

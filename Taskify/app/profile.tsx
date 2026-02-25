@@ -15,6 +15,41 @@ import { switchUser, logout } from '@/src/store/slices/authSlice';
 import { useAppTheme } from '@/hooks/use-theme';
 import { Button } from '@/src/components/ui/Button';
 
+const MenuItem = ({
+    icon,
+    title,
+    subtitle,
+    onPress,
+    isLast = false,
+    rightIcon,
+    colors,
+    styles
+}: {
+    icon: React.ReactNode;
+    title: string;
+    subtitle?: string;
+    onPress?: () => void;
+    isLast?: boolean;
+    rightIcon?: React.ReactNode;
+    colors: any;
+    styles: any
+}) => (
+    <TouchableOpacity
+        style={[styles.menuItem, isLast && styles.lastMenuItem]}
+        onPress={onPress}
+        activeOpacity={0.6}
+    >
+        <View style={styles.menuIconContainer}>
+            {icon}
+        </View>
+        <View style={styles.menuTextContainer}>
+            <Text style={styles.menuTitle}>{title}</Text>
+            {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+        </View>
+        {rightIcon || <ChevronRight size={18} color={colors.textSecondary} />}
+    </TouchableOpacity>
+);
+
 export default function ProfileScreen() {
     const router = useRouter();
     const dispatch = useDispatch();
@@ -48,23 +83,6 @@ export default function ProfileScreen() {
             Alert.alert('Copied!', 'Your User ID has been copied to the clipboard. Share it with others so they can add you to their groups.');
         }
     };
-
-    const renderMenuItem = (icon: React.ReactNode, title: string, subtitle?: string, onPress?: () => void, isLast = false, rightIcon?: React.ReactNode) => (
-        <TouchableOpacity
-            style={[styles.menuItem, isLast && styles.lastMenuItem]}
-            onPress={onPress}
-            activeOpacity={0.6}
-        >
-            <View style={styles.menuIconContainer}>
-                {icon}
-            </View>
-            <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>{title}</Text>
-                {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
-            </View>
-            {rightIcon || <ChevronRight size={18} color={colors.textSecondary} />}
-        </TouchableOpacity>
-    );
 
     return (
         <SafeAreaView style={styles.container}>
@@ -135,11 +153,11 @@ export default function ProfileScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Settings</Text>
                     <View style={styles.menuCard}>
-                        {renderMenuItem(<Copy size={20} color={colors.primary} />, 'Copy User ID', currentUserId || 'Not available', handleCopyUserId)}
-                        {renderMenuItem(<Settings size={20} color={colors.primary} />, 'Preferences', 'Theme, language, and more', () => router.push('/preferences'))}
-                        {renderMenuItem(<Bell size={20} color="#6366f1" />, 'Notifications', 'Manage alerts and updates')}
-                        {renderMenuItem(<Shield size={20} color="#10b981" />, 'Privacy & Security', 'Password, biometric lock')}
-                        {renderMenuItem(<Info size={20} color="#f59e0b" />, 'Help & Support', 'FAQ and contact us', undefined, true)}
+                        <MenuItem icon={<Copy size={20} color={colors.primary} />} title="Copy User ID" subtitle={currentUserId || 'Not available'} onPress={handleCopyUserId} colors={colors} styles={styles} />
+                        <MenuItem icon={<Settings size={20} color={colors.primary} />} title="Preferences" subtitle="Theme, language, and more" onPress={() => router.push('/preferences')} colors={colors} styles={styles} />
+                        <MenuItem icon={<Bell size={20} color="#6366f1" />} title="Notifications" subtitle="Manage alerts and updates" colors={colors} styles={styles} />
+                        <MenuItem icon={<Shield size={20} color="#10b981" />} title="Privacy & Security" subtitle="Password, biometric lock" colors={colors} styles={styles} />
+                        <MenuItem icon={<Info size={20} color="#f59e0b" />} title="Help & Support" subtitle="FAQ and contact us" isLast={true} colors={colors} styles={styles} />
                     </View>
                 </View>
 
