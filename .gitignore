@@ -7,3 +7,4 @@ vercel.json
 taskify/node_modules
 node_modules
 taskify/dist
+Taskify/.agents
