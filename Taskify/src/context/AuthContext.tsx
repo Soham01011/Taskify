@@ -30,33 +30,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
         }
 
+        let needsRefresh = false;
+
         try {
             await authApi.verify(currentUser.accessToken);
             console.log('Token verification successful');
             setIsChecking(false);
         } catch (error) {
             console.log('Token verification failed, attempting refresh...');
+            needsRefresh = true;
+        }
 
+        if (needsRefresh) {
             if (currentUser.refreshToken) {
+                let refreshData: any = null;
                 try {
                     const response = await authApi.refresh(currentUser.refreshToken);
-                    const { accessToken, refreshToken } = response.data;
-
-                    // The server provides a new refreshToken if it's about to expire
-                    // Otherwise it might just return the access token.
-                    // We dispatch updateTokens with whatever the server returns.
-                    // If refreshToken is not provided, we keep the old one.
-                    dispatch(updateTokens({
-                        userId: currentUser.id,
-                        accessToken,
-                        refreshToken: refreshToken || currentUser.refreshToken
-                    }));
-
-                    console.log('Token refresh successful');
-                    setIsChecking(false);
+                    refreshData = response.data;
                 } catch (refreshError) {
                     console.log('Token refresh failed, logging out...');
                     dispatch(logout());
+                    setIsChecking(false);
+                    return;
+                }
+
+                if (refreshData) {
+                    const finalRefreshToken = refreshData.refreshToken || currentUser.refreshToken;
+
+                    dispatch(updateTokens({
+                        userId: currentUser.id,
+                        accessToken: refreshData.accessToken,
+                        refreshToken: finalRefreshToken
+                    }));
+
+                    console.log('Token refresh successful');
                     setIsChecking(false);
                 }
             } else {
@@ -66,18 +73,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
     };
-
-    useEffect(() => {
-        // 1. Check on app open (Initial mount)
-        verifyCurrentToken();
-
-        // 2. Setup AppState listener
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-        return () => {
-            subscription.remove();
-        };
-    }, [currentUserId]); // Re-run if user changes
 
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
         if (
@@ -103,6 +98,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         appState.current = nextAppState;
     };
+
+    useEffect(() => {
+        // 1. Check on app open (Initial mount)
+        const timer = setTimeout(() => {
+            verifyCurrentToken();
+        }, 0);
+
+        // 2. Setup AppState listener
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+            clearTimeout(timer);
+            subscription.remove();
+        };
+    }, [currentUserId]); // Re-run if user changes
 
     return (
         <AuthContext.Provider value={{ isChecking }}>

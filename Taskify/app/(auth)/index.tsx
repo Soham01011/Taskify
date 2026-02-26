@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useReducer, useState } from 'react';
 import {
     View,
     Text,
@@ -24,54 +24,84 @@ import { getStyles } from '@/assets/styles/loginscreen.style';
 import { getAccountStyles } from '@/assets/styles/accountStyles.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 
+const initialState = {
+    username: '',
+    password: '',
+    apiEndpoint: '',
+    localError: ''
+};
+
+function loginReducer(state: typeof initialState, action: { type: 'SET_FIELD', field: keyof typeof initialState, value: any }) {
+    if (action.type === 'SET_FIELD') {
+        return { ...state, [action.field]: action.value };
+    }
+    return state;
+}
+
 export default function LoginScreen() {
     const router = useRouter();
-    const dispatch = useDispatch();
+    const reduxDispatch = useDispatch();
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
     const accountStyles = getAccountStyles(colors);
     const { users } = useSelector((state: RootState) => state.auth);
 
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [apiEndpoint, setApiEndpoint] = useState('');
+    const [state, dispatch] = useReducer(loginReducer, initialState);
     const [showPassword, setShowPassword] = useState(false);
-    const [localError, setLocalError] = useState('');
     const [showAccountSelector, setShowAccountSelector] = useState(users.length > 0);
 
     const handleLogin = async () => {
-        if (!username || !password) {
-            setLocalError('Please fill in all fields');
+        if (!state.username || !state.password) {
+            dispatch({ type: 'SET_FIELD', field: 'localError', value: 'Please fill in all fields' });
             return;
         }
 
-        try {
-            dispatch(setLoading(true));
-            setLocalError('');
-            const finalEndpoint = apiEndpoint.trim();
-            const response = await authApi.login(username, password, finalEndpoint ? finalEndpoint : undefined);
-            console.log("LOGIN RESPONSE RECEIVED:", response.data);
+        reduxDispatch(setLoading(true));
+        dispatch({ type: 'SET_FIELD', field: 'localError', value: '' });
 
-            const { accessToken, refreshToken, userId, finalUsername } = response.data;
-            if (!accessToken || !refreshToken || !userId || !finalUsername) {
-                throw new Error("Invalid response from server");
+        const endpointStr = state.apiEndpoint.trim();
+        const finalEndpoint = endpointStr ? endpointStr : undefined;
+
+        let responseData: any = null;
+
+        try {
+            const response = await authApi.login(state.username, state.password, finalEndpoint);
+            console.log("LOGIN RESPONSE RECEIVED:", response.data);
+            responseData = response.data;
+        } catch (err: any) {
+            console.log("FRONTEND LOGIN ERROR:", err);
+            let msg = 'Login failed. Please check your credentials.';
+            if (err && err.response && err.response.data && err.response.data.message) {
+                msg = err.response.data.message;
             }
-            dispatch(loginSuccess({
+            dispatch({ type: 'SET_FIELD', field: 'localError', value: msg });
+            reduxDispatch(setError(msg));
+            reduxDispatch(setLoading(false));
+            return;
+        }
+
+        if (responseData) {
+            const { accessToken, refreshToken, userId, finalUsername } = responseData;
+
+            if (!accessToken || !refreshToken || !userId || !finalUsername) {
+                // Handle invalid response directly branch instead of throwing
+                const msg = "Invalid response from server";
+                dispatch({ type: 'SET_FIELD', field: 'localError', value: msg });
+                reduxDispatch(setError(msg));
+                reduxDispatch(setLoading(false));
+                return;
+            }
+
+            reduxDispatch(loginSuccess({
                 id: userId,
                 username: finalUsername,
                 accessToken,
                 refreshToken,
-                apiEndpoint: finalEndpoint || undefined
+                apiEndpoint: finalEndpoint
             }));
 
+            reduxDispatch(setLoading(false));
             router.replace('/(tabs)');
-        } catch (err: any) {
-            console.log("FRONTEND LOGIN ERROR:", err);
-            const msg = err.response?.data?.message || 'Login failed. Please check your credentials.';
-            setLocalError(msg);
-            dispatch(setError(msg));
-        } finally {
-            dispatch(setLoading(false));
         }
     };
 
@@ -96,8 +126,8 @@ export default function LoginScreen() {
                     <Text style={styles.label}>Username</Text>
                     <Input
                         placeholder="Enter username"
-                        value={username}
-                        onChangeText={setUsername}
+                        value={state.username}
+                        onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'username', value: val })}
                         autoCapitalize="none"
                         icon={<UserIcon size={20} color={colors.textSecondary} />}
                     />
@@ -107,8 +137,8 @@ export default function LoginScreen() {
                     </View>
                     <Input
                         placeholder="********"
-                        value={password}
-                        onChangeText={setPassword}
+                        value={state.password}
+                        onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'password', value: val })}
                         secureTextEntry={!showPassword}
                         icon={<Lock size={20} color={colors.textSecondary} />}
                         rightIcon={
@@ -128,15 +158,15 @@ export default function LoginScreen() {
 
                     <Text style={[styles.label, { marginTop: SPACING.md }]}>Server Endpoint (Optional)</Text>
                     <Input
-                        placeholder="e.g. http://192.168.1.50:3000/api"
-                        value={apiEndpoint}
-                        onChangeText={setApiEndpoint}
+                        placeholder="e.g. http://localhost:3000/api"
+                        value={state.apiEndpoint}
+                        onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'apiEndpoint', value: val })}
                         autoCapitalize="none"
                         keyboardType="url"
                         icon={<Globe size={20} color={colors.textSecondary} />}
                     />
 
-                    {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
+                    {state.localError ? <Text style={styles.errorText}>{state.localError}</Text> : null}
 
                     <Button
                         title="Login"
@@ -173,8 +203,8 @@ export default function LoginScreen() {
                                     <TouchableOpacity
                                         style={{ flex: 1, flexDirection: 'row', alignItems: 'center', padding: 14 }}
                                         onPress={() => {
-                                            setUsername(user.username);
-                                            setApiEndpoint(user.apiEndpoint || '');
+                                            dispatch({ type: 'SET_FIELD', field: 'username', value: user.username });
+                                            dispatch({ type: 'SET_FIELD', field: 'apiEndpoint', value: user.apiEndpoint || '' });
                                             setShowAccountSelector(false);
                                         }}
                                     >
@@ -197,7 +227,7 @@ export default function LoginScreen() {
                                                     { text: "Cancel", style: "cancel" },
                                                     {
                                                         text: "Remove", style: "destructive", onPress: () => {
-                                                            dispatch(removeAccount(user.id));
+                                                            reduxDispatch(removeAccount(user.id));
                                                             if (users.length <= 1) setShowAccountSelector(false);
                                                         }
                                                     }

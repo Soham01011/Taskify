@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useReducer, useState } from 'react';
 import {
     View,
     Text,
@@ -16,39 +16,58 @@ import { Button } from '@/src/components/ui/Button';
 import { getStyles } from '@/assets/styles/registerscreen.style';
 import { useAppTheme } from '@/hooks/use-theme';
 
+const initialState = {
+    username: '',
+    password: '',
+    confirmPassword: '',
+    apiEndpoint: '',
+    loading: false,
+    error: ''
+};
+
+function reducer(state: typeof initialState, action: { type: 'SET_FIELD', field: keyof typeof initialState, value: any }) {
+    if (action.type === 'SET_FIELD') {
+        return { ...state, [action.field]: action.value };
+    }
+    return state;
+}
+
 export default function RegisterScreen() {
     const router = useRouter();
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [apiEndpoint, setApiEndpoint] = useState('');
+    const [state, dispatch] = useReducer(reducer, initialState);
+    // keep showPassword as useState since it's transient UI state and not strictly form data
     const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
     const handleRegister = async () => {
-        if (!username || !password || !confirmPassword) {
-            setError('Please fill in all fields');
+        if (!state.username || !state.password || !state.confirmPassword) {
+            dispatch({ type: 'SET_FIELD', field: 'error', value: 'Please fill in all fields' });
             return;
         }
 
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
+        if (state.password !== state.confirmPassword) {
+            dispatch({ type: 'SET_FIELD', field: 'error', value: 'Passwords do not match' });
             return;
         }
+
+        dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
+        dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
+
+        const endpointStr = state.apiEndpoint.trim();
+        const finalEndpoint = endpointStr ? endpointStr : undefined;
 
         try {
-            setLoading(true);
-            setError('');
-            const finalEndpoint = apiEndpoint.trim();
-            await authApi.register(username, password, finalEndpoint ? finalEndpoint : undefined);
+            await authApi.register(state.username, state.password, finalEndpoint);
+            dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
             router.replace('/(auth)' as any);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Registration failed');
-        } finally {
-            setLoading(false);
+            let errorMsg = 'Registration failed';
+            if (err && err.response && err.response.data && err.response.data.message) {
+                errorMsg = err.response.data.message;
+            }
+            dispatch({ type: 'SET_FIELD', field: 'error', value: errorMsg });
+            dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
         }
     };
 
@@ -72,8 +91,8 @@ export default function RegisterScreen() {
                         <Text style={styles.label}>Username *</Text>
                         <Input
                             placeholder="Enter username"
-                            value={username}
-                            onChangeText={setUsername}
+                            value={state.username}
+                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'username', value: val })}
                             autoCapitalize="none"
                             icon={<User size={18} color={colors.textSecondary} />}
                         />
@@ -81,8 +100,8 @@ export default function RegisterScreen() {
                         <Text style={styles.label}>Password *</Text>
                         <Input
                             placeholder="Enter your password"
-                            value={password}
-                            onChangeText={setPassword}
+                            value={state.password}
+                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'password', value: val })}
                             secureTextEntry={!showPassword}
                             icon={<Lock size={18} color={colors.textSecondary} />}
                             rightIcon={
@@ -99,30 +118,30 @@ export default function RegisterScreen() {
                         <Text style={styles.label}>Confirm Password *</Text>
                         <Input
                             placeholder="Confirm your password"
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
+                            value={state.confirmPassword}
+                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'confirmPassword', value: val })}
                             secureTextEntry={!showPassword}
                             icon={<Lock size={18} color={colors.textSecondary} />}
                         />
 
                         <Text style={styles.label}>Server Endpoint (Optional)</Text>
                         <Input
-                            placeholder="e.g. http://192.168.1.50:3000/api"
-                            value={apiEndpoint}
-                            onChangeText={setApiEndpoint}
+                            placeholder="e.g. http://localhost:3000/api"
+                            value={state.apiEndpoint}
+                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'apiEndpoint', value: val })}
                             autoCapitalize="none"
                             keyboardType="url"
                             icon={<Globe size={18} color={colors.textSecondary} />}
                         />
                     </View>
 
-                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                    {state.error ? <Text style={styles.errorText}>{state.error}</Text> : null}
 
                     <View style={styles.footer}>
                         <Button
                             title="Continue"
                             onPress={handleRegister}
-                            loading={loading}
+                            loading={state.loading}
                             style={styles.submitBtn}
                         />
                     </View>

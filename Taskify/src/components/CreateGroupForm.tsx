@@ -97,20 +97,20 @@ export const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onSuccess, onC
             return;
         }
 
+        const finalMembers = [...state.members];
+        const pendingMemberId = state.newMemberId.trim();
+        if (pendingMemberId && !finalMembers.includes(pendingMemberId)) {
+            finalMembers.push(pendingMemberId);
+        }
+
+        const groupData = {
+            name: state.name.trim(),
+            description: state.description.trim(),
+            members: finalMembers.filter(m => m.trim() !== '')
+        };
+
         try {
             dispatch({ type: 'SUBMIT_START' });
-
-            const finalMembers = [...state.members];
-            const pendingMemberId = state.newMemberId.trim();
-            if (pendingMemberId && !finalMembers.includes(pendingMemberId)) {
-                finalMembers.push(pendingMemberId);
-            }
-
-            const groupData = {
-                name: state.name.trim(),
-                description: state.description.trim(),
-                members: finalMembers.filter(m => m.trim() !== '')
-            };
 
             const response = await groupApi.create(groupData);
             console.log("actual group data:", JSON.stringify(groupData, null, 2), "Create group response:", JSON.stringify(response.data, null, 2));
