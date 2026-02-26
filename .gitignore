@@ -1,5 +1,5 @@
-node_modules
-.env
+taskify-backend-vercel/node_modules
+taskify-backend-vercel/.env
 .DS_Store
 .expo
 Dockerfile
