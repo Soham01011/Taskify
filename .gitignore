@@ -4,3 +4,5 @@ taskify-backend-vercel/.env
 .expo
 Dockerfile
 API_DOCS.md
+.vercel
+.env*.local
