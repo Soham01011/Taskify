@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import axios from 'axios';
 import { User, logout, updateTokens } from '../store/slices/authSlice';
 
@@ -47,9 +48,35 @@ client.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         const errorData = error.response?.data;
+        const status = error.response?.status;
+
+        // Log 400-level errors to Sentry before handling auth errors
+        if (status && status >= 400 && status < 500) {
+            Sentry.withScope((scope) => {
+                scope.setLevel('warning');
+                scope.setTag('api_url', originalRequest?.url);
+                scope.setTag('status_code', status);
+
+                scope.setContext('API Request', {
+                    method: originalRequest?.method?.toUpperCase(),
+                    url: originalRequest?.url,
+                    baseURL: originalRequest?.baseURL,
+                    headers: originalRequest?.headers,
+                    data: typeof originalRequest?.data === 'string' ? JSON.parse(originalRequest.data) : originalRequest?.data,
+                });
+
+                scope.setContext('API Response', {
+                    status: status,
+                    data: errorData,
+                    headers: error.response?.headers,
+                });
+
+                Sentry.captureMessage(`API Error ${status}: ${originalRequest?.url || 'unknown endpoint'}`, 'warning');
+            });
+        }
 
         // Check if it's an authentication error (401)
-        const isAuthError = error.response?.status === 401;
+        const isAuthError = status === 401;
         // Check for specific "Token expired" indicators from the backend docs
         const isTokenExpired = errorData?.code === 'TOKEN_EXPIRED' ||
             errorData?.error === 'Token expired' ||

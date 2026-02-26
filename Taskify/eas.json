@@ -28,12 +28,18 @@
       "android": {
         "buildType": "apk"
       },
+      "env": {
+        "SENTRY_AUTH_TOKEN": "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"
+      },
       "channel": "production-apk"
     },
     "production-ios": {
       "autoIncrement": true,
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "SENTRY_AUTH_TOKEN": "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"
       },
       "channel": "production-ios"
     }

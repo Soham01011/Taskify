@@ -228,6 +228,16 @@ export default function ProfileScreen() {
                     onPress={handleLogout}
                     style={styles.logoutBtn}
                 />
+
+                {/* <Button
+                    title="Test Sentry Error"
+                    variant="outline"
+                    onPress={() => {
+                        Sentry.captureException(new Error('Sentry Test Error from Profile'));
+                        Alert.alert('Sentry Event Sent', 'Check your Sentry dashboard for the "Sentry Test Error from Profile" exception.');
+                    }}
+                    style={{ marginTop: 12, marginHorizontal: 20, marginBottom: 20 }}
+                /> */}
             </ScrollView>
 
             {/* Custom Logout Modal */}
