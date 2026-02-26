@@ -38,16 +38,10 @@ app.get('/api/readyness', (req, res) => {
   }
 });
 
-// Database connection & Server start
+// Database connection
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Monolithic backend running on port ${PORT}`);
-      console.log(`- Auth: http://localhost:${PORT}/api/auth`);
-      console.log(`- Tasks: http://localhost:${PORT}/api/tasks`);
-      console.log(`- Groups: http://localhost:${PORT}/api/groups`);
-    });
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
