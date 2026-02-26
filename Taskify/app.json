@@ -2,7 +2,7 @@
   "expo": {
     "name": "Taskify",
     "slug": "taskify",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "taskify",
@@ -48,6 +48,12 @@
         "projectId": "bde0622c-74cc-4053-8bce-0a5b477ae903"
       }
     },
-    "owner": "soham_dalvi"
+    "owner": "soham_dalvi",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bde0622c-74cc-4053-8bce-0a5b477ae903"
+    }
   }
 }

@@ -1,19 +1,20 @@
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, Alert, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useDispatch, useSelector } from 'react-redux';
-import { useRouter, Stack } from 'expo-router';
-import { User, LogOut, UserPlus, CheckCircle2, ChevronRight, Settings, Bell, Shield, Info, AlertTriangle, Copy } from 'lucide-react-native';
-import * as Clipboard from 'expo-clipboard';
-import { useState } from 'react';
 import { GenieAnimation } from '@/src/components/GenieAnimation';
+import * as Clipboard from 'expo-clipboard';
+import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import * as Updates from "expo-updates";
+import { AlertTriangle, Bell, CheckCircle2, ChevronRight, Copy, Info, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { getStyles } from '@/assets/styles/profilescreen.styles';
-import { RootState } from '@/src/store';
-import { switchUser, logout } from '@/src/store/slices/authSlice';
 import { useAppTheme } from '@/hooks/use-theme';
 import { Button } from '@/src/components/ui/Button';
+import { RootState } from '@/src/store';
+import { logout, switchUser } from '@/src/store/slices/authSlice';
 
 const MenuItem = ({
     icon,
@@ -58,6 +59,7 @@ export default function ProfileScreen() {
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 
     const handleSwitchUser = (userId: string) => {
         if (userId === currentUserId) return;
@@ -81,6 +83,56 @@ export default function ProfileScreen() {
         if (currentUserId) {
             await Clipboard.setStringAsync(currentUserId);
             Alert.alert('Copied!', 'Your User ID has been copied to the clipboard. Share it with others so they can add you to their groups.');
+        }
+    };
+
+    const handleCheckUpdates = async () => {
+        try {
+            setIsCheckingUpdates(true);
+            if (__DEV__) {
+                // Simulate a delay for better UX feel during testing
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                Alert.alert('Development Mode', 'OTA updates are not available in development mode.');
+                setIsCheckingUpdates(false);
+                return;
+            }
+
+            const update = await Updates.checkForUpdateAsync();
+            if (update.isAvailable) {
+                Alert.alert(
+                    'Update Available',
+                    'A new version of Taskify is available. The app will download the update and restart.',
+                    [
+                        {
+                            text: 'Cancel',
+                            style: 'cancel',
+                            onPress: () => setIsCheckingUpdates(false)
+                        },
+                        {
+                            text: 'Update Now',
+                            onPress: async () => {
+                                try {
+                                    await Updates.fetchUpdateAsync();
+                                    await Updates.reloadAsync();
+                                } catch (error) {
+                                    Alert.alert('Update Failed', 'Could not download the update. Please check your internet connection and try again.');
+                                    setIsCheckingUpdates(false);
+                                }
+                            }
+                        }
+                    ]
+                );
+            } else {
+                Alert.alert('Up to Date', 'You are already running the latest version of Taskify.');
+                setIsCheckingUpdates(false);
+            }
+        } catch (error) {
+            console.error('Update check error:', error);
+            Alert.alert(
+                'Check Failed',
+                'An error occurred while checking for updates. Make sure you are using a build with OTA updates enabled.'
+            );
+            setIsCheckingUpdates(false);
         }
     };
 
@@ -157,7 +209,16 @@ export default function ProfileScreen() {
                         <MenuItem icon={<Settings size={20} color={colors.primary} />} title="Preferences" subtitle="Theme, language, and more" onPress={() => router.push('/preferences')} colors={colors} styles={styles} />
                         <MenuItem icon={<Bell size={20} color="#6366f1" />} title="Notifications" subtitle="Manage alerts and updates" colors={colors} styles={styles} />
                         <MenuItem icon={<Shield size={20} color="#10b981" />} title="Privacy & Security" subtitle="Password, biometric lock" colors={colors} styles={styles} />
-                        <MenuItem icon={<Info size={20} color="#f59e0b" />} title="Help & Support" subtitle="FAQ and contact us" isLast={true} colors={colors} styles={styles} />
+                        <MenuItem icon={<Info size={20} color="#f59e0b" />} title="Help & Support" subtitle="FAQ and contact us" colors={colors} styles={styles} />
+                        <MenuItem
+                            icon={<RefreshCw size={20} color={colors.primary} />}
+                            title="Check for Updates"
+                            subtitle={isCheckingUpdates ? "Checking for updates..." : "Get the latest version"}
+                            onPress={handleCheckUpdates}
+                            isLast={true}
+                            colors={colors}
+                            styles={styles}
+                        />
                     </View>
                 </View>
 
