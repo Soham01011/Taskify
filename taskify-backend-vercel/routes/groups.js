@@ -104,8 +104,10 @@ router.put('/:groupId/tasks/:taskId', verifyToken, async (req, res) => {
             assignedUser.pushTokens,
             'Task Assigned',
             `You have been assigned a task in group '${group.name}': ${task.task}`,
-            { taskId: task._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED' }
+            { taskId: task._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: task.duedate }
           );
+          task.syncSent = true;
+          await task.save();
         }
       } catch (notifyError) {
         console.error('Failed to send assignment notification:', notifyError);
@@ -240,8 +242,12 @@ router.post('/:groupId/tasks', verifyToken, async (req, res) => {
             assignedUser.pushTokens,
             'New Task Assigned',
             `You have been assigned a new task in group '${group.name}': ${task}`,
-            { taskId: newTask._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED' }
+            { taskId: newTask._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: duedate }
           );
+          
+          // Also set syncSent since the visible notification carries the data
+          newTask.syncSent = true;
+          await newTask.save();
         }
       } catch (notifyError) {
         console.error('Failed to send assignment notification:', notifyError);

@@ -41,25 +41,28 @@ router.post('/', verifyToken, async (req, res) => {
     });
     await task.save();
 
-    // If task is due within 15 mins, trigger immediate notification to all devices
-    const fifteenMinsFromNow = new Date(Date.now() + 15 * 60 * 1000);
-    if (task.alarm_reminder_time <= fifteenMinsFromNow) {
-      try {
-        const user = await User.findById(userId);
-        if (user && user.pushTokens && user.pushTokens.length > 0) {
-          await sendMultiplePushNotifications(
-            user.pushTokens,
-            'Task Reminder (Near Due)',
-            `Your task '${task.title}' is due very soon!`,
-            { taskId: task._id, type: 'TASK_DUE_SOON' }
-          );
-          task.notificationSent = true;
-          task.syncSent = true;
-          await task.save();
-        }
-      } catch (notifyError) {
-        console.error('Failed to send near-term task notification:', notifyError);
+    // Trigger immediate silent sync to all devices so they can schedule local notifications
+    try {
+      const user = await User.findById(userId);
+      if (user && user.pushTokens && user.pushTokens.length > 0) {
+        await sendMultiplePushNotifications(
+          user.pushTokens,
+          null, // No title = Silent
+          null, // No body = Silent
+          { 
+            taskId: task._id, 
+            type: 'TASK_SYNC', 
+            title: task.title, 
+            dueDate: task.dueDate,
+            alarmTime: task.alarm_reminder_time 
+          }
+        );
+        // We don't set notificationSent here because that's for the visible 'Due Now' fallback
+        task.syncSent = true;
+        await task.save();
       }
+    } catch (notifyError) {
+      console.error('Failed to send task sync notification:', notifyError);
     }
 
     res.status(201).json(task);
@@ -132,6 +135,30 @@ router.put('/:id', verifyToken, async (req, res) => {
       { new: true }
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
+    
+    // Trigger immediate silent sync on update
+    try {
+      const user = await User.findById(userId);
+      if (user && user.pushTokens && user.pushTokens.length > 0) {
+        await sendMultiplePushNotifications(
+          user.pushTokens,
+          null, // No title = Silent
+          null, // No body = Silent
+          { 
+            taskId: task._id, 
+            type: 'TASK_SYNC', 
+            title: task.title, 
+            dueDate: task.dueDate,
+            alarmTime: task.alarm_reminder_time 
+          }
+        );
+        task.syncSent = true;
+        await task.save();
+      }
+    } catch (notifyError) {
+      console.error('Failed to send task sync notification on update:', notifyError);
+    }
+
     res.json(task);
   } catch (err) {
     res.status(400).json({ error: err.message });
