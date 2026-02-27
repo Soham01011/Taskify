@@ -1,40 +1,25 @@
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { Task } from '../api/tasks';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-let Notifications: any = null;
-
-if (!isExpoGo) {
-    try {
-        Notifications = require('expo-notifications');
-        // Configure how notifications are handled when the app is foregrounded
-        Notifications.setNotificationHandler({
-            handleNotification: async () => ({
-                shouldShowAlert: true,
-                shouldPlaySound: true,
-                shouldSetBadge: true,
-                shouldShowBanner: true,
-                shouldShowList: true,
-            }),
-        });
-    } catch (e) {
-        console.log('Could not load expo-notifications', e);
-    }
-}
+// Configure how notifications are handled when the app is foregrounded
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+    }),
+});
 
 export class NotificationService {
-    static async requestPermissions() {
-        if (isExpoGo || !Notifications) {
-            console.log('Push notifications not available in Expo Go');
-            return false;
-        }
-
+    static async registerForPushNotificationsAsync() {
         if (!Device.isDevice) {
             console.log('Must use physical device for push notifications');
-            return false;
+            return null;
         }
 
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -47,9 +32,30 @@ export class NotificationService {
 
         if (finalStatus !== 'granted') {
             console.log('Failed to get push token for push notification!');
-            return false;
+            return null;
         }
 
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        if (!projectId) {
+            console.error('Project ID not found in app config');
+            return null;
+        }
+
+        try {
+            const pushTokenString = (
+                await Notifications.getExpoPushTokenAsync({
+                    projectId,
+                })
+            ).data;
+            console.log('Expo Push Token:', pushTokenString);
+            return pushTokenString;
+        } catch (e) {
+            console.error('Error getting push token:', e);
+            return null;
+        }
+    }
+
+    static async requestPermissions() {
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('default', {
                 name: 'default',
@@ -62,65 +68,89 @@ export class NotificationService {
                 name: 'Alarm',
                 importance: Notifications.AndroidImportance.MAX,
                 vibrationPattern: [0, 500, 500, 500],
-                sound: 'default', // In a real app, you'd use a louder sound file
+                sound: 'default',
                 lightColor: '#FF0000',
             });
         }
 
-        return true;
+        return await this.registerForPushNotificationsAsync();
     }
 
-    static async scheduleTaskNotification(task: Task) {
-        if (isExpoGo || !Notifications) return;
+    static async scheduleTaskNotification(task: any, isGroupTask: boolean = false) {
+        // Handle field differences between Task and GroupTask
+        const title = task.title || task.task; // GroupTask uses 'task' for title
+        const description = task.description || (isGroupTask ? `Group Task: ${task.username}` : '');
+        const dueDate = task.alarm_reminder_time || task.dueDate || task.duedate;
 
-        if (!task.alarm_reminder_time) return;
+        if (!dueDate) return;
 
-        const triggerTime = new Date(task.alarm_reminder_time);
-        if (triggerTime <= new Date()) return; // Don't schedule for past times
+        const triggerTime = new Date(dueDate);
+        if (triggerTime <= new Date()) return;
 
-        // Cancel previous notification for this task if any
-        await this.cancelTaskNotification(task._id)
+        await this.cancelTaskNotification(task._id);
 
         const isAlarm = task.alarm_type === 'alarm';
 
         const id = await Notifications.scheduleNotificationAsync({
             content: {
-                title: isAlarm ? `🚨 ALARM: ${task.title}` : task.title,
-                body: task.description || 'Reminder for your task',
-                data: { taskId: task._id },
-                sound: isAlarm ? 'default' : 'default', // Custom sounds require assets
+                title: isAlarm ? `🚨 ALARM: ${title}` : title,
+                body: description || 'Reminder for your task',
+                data: {
+                    taskId: task._id,
+                    type: isGroupTask ? 'GROUP_TASK' : 'PERSONAL_TASK'
+                },
+                sound: isAlarm ? 'default' : 'default',
                 priority: isAlarm ? Notifications.AndroidNotificationPriority.MAX : Notifications.AndroidNotificationPriority.HIGH,
             },
             trigger: {
-                date: triggerTime,
                 type: Notifications.SchedulableTriggerInputTypes.DATE,
-            } as any,
+                date: triggerTime,
+            },
             identifier: task._id,
         });
 
-        console.log(`Scheduled notification for task ${task.title} at ${triggerTime.toLocaleString()} (ID: ${id})`);
         return id;
     }
 
     static async cancelTaskNotification(taskId: string) {
-        if (isExpoGo || !Notifications) return;
         await Notifications.cancelScheduledNotificationAsync(taskId);
     }
 
     static async cancelAllNotifications() {
-        if (isExpoGo || !Notifications) return;
         await Notifications.cancelAllScheduledNotificationsAsync();
     }
 
-    static async syncTasksWithNotifications(tasks: Task[]) {
-        // Cancel all current notifications and reschedule based on current task list
-        // This is a simple brute-force approach. For large task lists, you'd be more surgical.
+    static async syncTasksWithNotifications(tasks: Task[], groups: any[] = []) {
         await this.cancelAllNotifications();
 
+        // Sync personal tasks
         for (const task of tasks) {
-            if (!task.completed && task.alarm_reminder_time) {
-                await this.scheduleTaskNotification(task);
+            if (!task.completed) {
+                await this.scheduleTaskNotification(task, false);
+            }
+        }
+
+        // Sync group tasks assigned to the current user
+        for (const group of groups) {
+            if (group.tasks) {
+                for (const gTask of group.tasks) {
+                    if (!gTask.completed) {
+                        await this.scheduleTaskNotification(gTask, true);
+                    }
+                }
             }
         }
     }
+
+    // New method to handle silent pushes from backend
+    static async handleSilentSync(data: any, currentTasks: Task[]) {
+        const syncTypes = ['SYNC_TASKS', 'TASK_SYNC', 'GROUP_TASK_ASSIGNED'];
+        if (syncTypes.includes(data.type)) {
+            console.log('Performing silent sync for task:', data.taskId);
+            return true;
+        }
+        return false;
+    }
 }
+
+

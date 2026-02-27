@@ -25,5 +25,8 @@ export const authApi = {
 
     refresh: (refreshToken: string, apiEndpoint?: string) =>
         client.post<RefreshResponse>('/auth/refresh', { refreshToken }, apiEndpoint ? { baseURL: apiEndpoint } : undefined),
+
+    updatePushToken: (token: string) =>
+        client.patch('/users/me/push-token', { pushToken: token }),
 };
 

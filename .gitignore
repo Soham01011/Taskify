@@ -8,3 +8,5 @@ taskify/node_modules
 node_modules
 taskify/dist
 Taskify/.agents
+google-services.json
+Backend_notificationGuide.md
