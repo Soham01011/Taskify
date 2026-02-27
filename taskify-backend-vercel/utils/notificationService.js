@@ -1,16 +1,19 @@
-const { Expo } = require('expo-server-sdk');
+let Expo;
+let expoClient;
 
-// Create a new Expo SDK client
-let expo = new Expo({
-    accessToken: process.env.EXPO_ACCESS_TOKEN
-});
+async function getExpoClient() {
+  if (!expoClient) {
+    const sdk = await import('expo-server-sdk');
+    Expo = sdk.Expo;
+    expoClient = new Expo({
+      accessToken: process.env.EXPO_ACCESS_TOKEN
+    });
+  }
+  return { Expo, expoClient };
+}
 
 /**
  * Sends a single push notification using the Expo SDK.
- * @param {string} pushToken - The recipient's Expo push token.
- * @param {string} title - Title of the notification.
- * @param {string} body - Body content of the notification.
- * @param {object} data - Optional metadata for the app to process.
  */
 async function sendPushNotification(pushToken, title, body, data = {}) {
   return await sendMultiplePushNotifications([pushToken], title, body, data);
@@ -18,9 +21,10 @@ async function sendPushNotification(pushToken, title, body, data = {}) {
 
 /**
  * Sends notifications to multiple tokens in bulk.
- * @param {string[]} pushTokens - Array of recipient's Expo push tokens.
  */
 async function sendMultiplePushNotifications(pushTokens, title, body, data = {}) {
+  const { Expo, expoClient } = await getExpoClient();
+  
   const messages = [];
   for (const pushToken of pushTokens) {
     if (Expo.isExpoPushToken(pushToken)) {
@@ -39,9 +43,9 @@ async function sendMultiplePushNotifications(pushTokens, title, body, data = {})
   if (messages.length === 0) return;
 
   try {
-    const chunks = expo.chunkPushNotifications(messages);
+    const chunks = expoClient.chunkPushNotifications(messages);
     for (const chunk of chunks) {
-      const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+      const ticketChunk = await expoClient.sendPushNotificationsAsync(chunk);
       console.log('Push notifications sent. Tickets:', ticketChunk.length);
     }
   } catch (error) {

@@ -123,10 +123,9 @@ router.get('/cron/process-due-tasks', async (req, res) => {
     // 3. Send all notifications in bulk
     if (messages.length > 0) {
       console.log(`Sending ${messages.length} total notifications in bulk...`);
-      // We can use a direct Expo call here or a modified service function
-      // For simplicity, let's use the service function logic directly to ensure chunking
-      const { Expo } = require('expo-server-sdk');
-      const expoClient = new (require('expo-server-sdk').Expo)({ accessToken: process.env.EXPO_ACCESS_TOKEN });
+      const sdk = await import('expo-server-sdk');
+      const Expo = sdk.Expo;
+      const expoClient = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
       const chunks = expoClient.chunkPushNotifications(messages);
       for (const chunk of chunks) {
         try {
