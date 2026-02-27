@@ -41,7 +41,7 @@ export default function RegisterScreen() {
     const [showPassword, setShowPassword] = useState(false);
 
     const handleRegister = async () => {
-        if (!state.username || !state.password || !state.confirmPassword) {
+        if (!state.username || !state.password || !state.confirmPassword || !state.apiEndpoint) {
             dispatch({ type: 'SET_FIELD', field: 'error', value: 'Please fill in all fields' });
             return;
         }
@@ -124,7 +124,7 @@ export default function RegisterScreen() {
                             icon={<Lock size={18} color={colors.textSecondary} />}
                         />
 
-                        <Text style={styles.label}>Server Endpoint (Optional)</Text>
+                        <Text style={styles.label}>Server Endpoint *</Text>
                         <Input
                             placeholder="e.g. http://localhost:3000/api"
                             value={state.apiEndpoint}

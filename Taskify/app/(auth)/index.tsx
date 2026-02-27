@@ -51,7 +51,7 @@ export default function LoginScreen() {
     const [showAccountSelector, setShowAccountSelector] = useState(users.length > 0);
 
     const handleLogin = async () => {
-        if (!state.username || !state.password) {
+        if (!state.username || !state.password || !state.apiEndpoint) {
             dispatch({ type: 'SET_FIELD', field: 'localError', value: 'Please fill in all fields' });
             return;
         }
@@ -156,7 +156,7 @@ export default function LoginScreen() {
                         <Text style={styles.forgotText}>Forgot password?</Text>
                     </TouchableOpacity>
 
-                    <Text style={[styles.label, { marginTop: SPACING.md }]}>Server Endpoint (Optional)</Text>
+                    <Text style={[styles.label, { marginTop: SPACING.md }]}>Server Endpoint *</Text>
                     <Input
                         placeholder="e.g. http://localhost:3000/api"
                         value={state.apiEndpoint}
