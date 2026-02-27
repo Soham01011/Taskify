@@ -11,5 +11,11 @@
       "src": "/(.*)",
       "dest": "index.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/notifications/cron/process-due-tasks",
+      "schedule": "*/15 * * * *"
+    }
   ]
 }

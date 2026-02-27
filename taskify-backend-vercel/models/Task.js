@@ -17,6 +17,8 @@ const TaskSchema = new mongoose.Schema({
   updated_at: { type: Date, default: Date.now },
   alarm_type: { type: String, enum: ['email', 'sms', 'push', 'alarm'], default: 'push' },
   alarm_reminder_time: { type: Date },
+  notificationSent: { type: Boolean, default: false },
+  syncSent: { type: Boolean, default: false },
 }, { 
   timestamps: { 
     createdAt: 'created_at', 

@@ -6,7 +6,9 @@ const GroupTaskSchema = new mongoose.Schema({
   username: { type: String, required: false },
   task: { type: String, required: true },
   duedate: { type: Date, required: false },
-  completed: { type: Boolean, default: false }
+  completed: { type: Boolean, default: false },
+  notificationSent: { type: Boolean, default: false },
+  syncSent: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('GroupTask', GroupTaskSchema);

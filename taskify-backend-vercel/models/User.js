@@ -18,7 +18,11 @@ const UserSchema = new mongoose.Schema({
   refreshToken: {
     type: String,
     default: null
-  }
+  },
+  pushTokens: [{
+    type: String,
+    default: []
+  }]
 });
 
 UserSchema.pre('save', async function() {

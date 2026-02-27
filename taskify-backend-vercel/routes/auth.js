@@ -49,9 +49,30 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const tokens = generateTokens(user._id);
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
+    let tokens;
+    let reuseRefreshToken = false;
+
+    if (user.refreshToken) {
+      try {
+        const decoded = jwt.verify(user.refreshToken, JWT_SECRET);
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeRemaining = decoded.exp - currentTime;
+
+        // If more than 2 days remain, reuse the token
+        if (timeRemaining > REFRESH_THRESHOLD) {
+          reuseRefreshToken = true;
+          tokens = generateTokens(user._id, user.refreshToken);
+        }
+      } catch (err) {
+        // Token is invalid or expired, continue to generate new one
+      }
+    }
+
+    if (!reuseRefreshToken) {
+      tokens = generateTokens(user._id);
+      user.refreshToken = tokens.refreshToken;
+      await user.save();
+    }
     tokens.finalUsername = user.username;
     res.json(tokens);
   } catch (error) {

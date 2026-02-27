@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
+const User = require('../models/User');
+const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
 const verifyToken = require('../middleware/auth');
 
 // Create a new task (with optional subtasks)
@@ -38,6 +40,28 @@ router.post('/', verifyToken, async (req, res) => {
       updated_at: new Date()
     });
     await task.save();
+
+    // If task is due within 15 mins, trigger immediate notification to all devices
+    const fifteenMinsFromNow = new Date(Date.now() + 15 * 60 * 1000);
+    if (task.alarm_reminder_time <= fifteenMinsFromNow) {
+      try {
+        const user = await User.findById(userId);
+        if (user && user.pushTokens && user.pushTokens.length > 0) {
+          await sendMultiplePushNotifications(
+            user.pushTokens,
+            'Task Reminder (Near Due)',
+            `Your task '${task.title}' is due very soon!`,
+            { taskId: task._id, type: 'TASK_DUE_SOON' }
+          );
+          task.notificationSent = true;
+          task.syncSent = true;
+          await task.save();
+        }
+      } catch (notifyError) {
+        console.error('Failed to send near-term task notification:', notifyError);
+      }
+    }
+
     res.status(201).json(task);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -94,9 +118,17 @@ router.get('/', verifyToken, async (req, res) => {
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
+    const updateData = { ...req.body };
+    
+    // If dueDate or alarm_reminder_time is updated, reset notificationSent and syncSent
+    if (updateData.dueDate || updateData.alarm_reminder_time) {
+      updateData.notificationSent = false;
+      updateData.syncSent = false;
+    }
+
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, userId },
-      req.body,
+      updateData,
       { new: true }
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });

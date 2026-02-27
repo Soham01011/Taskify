@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Types;
 const Group = require('../models/Group');
 const GroupTask = require('../models/GroupTask');
+const User = require('../models/User');
+const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
 const verifyToken = require('../middleware/auth');
 
 // Fetch all groups for logged-in user
@@ -76,13 +78,39 @@ router.put('/:groupId/tasks/:taskId', verifyToken, async (req, res) => {
 
     const { userId: newUserId, username, task: taskName, duedate, completed } = req.body;
 
+    const oldUserId = task.userId;
     if (newUserId) task.userId = newUserId;
     if (username) task.username = username;
     if (taskName) task.task = taskName;
-    if (duedate) task.duedate = new Date(duedate);
+    if (duedate) {
+      task.duedate = new Date(duedate);
+      task.notificationSent = false;
+      task.syncSent = false;
+    }
+    if (newUserId && (!oldUserId || oldUserId.toString() !== newUserId.toString())) {
+      task.notificationSent = false;
+      task.syncSent = false;
+    }
     if (typeof completed === 'boolean') task.completed = completed;
 
     await task.save();
+
+    // Send notification if a new user is assigned or the task name changed
+    if (newUserId && (!oldUserId || oldUserId.toString() !== newUserId.toString())) {
+      try {
+        const assignedUser = await User.findById(newUserId);
+        if (assignedUser && assignedUser.pushTokens && assignedUser.pushTokens.length > 0) {
+          await sendMultiplePushNotifications(
+            assignedUser.pushTokens,
+            'Task Assigned',
+            `You have been assigned a task in group '${group.name}': ${task.task}`,
+            { taskId: task._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED' }
+          );
+        }
+      } catch (notifyError) {
+        console.error('Failed to send assignment notification:', notifyError);
+      }
+    }
     await task.populate('userId', 'username');
     res.status(200).json({ message: 'Task updated successfully', updatedTask: task });
   } catch (err) {
@@ -202,6 +230,23 @@ router.post('/:groupId/tasks', verifyToken, async (req, res) => {
     if (duedate) newTask.duedate = duedate;
 
     await newTask.save();
+    
+    // Send notification if assigned to a user
+    if (userId) {
+      try {
+        const assignedUser = await User.findById(userId);
+        if (assignedUser && assignedUser.pushTokens && assignedUser.pushTokens.length > 0) {
+          await sendMultiplePushNotifications(
+            assignedUser.pushTokens,
+            'New Task Assigned',
+            `You have been assigned a new task in group '${group.name}': ${task}`,
+            { taskId: newTask._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED' }
+          );
+        }
+      } catch (notifyError) {
+        console.error('Failed to send assignment notification:', notifyError);
+      }
+    }
     
     await group.populate([
       { path: 'members', select: 'username' },
