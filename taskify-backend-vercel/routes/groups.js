@@ -103,8 +103,8 @@ router.put('/:groupId/tasks/:taskId', verifyToken, async (req, res) => {
           await sendMultiplePushNotifications(
             assignedUser.pushTokens,
             'Task Assigned',
-            `You have been assigned a task in group '${group.name}': ${task.task}`,
-            { taskId: task._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: task.duedate }
+            `Task assigned to them in group '${group.name}': ${task.task}`,
+            { taskId: task._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: task.duedate, userId: newUserId }
           );
           task.syncSent = true;
           await task.save();
@@ -240,9 +240,9 @@ router.post('/:groupId/tasks', verifyToken, async (req, res) => {
         if (assignedUser && assignedUser.pushTokens && assignedUser.pushTokens.length > 0) {
           await sendMultiplePushNotifications(
             assignedUser.pushTokens,
-            'New Task Assigned',
-            `You have been assigned a new task in group '${group.name}': ${task}`,
-            { taskId: newTask._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: duedate }
+            'Task Assigned',
+            `Task assigned to them in group '${group.name}': ${task}`,
+            { taskId: newTask._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: duedate, userId: userId }
           );
           
           // Also set syncSent since the visible notification carries the data

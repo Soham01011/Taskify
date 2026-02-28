@@ -7,3 +7,4 @@ API_DOCS.md
 .vercel
 .env*.local
 backend_notification_guide.md
+taskify-backend-vercel/.vercel
