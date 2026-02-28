@@ -10,7 +10,7 @@ const persistConfig = {
     key: 'root',
     version: 1,
     storage: AsyncStorage,
-    whitelist: ['auth'], // Only persist auth for now
+    whitelist: ['auth', 'tasks'], // Persist auth and tasks for local data usage
 };
 
 

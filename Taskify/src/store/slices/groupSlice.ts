@@ -36,6 +36,26 @@ const groupSlice = createSlice({
         },
         addGroup: (state, action: PayloadAction<Group>) => {
             state.groups.push(action.payload);
+        },
+        updateGroupTask: (state, action: PayloadAction<{ groupId: string; task: any }>) => {
+            const { groupId, task } = action.payload;
+            const groupIndex = state.groups.findIndex(g => g._id === groupId);
+            if (groupIndex !== -1) {
+                // Map notification data to GroupTask structure if necessary
+                const normalizedTask = {
+                    ...task,
+                    _id: task._id || task.taskId,
+                    duedate: task.duedate || task.dueDate,
+                    completed: task.completed || false
+                };
+
+                const taskIndex = state.groups[groupIndex].tasks.findIndex(t => t._id === normalizedTask._id);
+                if (taskIndex !== -1) {
+                    state.groups[groupIndex].tasks[taskIndex] = normalizedTask;
+                } else {
+                    state.groups[groupIndex].tasks.push(normalizedTask);
+                }
+            }
         }
     },
     extraReducers: (builder) => {
@@ -68,5 +88,5 @@ const groupSlice = createSlice({
     },
 });
 
-export const { clearGroups, addGroup } = groupSlice.actions;
+export const { clearGroups, addGroup, updateGroupTask } = groupSlice.actions;
 export default groupSlice.reducer;

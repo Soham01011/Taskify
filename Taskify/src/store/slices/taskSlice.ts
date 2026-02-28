@@ -68,6 +68,7 @@ const taskSlice = createSlice({
                     const currentIds = new Set(state.tasks.map(t => t._id));
                     const newTasks = incomingTasks.filter(t => !currentIds.has(t._id));
                     state.tasks = [...state.tasks, ...newTasks];
+                    state.pagination = incomingPagination;
                 } else if (params?.pageNumber && params.pageNumber > 1) {
                     // Infinite scroll mode: Append new page
                     const currentIds = new Set(state.tasks.map(t => t._id));

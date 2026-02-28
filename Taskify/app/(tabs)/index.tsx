@@ -32,7 +32,7 @@ import { useMemo } from 'react';
 import { RootState, AppDispatch } from '@/src/store';
 import { fetchTasks, updateTask } from '@/src/store/slices/taskSlice';
 
-import { taskApi, Task } from '@/src/api/tasks';
+import { taskApi, Task, FetchTasksParams } from '@/src/api/tasks';
 import { TaskCard } from '@/src/components/TaskCard';
 import { SPACING, RADIUS } from '@/src/constants/theme';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
@@ -79,47 +79,61 @@ export default function TaskDashboard() {
     return result;
   }, [tasks, filter, sortOrder]);
 
-  const loadTasks = useCallback((page = 1) => {
+  const [lastParams, setLastParams] = useState<FetchTasksParams>({ pageNumber: 1, pageSize: 15 });
+
+  const loadTasks = useCallback((params: FetchTasksParams = { pageNumber: 1, pageSize: 15 }) => {
     if (currentUserId) {
-      dispatch(fetchTasks({ pageNumber: page, pageSize: 15 }));
+      setLastParams(params);
+      dispatch(fetchTasks(params));
     }
   }, [currentUserId, dispatch]);
 
   const loadMoreTasks = () => {
     if (!isLoading && pagination && pagination.currentPage < pagination.totalPages) {
-      dispatch(fetchTasks({
+      loadTasks({
+        ...lastParams,
         pageNumber: pagination.currentPage + 1,
-        pageSize: pagination.pageSize
-      }));
+      });
     }
   };
 
+  const getLatestTimestamp = useCallback(() => {
+    if (tasks.length === 0) return null;
+    return tasks.reduce((latest, task) => {
+      if (!task.created_at) return latest;
+      const taskTime = new Date(task.created_at).getTime();
+      const latestTime = new Date(latest).getTime();
+      return taskTime > latestTime ? task.created_at : latest;
+    }, tasks[0].created_at);
+  }, [tasks]);
+
   useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
+    if (currentUserId) {
+      const latest = getLatestTimestamp();
+      if (latest) {
+        // We have local data, perform incremental sync
+        loadTasks({ created_at: latest, pageNumber: 1, pageSize: 15 });
+      } else {
+        // No local data, perform full fetch
+        loadTasks({ pageNumber: 1, pageSize: 15 });
+      }
+    }
+  }, [currentUserId]); // Only run on mount or when user changes
 
   const onRefresh = async () => {
     setRefreshing(true);
-
-    // Find the most recent task to sync updates
-    let latestTaskCreatedAt = null;
-    if (tasks.length > 0) {
-      const sortedTasks = [...tasks].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      if (sortedTasks.length > 0) {
-        latestTaskCreatedAt = sortedTasks[0].created_at;
-      }
-    }
+    const latest = getLatestTimestamp();
 
     try {
-      if (latestTaskCreatedAt) {
-        await dispatch(fetchTasks({ created_at: latestTaskCreatedAt }));
+      if (latest) {
+        await dispatch(fetchTasks({ created_at: latest, pageNumber: 1, pageSize: 15 })).unwrap();
       } else {
-        await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 }));
+        await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 })).unwrap();
       }
-      setRefreshing(false);
     } catch (err) {
-      console.log('Incremental sync failed, doing full refresh', err);
-      await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 }));
+      console.log('Sync failed, doing full refresh', err);
+      loadTasks({ pageNumber: 1, pageSize: 15 });
+    } finally {
       setRefreshing(false);
     }
   };
