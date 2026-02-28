@@ -28,13 +28,22 @@ async function sendMultiplePushNotifications(pushTokens, title, body, data = {})
   const messages = [];
   for (const pushToken of pushTokens) {
     if (Expo.isExpoPushToken(pushToken)) {
-      messages.push({
+      const message = {
         to: pushToken,
-        sound: 'default',
-        title: title,
-        body: body,
         data: data,
-      });
+      };
+      
+      // Only include visible fields if they are provided
+      if (title) message.title = title;
+      if (body) message.body = body;
+      
+      // Only include sound if we have visibility (standard behavior for Expo)
+      // If it's a silent notification (no title/body), we usually omit sound
+      if (title || body) {
+        message.sound = 'default';
+      }
+      
+      messages.push(message);
     } else {
       console.error(`Push token ${pushToken} is not a valid Expo push token`);
     }

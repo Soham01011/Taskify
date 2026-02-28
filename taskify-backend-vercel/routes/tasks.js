@@ -3,15 +3,24 @@ const router = express.Router();
 const Task = require('../models/Task');
 const User = require('../models/User');
 const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
+const { calculateNextDueDate, calculateInitialDueDate } = require('../utils/taskRecurrence');
 const verifyToken = require('../middleware/auth');
 
 // Create a new task (with optional subtasks)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, description, dueDate, subtasks, alarm_type, alarm_reminder_time } = req.body;
+    const { title, description, dueDate, subtasks, alarm_type, alarm_reminder_time, recurrence } = req.body;
     const userId = req.userId;
 
-    let taskDueDate = dueDate ? new Date(dueDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    let taskDueDate;
+    
+    if (recurrence && recurrence.frequency !== 'none') {
+      // If recurring, calculate the first occurrence
+      taskDueDate = calculateInitialDueDate(recurrence);
+    } else {
+      // For normal tasks, use provided dueDate or default to tomorrow
+      taskDueDate = dueDate ? new Date(dueDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
 
     if (taskDueDate < new Date()) {
       return res.status(400).json({ error: 'dueDate cannot be in the past' });
@@ -28,17 +37,26 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const task = new Task({ 
+    const taskData = { 
       userId, 
       title, 
       description, 
       dueDate: taskDueDate, 
       subtasks: processedSubtasks,
       alarm_type,
-      alarm_reminder_time: alarm_reminder_time ? alarm_reminder_time :taskDueDate,
+      alarm_reminder_time: alarm_reminder_time ? alarm_reminder_time : taskDueDate,
       created_at: new Date(),
-      updated_at: new Date()
-    });
+      updated_at: new Date(),
+      recurrence
+    };
+
+    const task = new Task(taskData);
+    
+    // Set originTaskId if recurring
+    if (recurrence && recurrence.frequency !== 'none') {
+      task.recurrence.originTaskId = task._id;
+    }
+
     await task.save();
 
     // Trigger immediate silent sync to all devices so they can schedule local notifications
@@ -50,11 +68,11 @@ router.post('/', verifyToken, async (req, res) => {
           null, // No title = Silent
           null, // No body = Silent
           { 
-            taskId: task._id, 
+            taskId: task._id.toString(), 
             type: 'TASK_SYNC', 
             title: task.title, 
-            dueDate: task.dueDate,
-            alarmTime: task.alarm_reminder_time 
+            dueDate: task.dueDate.toISOString(),
+            alarmTime: task.alarm_reminder_time ? task.alarm_reminder_time.toISOString() : task.dueDate.toISOString()
           }
         );
         // We don't set notificationSent here because that's for the visible 'Due Now' fallback
@@ -145,11 +163,11 @@ router.put('/:id', verifyToken, async (req, res) => {
           null, // No title = Silent
           null, // No body = Silent
           { 
-            taskId: task._id, 
+            taskId: task._id.toString(), 
             type: 'TASK_SYNC', 
             title: task.title, 
-            dueDate: task.dueDate,
-            alarmTime: task.alarm_reminder_time 
+            dueDate: task.dueDate.toISOString(),
+            alarmTime: task.alarm_reminder_time ? task.alarm_reminder_time.toISOString() : task.dueDate.toISOString()
           }
         );
         task.syncSent = true;
@@ -175,6 +193,63 @@ router.patch('/:id/complete', verifyToken, async (req, res) => {
       { new: true }
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
+
+    // If it's a recurring task, create the next occurrence
+    if (task.recurrence && task.recurrence.frequency !== 'none') {
+      const nextDueDate = calculateNextDueDate(task.dueDate, task.recurrence);
+      
+      if (nextDueDate) {
+        // Prepare next task
+        // We reset subtasks but keep their titles
+        const nextSubtasks = task.subtasks.map(sub => ({
+          title: sub.title,
+          completed: false,
+          dueDate: nextDueDate // We can adjust this if subtasks have their own offsets, but for now simple
+        }));
+
+        const nextTask = new Task({
+          userId: task.userId,
+          title: task.title,
+          description: task.description,
+          dueDate: nextDueDate,
+          subtasks: nextSubtasks,
+          alarm_type: task.alarm_type,
+          alarm_reminder_time: nextDueDate, // Default to nextDueDate
+          recurrence: {
+            ...task.recurrence.toObject(),
+            originTaskId: task.recurrence.originTaskId || task._id
+          },
+          created_at: new Date(),
+          updated_at: new Date()
+        });
+
+        await nextTask.save();
+
+        // Trigger silent sync for the next task
+        try {
+          const user = await User.findById(userId);
+          if (user && user.pushTokens && user.pushTokens.length > 0) {
+            await sendMultiplePushNotifications(
+              user.pushTokens,
+              null,
+              null,
+              { 
+                taskId: nextTask._id.toString(), 
+                type: 'TASK_SYNC', 
+                title: nextTask.title, 
+                dueDate: nextTask.dueDate.toISOString(),
+                alarmTime: nextTask.alarm_reminder_time ? nextTask.alarm_reminder_time.toISOString() : nextTask.dueDate.toISOString()
+              }
+            );
+            nextTask.syncSent = true;
+            await nextTask.save();
+          }
+        } catch (syncError) {
+          console.error('Failed to sync next recurring task:', syncError);
+        }
+      }
+    }
+
     res.json(task);
   } catch (err) {
     res.status(400).json({ error: err.message });

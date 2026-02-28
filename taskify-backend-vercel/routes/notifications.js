@@ -42,11 +42,11 @@ router.get('/cron/process-due-tasks', async (req, res) => {
               to: token,
               sound: 'default',
               data: { 
-                taskId: task._id, 
+                taskId: task._id.toString(), 
                 type: isDueNow ? 'TASK_DUE' : 'TASK_SYNC',
                 title: task.title,
-                dueDate: task.dueDate,
-                alarmTime: task.alarm_reminder_time
+                dueDate: task.dueDate.toISOString(),
+                alarmTime: task.alarm_reminder_time ? task.alarm_reminder_time.toISOString() : task.dueDate.toISOString()
               }
             };
 
@@ -93,11 +93,11 @@ router.get('/cron/process-due-tasks', async (req, res) => {
               to: token,
               sound: 'default',
               data: { 
-                taskId: gTask._id, 
-                groupId: gTask.groupId ? gTask.groupId._id : null,
+                taskId: gTask._id.toString(), 
+                groupId: gTask.groupId ? gTask.groupId._id.toString() : null,
                 type: isDueNow ? 'GROUP_TASK_DUE' : 'GROUP_TASK_SYNC',
                 task: gTask.task,
-                dueDate: gTask.duedate
+                dueDate: gTask.duedate.toISOString()
               }
             };
 
@@ -144,8 +144,8 @@ router.get('/cron/process-due-tasks', async (req, res) => {
 
     res.json({ 
       status: 'success', 
-      tasksProcessed: dueTasks.length, 
-      groupTasksProcessed: dueGroupTasks.length 
+      tasksProcessed: tasksToUpdate.length, 
+      groupTasksProcessed: groupTasksToUpdate.length 
     });
   } catch (error) {
     console.error('Cron job error:', error);
