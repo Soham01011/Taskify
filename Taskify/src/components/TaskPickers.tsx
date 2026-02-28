@@ -55,21 +55,41 @@ export const TaskPickers: React.FC<TaskPickersProps> = ({
                             <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>None (Unassigned)</Text>
                             {!assignee && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
                         </TouchableOpacity>
-                        {activeGroup.members?.map((member: any) => {
-                            const username = typeof member === 'string' ? member : (member.username || member._id);
-                            const id = typeof member === 'string' ? member : member._id;
-                            const displayName = username === id ? `User ${id.substring(0, 6)}` : username;
+                        {(() => {
+                            const memberList = Array.isArray(activeGroup.members) ? [...activeGroup.members] : [];
 
-                            return (
-                                <TouchableOpacity
-                                    key={id}
-                                    onPress={() => { setAssignee({ id, username: displayName }); setShowAssigneePicker(false); }}
-                                    style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                                    <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>{displayName}</Text>
-                                    {assignee?.id === id && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
-                                </TouchableOpacity>
-                            );
-                        })}
+                            // If adminId exists and is an object, try to include it if not already in members
+                            if (activeGroup.adminId && typeof activeGroup.adminId === 'object') {
+                                const adminIdValue = activeGroup.adminId._id;
+                                const isAdminInMembers = memberList.some(m => {
+                                    const mid = typeof m === 'string' ? m : m._id;
+                                    return mid === adminIdValue;
+                                });
+                                if (!isAdminInMembers) {
+                                    memberList.unshift(activeGroup.adminId);
+                                }
+                            }
+
+                            return memberList.map((member: any, index: number) => {
+                                const username = typeof member === 'string' ? member : (member.username || member._id);
+                                const id = typeof member === 'string' ? member : member._id;
+                                const displayName = username === id ? `User ${id.substring(0, 6)}` : username;
+                                const isAdmin = (typeof activeGroup.adminId === 'string' && activeGroup.adminId === id) ||
+                                    (typeof activeGroup.adminId === 'object' && activeGroup.adminId?._id === id);
+
+                                return (
+                                    <TouchableOpacity
+                                        key={`${id}-${index}`}
+                                        onPress={() => { setAssignee({ id, username: displayName }); setShowAssigneePicker(false); }}
+                                        style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                                        <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>
+                                            {displayName} {isAdmin ? '(Admin)' : ''}
+                                        </Text>
+                                        {assignee?.id === id && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
+                                    </TouchableOpacity>
+                                );
+                            });
+                        })()}
                     </ScrollView>
                 </View>
             )}

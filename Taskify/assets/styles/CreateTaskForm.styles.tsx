@@ -83,6 +83,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         alignItems: 'center',
         marginTop: SPACING.sm,
         gap: SPACING.xs,
+        flexWrap: 'wrap',
     },
     pill: {
         flexDirection: 'row',
@@ -93,6 +94,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: 'transparent',
+        marginBottom: 4,
     },
     pillText: {
         fontSize: 12,
@@ -111,6 +113,8 @@ export const getStyles = (colors: any) => StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: SPACING.sm,
     },
     projectDropdown: {
         flexDirection: 'row',

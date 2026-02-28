@@ -13,6 +13,13 @@ export interface GroupTask {
     duedate: string;
     completed: boolean;
     subtasks?: { _id?: string; title: string; completed: boolean }[];
+    recurrence?: {
+        frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+        daysOfWeek?: number[];
+        dayOfMonth?: number;
+        lastWeekend?: boolean;
+        timeOfDay?: string;
+    };
 }
 
 export interface Group {
@@ -33,7 +40,20 @@ export const groupApi = {
     getDetails: (id: string) =>
         client.get<Group>(`/groups/${id}`),
 
-    assignTask: (id: string, data: { userId: string; username: string; task: string; duedate: string; subtasks?: { title: string; completed: boolean }[] }) =>
+    assignTask: (id: string, data: {
+        userId: string;
+        username: string;
+        task: string;
+        duedate: string;
+        subtasks?: { title: string; completed: boolean }[];
+        recurrence?: {
+            frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+            daysOfWeek?: number[];
+            dayOfMonth?: number;
+            lastWeekend?: boolean;
+            timeOfDay?: string;
+        };
+    }) =>
         client.post<Group>(`/groups/${id}/tasks`, data),
 
     updateTask: (groupId: string, taskId: string, data: Partial<GroupTask>) =>

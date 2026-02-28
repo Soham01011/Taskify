@@ -17,6 +17,13 @@ export interface Task {
     subtasks: Subtask[];
     alarm_type?: 'push' | 'alarm';
     alarm_reminder_time?: string;
+    recurrence?: {
+        frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+        daysOfWeek?: number[];
+        dayOfMonth?: number;
+        lastWeekend?: boolean;
+        timeOfDay?: string;
+    };
     created_at: string;
     updated_at: string;
 }
@@ -50,6 +57,13 @@ export const taskApi = {
         alarm_reminder_time?: string;
         created_at?: Date;
         updated_at?: Date;
+        recurrence?: {
+            frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+            daysOfWeek?: number[];
+            dayOfMonth?: number;
+            lastWeekend?: boolean;
+            timeOfDay?: string;
+        };
     }) =>
         client.post<Task>('/tasks', data),
 

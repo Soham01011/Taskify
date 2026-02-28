@@ -2,23 +2,13 @@ import React, { useReducer } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
-    Platform,
     ScrollView,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-    Calendar,
-    Bell,
-    MoreHorizontal,
     ChevronDown,
-    X,
-    Plus,
-    Clock,
-    Circle,
     User,
-    Check
 } from 'lucide-react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { getStyles } from '@/assets/styles/CreateTaskForm.styles';
@@ -29,6 +19,13 @@ import { fetchTasks } from '../store/slices/taskSlice';
 import { fetchGroups } from '../store/slices/groupSlice';
 import { AppDispatch, RootState } from '../store';
 import { GenieAnimation } from './GenieAnimation';
+
+// Subcomponents
+import { TaskBasicInputs } from './TaskBasicInputs';
+import { TaskSubtasks } from './TaskSubtasks';
+import { TaskActionPills } from './TaskActionPills';
+import { TaskPickers } from './TaskPickers';
+import { RecurrencePicker, RecurrenceFrequency } from './RecurrencePicker';
 
 interface CreateTaskFormProps {
     onSuccess: () => void;
@@ -51,12 +48,21 @@ interface TaskFormState {
     showSubtaskInput: boolean;
     isDatePickerVisible: boolean;
     isReminderPickerVisible: boolean;
+    isTimePickerVisible: boolean;
     loading: boolean;
     error: string;
     selectedGroupId: string | null;
     assignee: { id: string; username: string } | null;
     showGroupPicker: boolean;
     showAssigneePicker: boolean;
+    showRecurrencePicker: boolean;
+
+    // Recurrence state
+    frequency: RecurrenceFrequency;
+    daysOfWeek: number[];
+    dayOfMonth: number | null;
+    lastWeekend: boolean;
+    timeOfDay: string | null;
 }
 
 type FormAction =
@@ -80,12 +86,21 @@ const initialState: TaskFormState = {
     showSubtaskInput: false,
     isDatePickerVisible: false,
     isReminderPickerVisible: false,
+    isTimePickerVisible: false,
     loading: false,
     error: '',
     selectedGroupId: null,
     assignee: null,
     showGroupPicker: false,
     showAssigneePicker: false,
+    showRecurrencePicker: false,
+
+    // Recurrence initial state
+    frequency: 'none',
+    daysOfWeek: [],
+    dayOfMonth: null,
+    lastWeekend: false,
+    timeOfDay: null,
 };
 
 function formReducer(state: TaskFormState, action: FormAction): TaskFormState {
@@ -115,167 +130,19 @@ function formReducer(state: TaskFormState, action: FormAction): TaskFormState {
         case 'SUBMIT_ERROR':
             return { ...state, loading: false, error: action.error };
         case 'RESET_PICKERS':
-            return { ...state, showGroupPicker: false, showAssigneePicker: false };
+            return {
+                ...state,
+                showGroupPicker: false,
+                showAssigneePicker: false,
+                showRecurrencePicker: false,
+                isDatePickerVisible: false,
+                isReminderPickerVisible: false,
+                isTimePickerVisible: false
+            };
         default:
             return state;
     }
 }
-
-const SubtaskSection = ({ state, dispatch, colors, styles }: any) => {
-    if (state.selectedGroupId) return null;
-
-    return (
-        <>
-            {state.subtasks.length > 0 && (
-                <View style={styles.subtaskContainer}>
-                    {state.subtasks.map((st: SubtaskItem) => (
-                        <View key={st.id} style={styles.subtaskItem}>
-                            <Circle size={14} color={colors.textSecondary} />
-                            <Text style={styles.subtaskText}>{st.title}</Text>
-                            <TouchableOpacity onPress={() => dispatch({ type: 'REMOVE_SUBTASK', id: st.id })}>
-                                <X size={14} color={colors.textSecondary} />
-                            </TouchableOpacity>
-                        </View>
-                    ))}
-                </View>
-            )}
-
-            {state.showSubtaskInput ? (
-                <View style={styles.subtaskInputRow}>
-                    <TextInput
-                        style={styles.subtaskInput}
-                        placeholder="Add subtask..."
-                        value={state.newSubtaskTitle}
-                        onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'newSubtaskTitle', value: val })}
-                        onSubmitEditing={() => dispatch({ type: 'ADD_SUBTASK' })}
-                    />
-                    <TouchableOpacity onPress={() => dispatch({ type: 'ADD_SUBTASK' })}>
-                        <Plus size={20} color={colors.primary} />
-                    </TouchableOpacity>
-                </View>
-            ) : (
-                <TouchableOpacity
-                    style={styles.addSubtaskBtn}
-                    onPress={() => dispatch({ type: 'SET_FIELD', field: 'showSubtaskInput', value: true })}
-                >
-                    <Plus size={14} color={colors.textSecondary} />
-                    <Text style={styles.addSubtaskText}>Add subtask</Text>
-                </TouchableOpacity>
-            )}
-        </>
-    );
-};
-
-const TaskActionsRow = ({ state, dispatch, colors, styles }: any) => (
-    <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.pill} onPress={() => dispatch({ type: 'SET_FIELD', field: 'isDatePickerVisible', value: true })}>
-            <Calendar size={14} color="#058527" />
-            <Text style={[styles.pillText, { color: '#058527' }]}>
-                {state.dueDate ? (
-                    `${state.dueDate.toDateString() === new Date().toDateString() ? 'Today' : state.dueDate.toLocaleDateString()} ${state.dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                ) : 'No Date'}
-            </Text>
-            {state.dueDate && (
-                <TouchableOpacity onPress={() => dispatch({ type: 'SET_FIELD', field: 'dueDate', value: null })}>
-                    <X size={12} color="#058527" style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
-            )}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.pill} onPress={() => dispatch({ type: 'TOGGLE_ALARM_TYPE' })}>
-            {state.alarmType === 'push' ? (
-                <Bell size={14} color={colors.textSecondary} />
-            ) : (
-                <Clock size={14} color={colors.primary} />
-            )}
-            <Text style={[styles.pillText, state.alarmType === 'alarm' && { color: colors.primary }]}>
-                {state.alarmType === 'push' ? 'Push' : 'Alarm'}
-            </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.pill} onPress={() => dispatch({ type: 'SET_FIELD', field: 'isReminderPickerVisible', value: true })}>
-            <Bell size={14} color={colors.textSecondary} />
-            <Text style={styles.pillText}>
-                {state.alarmReminderTime ? state.alarmReminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reminders'}
-            </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.iconButton}>
-            <MoreHorizontal size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
-    </View>
-);
-
-const GroupPickers = ({ state, dispatch, colors, styles, groups, activeGroup }: any) => {
-    return (
-        <>
-            {state.showGroupPicker && (
-                <View style={{ backgroundColor: colors.card, marginTop: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                    <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
-                        <TouchableOpacity
-                            onPress={() => {
-                                dispatch({ type: 'SET_FIELD', field: 'selectedGroupId', value: null });
-                                dispatch({ type: 'SET_FIELD', field: 'assignee', value: null });
-                                dispatch({ type: 'SET_FIELD', field: 'showGroupPicker', value: false });
-                            }}
-                            style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                            <View style={[styles.inboxIcon, { marginRight: 8 }]}><View style={styles.trayIcon} /></View>
-                            <Text style={{ color: colors.text, fontWeight: '600' }}>Inbox (Personal)</Text>
-                            {!state.selectedGroupId && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
-                        </TouchableOpacity>
-                        {groups.map((g: any) => (
-                            <TouchableOpacity
-                                key={g._id}
-                                onPress={() => {
-                                    dispatch({ type: 'SET_FIELD', field: 'selectedGroupId', value: g._id });
-                                    dispatch({ type: 'SET_FIELD', field: 'assignee', value: null });
-                                    dispatch({ type: 'SET_FIELD', field: 'showGroupPicker', value: false });
-                                }}
-                                style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                                <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 28 }}>{g.name}</Text>
-                                {state.selectedGroupId === g._id && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
-
-            {state.showAssigneePicker && activeGroup && (
-                <View style={{ backgroundColor: colors.card, marginTop: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                    <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
-                        <TouchableOpacity
-                            onPress={() => {
-                                dispatch({ type: 'SET_FIELD', field: 'assignee', value: null });
-                                dispatch({ type: 'SET_FIELD', field: 'showAssigneePicker', value: false });
-                            }}
-                            style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                            <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>None (Unassigned)</Text>
-                            {!state.assignee && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
-                        </TouchableOpacity>
-                        {activeGroup.members?.map((member: any) => {
-                            const username = typeof member === 'string' ? member : (member.username || member._id);
-                            const id = typeof member === 'string' ? member : member._id;
-                            const displayName = username === id ? `User ${id.substring(0, 6)}` : username;
-
-                            return (
-                                <TouchableOpacity
-                                    key={id}
-                                    onPress={() => {
-                                        dispatch({ type: 'SET_FIELD', field: 'assignee', value: { id, username: displayName } });
-                                        dispatch({ type: 'SET_FIELD', field: 'showAssigneePicker', value: false });
-                                    }}
-                                    style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                                    <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>{displayName}</Text>
-                                    {state.assignee?.id === id && <Check size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
-            )}
-        </>
-    );
-};
 
 export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCancel }) => {
     const { colors } = useAppTheme();
@@ -295,14 +162,23 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
         const taskTitle = state.title.trim();
         const taskDescription = state.description.trim();
-        const dueDateIso = state.dueDate ? state.dueDate.toISOString() : undefined;
-        const duedateFallback = dueDateIso ? dueDateIso : new Date().toISOString();
+        const hasRecurrence = state.frequency !== 'none';
+        const dueDateIso = !hasRecurrence && state.dueDate ? state.dueDate.toISOString() : undefined;
+        const duedateFallback = hasRecurrence ? undefined : (dueDateIso || new Date().toISOString());
         const alarmReminderTimeIso = state.alarmReminderTime ? state.alarmReminderTime.toISOString() : dueDateIso;
 
         const assigneeId = (state.assignee && state.assignee.id) ? state.assignee.id : '';
         const assigneeUsername = (state.assignee && state.assignee.username) ? state.assignee.username : '';
 
         const subtasksFormatted = state.subtasks.map((s: any) => ({ title: s.title, completed: false }));
+
+        const recurrenceData = hasRecurrence ? {
+            frequency: state.frequency,
+            daysOfWeek: state.daysOfWeek,
+            dayOfMonth: state.dayOfMonth ?? undefined,
+            lastWeekend: state.lastWeekend,
+            timeOfDay: state.timeOfDay ?? undefined
+        } : undefined;
 
         try {
             dispatch({ type: 'SUBMIT_START' });
@@ -312,8 +188,9 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     userId: assigneeId,
                     username: assigneeUsername,
                     task: taskTitle,
-                    duedate: duedateFallback,
-                    subtasks: subtasksFormatted
+                    duedate: duedateFallback as string, // Cast as it expects string but we allow undefined in payload
+                    subtasks: subtasksFormatted,
+                    recurrence: recurrenceData
                 });
                 reduxDispatch(fetchGroups('')); // Refresh groups
             } else {
@@ -324,6 +201,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     subtasks: subtasksFormatted,
                     alarm_type: state.alarmType,
                     alarm_reminder_time: alarmReminderTimeIso,
+                    recurrence: recurrenceData,
                     created_at: new Date(),
                     updated_at: new Date()
                 };
@@ -349,37 +227,70 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
     return (
         <View style={styles.container}>
             <GenieAnimation>
-                <View style={styles.card}>
+                <View style={[styles.card, state.showRecurrencePicker && { maxHeight: 600 }]}>
                     <ScrollView
                         keyboardShouldPersistTaps="handled"
                         showsVerticalScrollIndicator={false}
                         style={styles.scrollArea}
                     >
-                        <TextInput
-                            style={styles.titleInput}
-                            placeholder="Task name"
-                            placeholderTextColor={colors.placeholder}
-                            value={state.title}
-                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'title', value: val })}
-                        />
-                        <TextInput
-                            style={styles.descriptionInput}
-                            placeholder="Description"
-                            placeholderTextColor={colors.placeholder}
-                            value={state.description}
-                            onChangeText={(val) => dispatch({ type: 'SET_FIELD', field: 'description', value: val })}
-                            multiline
+                        <TaskBasicInputs
+                            colors={colors}
+                            styles={styles}
+                            title={state.title}
+                            setTitle={(val) => dispatch({ type: 'SET_FIELD', field: 'title', value: val })}
+                            description={state.description}
+                            setDescription={(val) => dispatch({ type: 'SET_FIELD', field: 'description', value: val })}
                         />
 
-                        <SubtaskSection state={state} dispatch={dispatch} colors={colors} styles={styles} />
+                        {state.showRecurrencePicker && (
+                            <RecurrencePicker
+                                colors={colors}
+                                frequency={state.frequency}
+                                setFrequency={(val) => dispatch({ type: 'SET_FIELD', field: 'frequency', value: val })}
+                                daysOfWeek={state.daysOfWeek}
+                                setDaysOfWeek={(val) => dispatch({ type: 'SET_FIELD', field: 'daysOfWeek', value: val })}
+                                dayOfMonth={state.dayOfMonth}
+                                setDayOfMonth={(val) => dispatch({ type: 'SET_FIELD', field: 'dayOfMonth', value: val })}
+                                lastWeekend={state.lastWeekend}
+                                setLastWeekend={(val) => dispatch({ type: 'SET_FIELD', field: 'lastWeekend', value: val })}
+                                timeOfDay={state.timeOfDay}
+                                setTimeOfDay={(val) => dispatch({ type: 'SET_FIELD', field: 'timeOfDay', value: val })}
+                                showTimePicker={() => dispatch({ type: 'SET_FIELD', field: 'isTimePickerVisible', value: true })}
+                            />
+                        )}
+
+                        <TaskSubtasks
+                            colors={colors}
+                            styles={styles}
+                            selectedGroupId={state.selectedGroupId}
+                            subtasks={state.subtasks}
+                            newSubtaskTitle={state.newSubtaskTitle}
+                            setNewSubtaskTitle={(val) => dispatch({ type: 'SET_FIELD', field: 'newSubtaskTitle', value: val })}
+                            showSubtaskInput={state.showSubtaskInput}
+                            setShowSubtaskInput={(val) => dispatch({ type: 'SET_FIELD', field: 'showSubtaskInput', value: val })}
+                            addSubtask={() => dispatch({ type: 'ADD_SUBTASK' })}
+                            removeSubtask={(id) => dispatch({ type: 'REMOVE_SUBTASK', id })}
+                        />
                     </ScrollView>
 
-                    <TaskActionsRow state={state} dispatch={dispatch} colors={colors} styles={styles} />
+                    <TaskActionPills
+                        colors={colors}
+                        styles={styles}
+                        dueDate={state.dueDate}
+                        setDueDate={(val) => dispatch({ type: 'SET_FIELD', field: 'dueDate', value: val })}
+                        alarmType={state.alarmType}
+                        toggleAlarmType={() => dispatch({ type: 'TOGGLE_ALARM_TYPE' })}
+                        alarmReminderTime={state.alarmReminderTime}
+                        showDatePicker={() => dispatch({ type: 'SET_FIELD', field: 'isDatePickerVisible', value: true })}
+                        showReminderPicker={() => dispatch({ type: 'SET_FIELD', field: 'isReminderPickerVisible', value: true })}
+                        recurrence={state.frequency}
+                        onRecurrencePress={() => dispatch({ type: 'SET_FIELD', field: 'showRecurrencePicker', value: !state.showRecurrencePicker })}
+                    />
 
                     <View style={styles.divider} />
 
                     <View style={styles.bottomBar}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 }}>
                             <TouchableOpacity
                                 style={styles.projectDropdown}
                                 onPress={() => dispatch({ type: 'SET_FIELD', field: 'showGroupPicker', value: !state.showGroupPicker })}
@@ -401,7 +312,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                     <ChevronDown size={14} color={colors.textSecondary} />
                                 </TouchableOpacity>
                             )}
-                        </ScrollView>
+                        </View>
 
                         <View style={styles.buttonGroup}>
                             <TouchableOpacity
@@ -423,7 +334,20 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                         </View>
                     </View>
 
-                    <GroupPickers state={state} dispatch={dispatch} colors={colors} styles={styles} groups={groups} activeGroup={activeGroup} />
+                    <TaskPickers
+                        colors={colors}
+                        styles={styles}
+                        groups={groups}
+                        activeGroup={activeGroup}
+                        selectedGroupId={state.selectedGroupId}
+                        setSelectedGroupId={(val) => dispatch({ type: 'SET_FIELD', field: 'selectedGroupId', value: val })}
+                        assignee={state.assignee}
+                        setAssignee={(val) => dispatch({ type: 'SET_FIELD', field: 'assignee', value: val })}
+                        showGroupPicker={state.showGroupPicker}
+                        setShowGroupPicker={(val) => dispatch({ type: 'SET_FIELD', field: 'showGroupPicker', value: val })}
+                        showAssigneePicker={state.showAssigneePicker}
+                        setShowAssigneePicker={(val) => dispatch({ type: 'SET_FIELD', field: 'showAssigneePicker', value: val })}
+                    />
                 </View>
             </GenieAnimation>
 
@@ -447,6 +371,17 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     dispatch({ type: 'SET_FIELD', field: 'isReminderPickerVisible', value: false });
                 }}
                 onCancel={() => dispatch({ type: 'SET_FIELD', field: 'isReminderPickerVisible', value: false })}
+            />
+
+            <DateTimePickerModal
+                isVisible={state.isTimePickerVisible}
+                mode="time"
+                onConfirm={(date) => {
+                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    dispatch({ type: 'SET_FIELD', field: 'timeOfDay', value: timeStr });
+                    dispatch({ type: 'SET_FIELD', field: 'isTimePickerVisible', value: false });
+                }}
+                onCancel={() => dispatch({ type: 'SET_FIELD', field: 'isTimePickerVisible', value: false })}
             />
         </View>
     );
