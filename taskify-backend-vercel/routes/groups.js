@@ -6,6 +6,7 @@ const Group = require('../models/Group');
 const GroupTask = require('../models/GroupTask');
 const User = require('../models/User');
 const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
+const { calculateNextDueDate, calculateInitialDueDate } = require('../utils/taskRecurrence');
 const verifyToken = require('../middleware/auth');
 
 // Fetch all groups for logged-in user
@@ -76,12 +77,29 @@ router.put('/:groupId/tasks/:taskId', verifyToken, async (req, res) => {
     const task = await GroupTask.findOne({ _id: taskId, groupId: groupId });
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
-    const { userId: newUserId, username, task: taskName, duedate, completed } = req.body;
+    const { 
+      userId: newUserId, 
+      username, 
+      task: taskName, 
+      duedate, 
+      completed,
+      description,
+      subtasks,
+      recurrence,
+      alarm_type,
+      alarm_reminder_time
+    } = req.body;
 
     const oldUserId = task.userId;
     if (newUserId) task.userId = newUserId;
     if (username) task.username = username;
     if (taskName) task.task = taskName;
+    if (description !== undefined) task.description = description;
+    if (subtasks !== undefined) task.subtasks = subtasks;
+    if (recurrence !== undefined) task.recurrence = recurrence;
+    if (alarm_type !== undefined) task.alarm_type = alarm_type;
+    if (alarm_reminder_time !== undefined) task.alarm_reminder_time = alarm_reminder_time;
+
     if (duedate) {
       task.duedate = new Date(duedate);
       task.notificationSent = false;
@@ -104,7 +122,19 @@ router.put('/:groupId/tasks/:taskId', verifyToken, async (req, res) => {
             assignedUser.pushTokens,
             'Task Assigned',
             `Task assigned to them in group '${group.name}': ${task.task}`,
-            { taskId: task._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: task.duedate, userId: newUserId }
+            { 
+              taskId: task._id, 
+              groupId: group._id, 
+              type: 'GROUP_TASK_ASSIGNED', 
+              dueDate: task.duedate, 
+              userId: newUserId,
+              task: task.task,
+              description: task.description,
+              subtasks: task.subtasks,
+              recurrence: task.recurrence,
+              alarm_type: task.alarm_type,
+              alarm_reminder_time: task.alarm_reminder_time
+            }
           );
           task.syncSent = true;
           await task.save();
@@ -213,7 +243,17 @@ router.get('/:groupId/members', verifyToken, async (req, res) => {
 // Assign task to member (admin or group member)
 router.post('/:groupId/tasks', verifyToken, async (req, res) => {
   try {
-    const { userId, username, task, duedate } = req.body;
+    const { 
+      userId, 
+      username, 
+      task, 
+      duedate,
+      description,
+      subtasks,
+      recurrence,
+      alarm_type,
+      alarm_reminder_time
+    } = req.body;
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
     
@@ -222,14 +262,39 @@ router.post('/:groupId/tasks', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Only admin or group members can assign tasks' });
     }
 
-    // userId and duedate are now optional
-    const newTask = new GroupTask({
+    // Determine task due date
+    let taskDueDate;
+    if (recurrence && recurrence.frequency !== 'none') {
+      taskDueDate = calculateInitialDueDate(recurrence);
+    } else {
+      taskDueDate = duedate ? new Date(duedate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+    
+    // Check if duedate cannot be in the past
+    if (taskDueDate < new Date()) {
+      return res.status(400).json({ error: 'duedate cannot be in the past' });
+    }
+
+    // Prepare task fields
+    const taskData = {
       groupId: group._id,
-      task
-    });
-    if (userId) newTask.userId = userId;
-    if (username) newTask.username = username;
-    if (duedate) newTask.duedate = duedate;
+      task,
+      description,
+      subtasks: subtasks || [],
+      recurrence,
+      duedate: taskDueDate
+    };
+    if (userId) taskData.userId = userId;
+    if (username) taskData.username = username;
+    if (alarm_type) taskData.alarm_type = alarm_type;
+    taskData.alarm_reminder_time = alarm_reminder_time ? alarm_reminder_time : taskDueDate;
+
+    const newTask = new GroupTask(taskData);
+
+    // Set originTaskId if recurring
+    if (recurrence && recurrence.frequency !== 'none') {
+      newTask.recurrence.originTaskId = newTask._id;
+    }
 
     await newTask.save();
     
@@ -242,7 +307,19 @@ router.post('/:groupId/tasks', verifyToken, async (req, res) => {
             assignedUser.pushTokens,
             'Task Assigned',
             `Task assigned to them in group '${group.name}': ${task}`,
-            { taskId: newTask._id, groupId: group._id, type: 'GROUP_TASK_ASSIGNED', dueDate: duedate, userId: userId }
+            { 
+              taskId: newTask._id, 
+              groupId: group._id, 
+              type: 'GROUP_TASK_ASSIGNED', 
+              dueDate: newTask.duedate, 
+              userId: userId,
+              task: newTask.task,
+              description: newTask.description,
+              subtasks: newTask.subtasks,
+              recurrence: newTask.recurrence,
+              alarm_type: newTask.alarm_type,
+              alarm_reminder_time: newTask.alarm_reminder_time
+            }
           );
           
           // Also set syncSent since the visible notification carries the data
