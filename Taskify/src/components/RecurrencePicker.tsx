@@ -14,8 +14,8 @@ interface RecurrencePickerProps {
     setDayOfMonth: (day: number | null) => void;
     lastWeekend: boolean;
     setLastWeekend: (val: boolean) => void;
-    timeOfDay: string | null;
-    setTimeOfDay: (time: string | null) => void;
+    timeOfDay: Date | null;
+    setTimeOfDay: (time: Date | null) => void;
     showTimePicker: () => void;
 }
 
@@ -85,7 +85,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                     >
                         <Clock size={16} color={colors.primary} />
                         <Text style={{ fontSize: 13, color: colors.text }}>
-                            {timeOfDay ? `Occurs at ${timeOfDay}` : 'Select time (e.g. Nightly)'}
+                            {timeOfDay ? `Occurs at ${timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Select time (e.g. Nightly)'}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -174,7 +174,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                 >
                     <Clock size={16} color={colors.primary} />
                     <Text style={{ fontSize: 13, color: colors.text }}>
-                        {timeOfDay ? `Occurs at ${timeOfDay}` : 'Select time'}
+                        {timeOfDay ? `Occurs at ${timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Select time'}
                     </Text>
                 </TouchableOpacity>
             )}

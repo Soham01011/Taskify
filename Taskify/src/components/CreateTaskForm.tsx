@@ -62,7 +62,7 @@ interface TaskFormState {
     daysOfWeek: number[];
     dayOfMonth: number | null;
     lastWeekend: boolean;
-    timeOfDay: string | null;
+    timeOfDay: Date | null;
 }
 
 type FormAction =
@@ -163,9 +163,20 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
         const taskTitle = state.title.trim();
         const taskDescription = state.description.trim();
         const hasRecurrence = state.frequency !== 'none';
-        const dueDateIso = !hasRecurrence && state.dueDate ? state.dueDate.toISOString() : undefined;
-        const duedateFallback = hasRecurrence ? undefined : (dueDateIso || new Date().toISOString());
+
+        // Calculate a unified UTC date/time. 
+        let effectiveDate = state.dueDate ? new Date(state.dueDate) : new Date();
+
+        if (hasRecurrence && state.timeOfDay) {
+            effectiveDate.setHours(state.timeOfDay.getHours());
+            effectiveDate.setMinutes(state.timeOfDay.getMinutes());
+            effectiveDate.setSeconds(0);
+            effectiveDate.setMilliseconds(0);
+        }
+
+        const dueDateIso = effectiveDate.toISOString();
         const alarmReminderTimeIso = state.alarmReminderTime ? state.alarmReminderTime.toISOString() : dueDateIso;
+        const duedateFallback = dueDateIso; // Always use the calculated UTC date
 
         const assigneeId = (state.assignee && state.assignee.id) ? state.assignee.id : '';
         const assigneeUsername = (state.assignee && state.assignee.username) ? state.assignee.username : '';
@@ -177,7 +188,8 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
             daysOfWeek: state.daysOfWeek,
             dayOfMonth: state.dayOfMonth ?? undefined,
             lastWeekend: state.lastWeekend,
-            timeOfDay: state.timeOfDay ?? undefined
+            // Send the UTC HH:mm string to ensure the backend schedules correctly
+            timeOfDay: `${String(effectiveDate.getUTCHours()).padStart(2, '0')}:${String(effectiveDate.getUTCMinutes()).padStart(2, '0')}`
         } : undefined;
 
         try {
@@ -254,7 +266,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                 lastWeekend={state.lastWeekend}
                                 setLastWeekend={(val) => dispatch({ type: 'SET_FIELD', field: 'lastWeekend', value: val })}
                                 timeOfDay={state.timeOfDay}
-                                setTimeOfDay={(val) => dispatch({ type: 'SET_FIELD', field: 'timeOfDay', value: val })}
+                                setTimeOfDay={() => { }} // Not used currently, but kept for interface consistency
                                 showTimePicker={() => dispatch({ type: 'SET_FIELD', field: 'isTimePickerVisible', value: true })}
                             />
                         )}
@@ -377,8 +389,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                 isVisible={state.isTimePickerVisible}
                 mode="time"
                 onConfirm={(date) => {
-                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                    dispatch({ type: 'SET_FIELD', field: 'timeOfDay', value: timeStr });
+                    dispatch({ type: 'SET_FIELD', field: 'timeOfDay', value: date });
                     dispatch({ type: 'SET_FIELD', field: 'isTimePickerVisible', value: false });
                 }}
                 onCancel={() => dispatch({ type: 'SET_FIELD', field: 'isTimePickerVisible', value: false })}
