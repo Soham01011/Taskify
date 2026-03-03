@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
 const User = require('../models/User');
-const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
+const { sendMultiplePushNotifications } = require('../utils/notificationService');
 const { calculateNextDueDate, calculateInitialDueDate } = require('../utils/taskRecurrence');
 const verifyToken = require('../middleware/auth');
 
@@ -11,7 +11,7 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { title, description, dueDate, subtasks, alarm_type, alarm_reminder_time, recurrence } = req.body;
     const userId = req.userId;
-
+    console.log("user : ",userId ,"Created Task :",title, description, "Due Date :", dueDate, "Subtasks :", subtasks, "Alarm Type :", alarm_type, "Alarm Reminder Time :", alarm_reminder_time, "Recurrence :", recurrence)
     let taskDueDate;
     
     if (recurrence && recurrence.frequency !== 'none') {

@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
 const GroupTask = require('../models/GroupTask');
-const Group = require('../models/Group');
 const User = require('../models/User');
-const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
 
 // This endpoint should be triggered by a Cron Job every minute
 // For Vercel: https://vercel.com/docs/cron-jobs

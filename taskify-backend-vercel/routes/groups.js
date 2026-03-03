@@ -5,8 +5,8 @@ const { ObjectId } = mongoose.Types;
 const Group = require('../models/Group');
 const GroupTask = require('../models/GroupTask');
 const User = require('../models/User');
-const { sendPushNotification, sendMultiplePushNotifications } = require('../utils/notificationService');
-const { calculateNextDueDate, calculateInitialDueDate } = require('../utils/taskRecurrence');
+const { sendMultiplePushNotifications } = require('../utils/notificationService');
+const { calculateInitialDueDate } = require('../utils/taskRecurrence');
 const verifyToken = require('../middleware/auth');
 
 // Fetch all groups for logged-in user

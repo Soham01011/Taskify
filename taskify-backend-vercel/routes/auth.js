@@ -63,7 +63,7 @@ router.post('/login', async (req, res) => {
           reuseRefreshToken = true;
           tokens = generateTokens(user._id, user.refreshToken);
         }
-      } catch (err) {
+      } catch {
         // Token is invalid or expired, continue to generate new one
       }
     }
@@ -120,7 +120,7 @@ router.post('/refresh', async (req, res) => {
     }
 
     res.json(tokens);
-  } catch (error) {
+  } catch {
     res.status(401).json({ error: 'Refresh failed' });
   }
 });
