@@ -287,7 +287,7 @@ router.post('/:groupId/tasks', verifyToken, async (req, res) => {
     if (userId) taskData.userId = userId;
     if (username) taskData.username = username;
     if (alarm_type) taskData.alarm_type = alarm_type;
-    taskData.alarm_reminder_time = alarm_reminder_time ? alarm_reminder_time : taskDueDate;
+    taskData.alarm_reminder_time = alarm_reminder_time ? new Date(alarm_reminder_time) : taskDueDate;
 
     const newTask = new GroupTask(taskData);
 

@@ -14,12 +14,12 @@ function calculateNextDueDate(currentDueDate, recurrence) {
 
     switch (frequency) {
         case 'daily':
-            nextDate.setDate(nextDate.getDate() + 1);
+            nextDate.setUTCDate(nextDate.getUTCDate() + 1);
             break;
         case 'weekly':
             if (daysOfWeek && daysOfWeek.length > 0) {
                 // Find next occurance in daysOfWeek
-                let currentDay = nextDate.getDay();
+                let currentDay = nextDate.getUTCDay();
                 let daysToWait = 1;
                 while (daysToWait <= 7) {
                     let nextDay = (currentDay + daysToWait) % 7;
@@ -28,32 +28,32 @@ function calculateNextDueDate(currentDueDate, recurrence) {
                     }
                     daysToWait++;
                 }
-                nextDate.setDate(nextDate.getDate() + daysToWait);
+                nextDate.setUTCDate(nextDate.getUTCDate() + daysToWait);
             } else {
-                nextDate.setDate(nextDate.getDate() + 7);
+                nextDate.setUTCDate(nextDate.getUTCDate() + 7);
             }
             break;
         case 'monthly':
             if (lastWeekend) {
                 // Set to next month and find last weekend day
-                nextDate.setMonth(nextDate.getMonth() + 1);
+                nextDate.setUTCMonth(nextDate.getUTCMonth() + 1);
                 nextDate = getLastWeekendOfSameMonth(nextDate);
             } else if (dayOfMonth) {
-                nextDate.setMonth(nextDate.getMonth() + 1);
+                nextDate.setUTCMonth(nextDate.getUTCMonth() + 1);
                 // Handle months with fewer days
                 const targetDay = dayOfMonth;
-                nextDate.setDate(1); 
-                const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
-                nextDate.setDate(Math.min(targetDay, daysInMonth));
+                nextDate.setUTCDate(1); 
+                const daysInMonth = new Date(Date.UTC(nextDate.getUTCFullYear(), nextDate.getUTCMonth() + 1, 0)).getUTCDate();
+                nextDate.setUTCDate(Math.min(targetDay, daysInMonth));
             } else {
-                nextDate.setMonth(nextDate.getMonth() + 1);
+                nextDate.setUTCMonth(nextDate.getUTCMonth() + 1);
             }
             break;
         case 'six-months':
-            nextDate.setMonth(nextDate.getMonth() + 6);
+            nextDate.setUTCMonth(nextDate.getUTCMonth() + 6);
             break;
         case 'annually':
-            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            nextDate.setUTCFullYear(nextDate.getUTCFullYear() + 1);
             break;
     }
 
@@ -61,7 +61,7 @@ function calculateNextDueDate(currentDueDate, recurrence) {
     if (timeOfDay && timeOfDay.includes(':')) {
         const [hours, minutes] = timeOfDay.split(':').map(Number);
         if (!isNaN(hours) && !isNaN(minutes)) {
-            nextDate.setHours(hours, minutes, 0, 0);
+            nextDate.setUTCHours(hours, minutes, 0, 0);
         }
     }
 
@@ -86,7 +86,7 @@ function calculateInitialDueDate(recurrence) {
     if (timeOfDay && timeOfDay.includes(':')) {
         const [hours, minutes] = timeOfDay.split(':').map(Number);
         if (!isNaN(hours) && !isNaN(minutes)) {
-            initialDate.setHours(hours, minutes, 0, 0);
+            initialDate.setUTCHours(hours, minutes, 0, 0);
         }
     }
 
@@ -94,14 +94,14 @@ function calculateInitialDueDate(recurrence) {
         case 'daily':
             // If the specified time has already passed today, set to tomorrow
             if (initialDate <= now) {
-                initialDate.setDate(initialDate.getDate() + 1);
+                initialDate.setUTCDate(initialDate.getUTCDate() + 1);
             }
             break;
 
         case 'weekly':
             if (daysOfWeek && daysOfWeek.length > 0) {
                 // Find nearest occurance in daysOfWeek (could be today)
-                let currentDay = initialDate.getDay();
+                let currentDay = initialDate.getUTCDay();
                 let daysToWait = 0;
                 while (daysToWait < 7) {
                     let nextDay = (currentDay + daysToWait) % 7;
@@ -115,9 +115,9 @@ function calculateInitialDueDate(recurrence) {
                     }
                     daysToWait++;
                 }
-                initialDate.setDate(initialDate.getDate() + daysToWait);
+                initialDate.setUTCDate(initialDate.getUTCDate() + daysToWait);
             } else if (initialDate <= now) {
-                initialDate.setDate(initialDate.getDate() + 7);
+                initialDate.setUTCDate(initialDate.getUTCDate() + 7);
             }
             break;
 
@@ -126,32 +126,32 @@ function calculateInitialDueDate(recurrence) {
                 initialDate = getLastWeekendOfSameMonth(initialDate);
                 // If the last weekend of this month has already passed, set to next month's
                 if (initialDate <= now) {
-                   initialDate.setMonth(initialDate.getMonth() + 1);
+                   initialDate.setUTCMonth(initialDate.getUTCMonth() + 1);
                    initialDate = getLastWeekendOfSameMonth(initialDate);
                 }
             } else if (dayOfMonth) {
                 // Handle months with fewer days
                 const targetDay = dayOfMonth;
-                const daysInMonth = new Date(initialDate.getFullYear(), initialDate.getMonth() + 1, 0).getDate();
-                initialDate.setDate(Math.min(targetDay, daysInMonth));
+                const daysInMonth = new Date(Date.UTC(initialDate.getUTCFullYear(), initialDate.getUTCMonth() + 1, 0)).getUTCDate();
+                initialDate.setUTCDate(Math.min(targetDay, daysInMonth));
                 
                 // If it already passed this month, move to next
                 if (initialDate <= now) {
-                    initialDate.setMonth(initialDate.getMonth() + 1);
-                    const daysInNextMonth = new Date(initialDate.getFullYear(), initialDate.getMonth() + 1, 0).getDate();
-                    initialDate.setDate(Math.min(targetDay, daysInNextMonth));
+                    initialDate.setUTCMonth(initialDate.getUTCMonth() + 1);
+                    const daysInNextMonth = new Date(Date.UTC(initialDate.getUTCFullYear(), initialDate.getUTCMonth() + 1, 0)).getUTCDate();
+                    initialDate.setUTCDate(Math.min(targetDay, daysInNextMonth));
                 }
             } else if (initialDate <= now) {
-                initialDate.setMonth(initialDate.getMonth() + 1);
+                initialDate.setUTCMonth(initialDate.getUTCMonth() + 1);
             }
             break;
             
         case 'six-months':
-            if (initialDate <= now) initialDate.setMonth(initialDate.getMonth() + 6);
+            if (initialDate <= now) initialDate.setUTCMonth(initialDate.getUTCMonth() + 6);
             break;
             
         case 'annually':
-            if (initialDate <= now) initialDate.setFullYear(initialDate.getFullYear() + 1);
+            if (initialDate <= now) initialDate.setUTCFullYear(initialDate.getUTCFullYear() + 1);
             break;
     }
 
@@ -159,16 +159,16 @@ function calculateInitialDueDate(recurrence) {
 }
 
 function getLastWeekendOfSameMonth(date) {
-    let lastDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    let lastDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
     // Ensure we keep the hour/min/sec from the original date
-    lastDate.setHours(date.getHours(), date.getMinutes(), 0, 0);
+    lastDate.setUTCHours(date.getUTCHours(), date.getUTCMinutes(), 0, 0);
     
-    let day = lastDate.getDay(); // 0: Sun, 1: Mon... 6: Sat
+    let day = lastDate.getUTCDay(); // 0: Sun, 1: Mon... 6: Sat
     if (day === 0 || day === 6) {
         return lastDate;
     }
     // If it's Monday-Friday, go back to the nearest Sunday
-    lastDate.setDate(lastDate.getDate() - day);
+    lastDate.setUTCDate(lastDate.getUTCDate() - day);
     return lastDate;
 }
 

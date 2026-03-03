@@ -44,7 +44,7 @@ router.post('/', verifyToken, async (req, res) => {
       dueDate: taskDueDate, 
       subtasks: processedSubtasks,
       alarm_type,
-      alarm_reminder_time: alarm_reminder_time ? alarm_reminder_time : taskDueDate,
+      alarm_reminder_time: alarm_reminder_time ? new Date(alarm_reminder_time) : taskDueDate,
       created_at: new Date(),
       updated_at: new Date(),
       recurrence
@@ -263,7 +263,7 @@ router.post('/:id/subtasks', verifyToken, async (req, res) => {
     const { title, dueDate } = req.body;
     const task = await Task.findOne({ _id: req.params.id, userId });
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
-    task.subtasks.push({ title, dueDate });
+    task.subtasks.push({ title, dueDate: dueDate ? new Date(dueDate) : undefined });
     await task.save();
     res.status(201).json(task);
   } catch (err) {
