@@ -1,27 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { User } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { Group, GroupTask } from '../api/groups';
 import { SPACING, RADIUS } from '../constants/theme';
 import { useAppTheme } from '@/hooks/use-theme';
+import { MatrixText } from './MatrixText';
 
 export const AppHeader = () => {
     const router = useRouter();
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
-    const { tasks } = useSelector((state: RootState) => state.tasks);
+    const personalTasks = useSelector((state: RootState) => state.tasks.tasks);
+    const groups = useSelector((state: RootState) => state.groups.groups);
+
+    const [viewMode, setViewMode] = useState<'personal' | 'group'>('personal');
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setViewMode(prev => prev === 'personal' ? 'group' : 'personal');
+        }, 5000);
+        return () => clearInterval(timer);
+    }, []);
 
     const currentUser = users.find(u => u.id === currentUserId);
-    const pendingTasksCount = tasks.filter(t => !t.completed).length;
+
+    const personalPending = personalTasks.filter(t => !t.completed).length;
+    const groupPending = groups.flatMap((g: Group) =>
+        (g.tasks || []).filter((t: GroupTask) => t.userId === currentUserId && !t.completed)
+    ).length;
+
+    const displayText = viewMode === 'personal'
+        ? `You have ${personalPending} personal tasks`
+        : `Group tasks pending: ${groupPending}`;
 
     return (
         <View style={styles.header}>
             <View>
-                <Text style={styles.greeting}>Hello, {currentUser?.username || 'Guest'}</Text>
-                <Text style={styles.subtitle}>You have {pendingTasksCount} pending tasks</Text>
+                <Text style={styles.greeting}>{"Hello , "}{currentUser?.username || 'Guest'}</Text>
+                <MatrixText
+                    key={displayText}
+                    text={displayText}
+                    style={styles.subtitle}
+                    duration={1000}
+                />
             </View>
             <TouchableOpacity
                 style={styles.profileBtn}

@@ -85,7 +85,7 @@ export default function TaskDashboard() {
 
   const [state, dashboardDispatch] = useReducer(dashboardReducer, dashboardInitialState);
   const { refreshing, isCreating, filter, sortOrder, lastParams } = state;
-  
+
   const hasAttemptedInitialSync = useRef(false);
 
   const filteredAndSortedTasks = useMemo(() => {
