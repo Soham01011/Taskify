@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useReducer, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   FlatList,
@@ -30,7 +30,7 @@ import { CreateTaskForm } from '@/src/components/CreateTaskForm';
 import { useMemo } from 'react';
 
 import { RootState, AppDispatch } from '@/src/store';
-import { fetchTasks, updateTask } from '@/src/store/slices/taskSlice';
+import { fetchTasks, updateTask, selectUnifiedTasks } from '@/src/store/slices/taskSlice';
 
 import { taskApi, Task, FetchTasksParams } from '@/src/api/tasks';
 import { TaskCard } from '@/src/components/TaskCard';
@@ -40,17 +40,53 @@ import { useAppTheme } from '@/hooks/use-theme';
 
 import { AppHeader } from '@/src/components/AppHeader';
 
+type DashboardState = {
+  refreshing: boolean;
+  isCreating: boolean;
+  filter: 'active' | 'due' | 'upcoming' | 'completed';
+  sortOrder: 'asc' | 'desc';
+  lastParams: FetchTasksParams;
+};
+
+type DashboardAction =
+  | { type: 'SET_REFRESHING'; payload: boolean }
+  | { type: 'SET_IS_CREATING'; payload: boolean }
+  | { type: 'SET_FILTER'; payload: DashboardState['filter'] }
+  | { type: 'SET_SORT_ORDER'; payload: DashboardState['sortOrder'] }
+  | { type: 'SET_LAST_PARAMS'; payload: FetchTasksParams };
+
+const dashboardInitialState: DashboardState = {
+  refreshing: false,
+  isCreating: false,
+  filter: 'active',
+  sortOrder: 'asc',
+  lastParams: { pageNumber: 1, pageSize: 15 },
+};
+
+function dashboardReducer(state: DashboardState, action: DashboardAction): DashboardState {
+  switch (action.type) {
+    case 'SET_REFRESHING': return { ...state, refreshing: action.payload };
+    case 'SET_IS_CREATING': return { ...state, isCreating: action.payload };
+    case 'SET_FILTER': return { ...state, filter: action.payload };
+    case 'SET_SORT_ORDER': return { ...state, sortOrder: action.payload };
+    case 'SET_LAST_PARAMS': return { ...state, lastParams: action.payload };
+    default: return state;
+  }
+}
+
 export default function TaskDashboard() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors);
-  const { tasks, isLoading, pagination } = useSelector((state: RootState) => state.tasks);
+  const { isLoading, pagination } = useSelector((state: RootState) => state.tasks);
+  const tasks = useSelector(selectUnifiedTasks);
   const { currentUserId } = useSelector((state: RootState) => state.auth);
-  const [refreshing, setRefreshing] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [filter, setFilter] = useState<'active' | 'due' | 'upcoming' | 'completed'>('active');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const [state, dashboardDispatch] = useReducer(dashboardReducer, dashboardInitialState);
+  const { refreshing, isCreating, filter, sortOrder, lastParams } = state;
+  
+  const hasAttemptedInitialSync = useRef(false);
 
   const filteredAndSortedTasks = useMemo(() => {
     let result = [...tasks];
@@ -79,11 +115,9 @@ export default function TaskDashboard() {
     return result;
   }, [tasks, filter, sortOrder]);
 
-  const [lastParams, setLastParams] = useState<FetchTasksParams>({ pageNumber: 1, pageSize: 15 });
-
   const loadTasks = useCallback((params: FetchTasksParams = { pageNumber: 1, pageSize: 15 }) => {
     if (currentUserId) {
-      setLastParams(params);
+      dashboardDispatch({ type: 'SET_LAST_PARAMS', payload: params });
       dispatch(fetchTasks(params));
     }
   }, [currentUserId, dispatch]);
@@ -108,20 +142,19 @@ export default function TaskDashboard() {
   }, [tasks]);
 
   useEffect(() => {
-    if (currentUserId) {
+    if (currentUserId && !hasAttemptedInitialSync.current) {
+      hasAttemptedInitialSync.current = true;
       const latest = getLatestTimestamp();
       if (latest) {
-        // We have local data, perform incremental sync
         loadTasks({ created_at: latest, pageNumber: 1, pageSize: 15 });
       } else {
-        // No local data, perform full fetch
         loadTasks({ pageNumber: 1, pageSize: 15 });
       }
     }
-  }, [currentUserId]); // Only run on mount or when user changes
+  }, [currentUserId, loadTasks, getLatestTimestamp]);
 
   const onRefresh = async () => {
-    setRefreshing(true);
+    dashboardDispatch({ type: 'SET_REFRESHING', payload: true });
     const latest = getLatestTimestamp();
 
     try {
@@ -130,11 +163,11 @@ export default function TaskDashboard() {
       } else {
         await dispatch(fetchTasks({ pageNumber: 1, pageSize: 15 })).unwrap();
       }
+      dashboardDispatch({ type: 'SET_REFRESHING', payload: false });
     } catch (err) {
       console.log('Sync failed, doing full refresh', err);
       loadTasks({ pageNumber: 1, pageSize: 15 });
-    } finally {
-      setRefreshing(false);
+      dashboardDispatch({ type: 'SET_REFRESHING', payload: false });
     }
   };
 
@@ -185,7 +218,7 @@ export default function TaskDashboard() {
                   styles.filterChip,
                   filter === item.id && styles.activeFilterChip
                 ]}
-                onPress={() => setFilter(item.id as any)}
+                onPress={() => dashboardDispatch({ type: 'SET_FILTER', payload: item.id as any })}
               >
                 <Text style={[
                   styles.filterChipText,
@@ -200,7 +233,7 @@ export default function TaskDashboard() {
 
         <TouchableOpacity
           style={styles.sortBtn}
-          onPress={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+          onPress={() => dashboardDispatch({ type: 'SET_SORT_ORDER', payload: sortOrder === 'asc' ? 'desc' : 'asc' })}
         >
           <Text style={styles.sortText}>Time</Text>
           {sortOrder === 'asc' ? (
@@ -248,7 +281,7 @@ export default function TaskDashboard() {
             style={styles.fabTouch}
             onPress={() => {
               // Slight delay to let the tap animation (dip) finish
-              setTimeout(() => setIsCreating(true), 100);
+              setTimeout(() => dashboardDispatch({ type: 'SET_IS_CREATING', payload: true }), 100);
             }}
             activeOpacity={0.6}
           >
@@ -269,10 +302,10 @@ export default function TaskDashboard() {
           >
             <CreateTaskForm
               onSuccess={() => {
-                setIsCreating(false);
+                dashboardDispatch({ type: 'SET_IS_CREATING', payload: false });
                 loadTasks();
               }}
-              onCancel={() => setIsCreating(false)}
+              onCancel={() => dashboardDispatch({ type: 'SET_IS_CREATING', payload: false })}
             />
           </KeyboardAvoidingView>
         </Animated.View>
@@ -287,7 +320,7 @@ export default function TaskDashboard() {
         >
           <TouchableOpacity
             style={{ flex: 1 }}
-            onPress={() => setIsCreating(false)}
+            onPress={() => dashboardDispatch({ type: 'SET_IS_CREATING', payload: false })}
             activeOpacity={1}
           />
         </Animated.View>

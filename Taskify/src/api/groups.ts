@@ -29,10 +29,12 @@ export interface Group {
     adminId: string;
     members: any[]; // Array of User IDs or Objects with _id and username
     tasks: GroupTask[];
+    created_at?: string;
 }
 
 export const groupApi = {
-    getGroups: (userId: string) => client.get<Group[]>(`/groups?userId=${userId}`),
+    getGroups: (userId: string, createdAt?: string) => 
+        client.get<Group[]>(`/groups?userId=${userId}${createdAt ? `&created_at=${createdAt}` : ''}`),
 
     create: (data: { name: string; description: string; members: string[] }) =>
         client.post<Group>('/groups', data),

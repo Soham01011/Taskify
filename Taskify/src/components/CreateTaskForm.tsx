@@ -151,6 +151,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
     const [state, dispatch] = useReducer(formReducer, initialState);
 
+    const { currentUserId } = useSelector((state: RootState) => state.auth);
     const { groups } = useSelector((rootState: RootState) => rootState.groups);
     const activeGroup = groups.find(g => g._id === state.selectedGroupId);
 
@@ -204,7 +205,9 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     subtasks: subtasksFormatted,
                     recurrence: recurrenceData
                 });
-                reduxDispatch(fetchGroups('')); // Refresh groups
+                if (currentUserId) {
+                    reduxDispatch(fetchGroups({ userId: currentUserId }));
+                }
             } else {
                 const taskData = {
                     title: taskTitle,

@@ -61,7 +61,7 @@ export default function GroupMembersModalScreen() {
             await groupApi.addMember(group._id, newMemberId.trim());
             Alert.alert('Success', 'Member added successfully');
             setNewMemberId('');
-            if (currentUserId) dispatch(fetchGroups(currentUserId));
+            if (currentUserId) dispatch(fetchGroups({ userId: currentUserId }));
             setLoading(false);
         } catch (err: any) {
             Alert.alert('Error', err.response?.data?.message || 'Failed to add member');
@@ -82,7 +82,7 @@ export default function GroupMembersModalScreen() {
                         try {
                             setLoading(true);
                             await groupApi.removeMember(group._id, userId);
-                            if (currentUserId) dispatch(fetchGroups(currentUserId));
+                            if (currentUserId) dispatch(fetchGroups({ userId: currentUserId }));
                             setLoading(false);
                         } catch (err: any) {
                             Alert.alert('Error', err.response?.data?.message || 'Failed to remove member');
@@ -106,8 +106,8 @@ export default function GroupMembersModalScreen() {
                     onPress: async () => {
                         try {
                             setLoading(true);
-                            await groupApi.delete(group._id);
-                            if (currentUserId) dispatch(fetchGroups(currentUserId));
+                            await groupApi.delete(group._id); t
+                            if (currentUserId) dispatch(fetchGroups({ userId: currentUserId }));
                             setLoading(false);
                             handleClose();
                         } catch (err: any) {

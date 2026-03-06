@@ -79,7 +79,7 @@ export const TaskPickers: React.FC<TaskPickersProps> = ({
 
                                 return (
                                     <TouchableOpacity
-                                        key={`${id}-${index}`}
+                                        key={id}
                                         onPress={() => { setAssignee({ id, username: displayName }); setShowAssigneePicker(false); }}
                                         style={{ padding: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border }}>
                                         <Text style={{ color: colors.text, fontWeight: '500', marginLeft: 8 }}>

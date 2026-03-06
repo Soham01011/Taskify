@@ -26,6 +26,8 @@ export interface Task {
     };
     created_at: string;
     updated_at: string;
+    groupId?: string;
+    groupName?: string;
 }
 
 export interface FetchTasksParams {

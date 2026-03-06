@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2, Bell } from 'lucide-react-native';
+import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2, Bell, Users } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     withSpring,
@@ -129,6 +129,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                                 <View style={styles.subtaskCountBadge}>
                                     <Text style={styles.subtaskCountText}>
                                         {completedSubtasks}/{totalSubtasks}
+                                    </Text>
+                                </View>
+                            )}
+                            {task.groupName && (
+                                <View style={[styles.groupBadge, { marginLeft: 8 }]}>
+                                    <Users size={12} color={colors.primary} />
+                                    <Text style={styles.groupBadgeText}>
+                                        {task.groupName}
                                     </Text>
                                 </View>
                             )}

@@ -16,10 +16,13 @@ const initialState: GroupState = {
     error: null,
 };
 
-export const fetchGroups = createAsyncThunk('groups/fetchAll', async (userId: string) => {
-    const response = await groupApi.getGroups(userId);
-    return response.data;
-});
+export const fetchGroups = createAsyncThunk(
+    'groups/fetchAll',
+    async ({ userId, created_at }: { userId: string; created_at?: string }) => {
+        const response = await groupApi.getGroups(userId, created_at);
+        return { groups: response.data, created_at };
+    }
+);
 
 export const fetchGroupDetails = createAsyncThunk('groups/fetchDetails', async (groupId: string) => {
     const response = await groupApi.getDetails(groupId);
@@ -65,7 +68,20 @@ const groupSlice = createSlice({
             })
             .addCase(fetchGroups.fulfilled, (state, action) => {
                 state.isLoading = false;
-                state.groups = action.payload;
+                const { groups: incomingGroups, created_at } = action.payload;
+
+                if (created_at) {
+                    // Sync mode: Append only new groups or update existing ones
+                    const currentIds = new Set(state.groups.map(g => g._id));
+                    const newGroups = incomingGroups.filter(g => !currentIds.has(g._id));
+                    
+                    // We might also want to update existing groups if they are returned
+                    // but usually 'created_at' implies we only get things created AFTER that time.
+                    state.groups = [...state.groups, ...newGroups];
+                } else {
+                    // Full replacement mode
+                    state.groups = incomingGroups;
+                }
             })
             .addCase(fetchGroups.rejected, (state, action) => {
                 state.isLoading = false;

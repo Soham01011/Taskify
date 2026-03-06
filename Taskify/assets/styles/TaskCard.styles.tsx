@@ -135,5 +135,19 @@ export const getStyles = (colors: any) => StyleSheet.create({
         fontSize: 10,
         fontWeight: '600',
         color: colors.primary,
+    },
+    groupBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.primary + '15',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: RADIUS.sm,
+        gap: 4,
+    },
+    groupBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.primary,
     }
 });

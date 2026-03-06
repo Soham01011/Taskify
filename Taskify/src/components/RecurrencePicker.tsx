@@ -95,7 +95,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 }}>
                     {DAYS.map((day, index) => (
                         <TouchableOpacity
-                            key={index}
+                            key={`day-btn-${day}-${index}`}
                             onPress={() => toggleDay(index)}
                             style={{
                                 width: 32,

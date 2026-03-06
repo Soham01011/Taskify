@@ -95,4 +95,95 @@ export const getStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: 16,
     },
+    progressSection: {
+        marginTop: SPACING.md,
+        marginBottom: SPACING.sm,
+    },
+    progressHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    progressLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    progressValue: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.primary,
+    },
+    progressBarBg: {
+        height: 6,
+        backgroundColor: colors.border,
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: colors.primary,
+    },
+    listHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: SPACING.sm,
+    },
+    subtaskHeader: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    visibilityToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    visibilityText: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontWeight: '600',
+    },
+    emptyTasksText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        paddingVertical: SPACING.md,
+        fontStyle: 'italic',
+    },
+    viewMoreBtn: {
+        marginTop: SPACING.md,
+        paddingVertical: SPACING.sm,
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    viewMoreText: {
+        fontSize: 13,
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: colors.border,
+        marginVertical: SPACING.sm,
+    },
+    subtaskItem: {
+        paddingVertical: 4,
+    },
+    subtaskMain: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    subtaskTitle: {
+        fontSize: 14,
+        color: colors.text,
+    },
+    subtaskCompletedText: {
+        textDecorationLine: 'line-through',
+        color: colors.textSecondary,
+    },
 });
