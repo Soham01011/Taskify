@@ -7,7 +7,7 @@ const SubtaskSchema = new mongoose.Schema({
 });
 
 const TaskSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
+  userId: { type: String, required: true, index: true },
   title: { type: String, required: true },
   description: String,
   completed: { type: Boolean, default: false },

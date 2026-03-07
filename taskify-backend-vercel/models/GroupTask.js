@@ -7,8 +7,8 @@ const SubtaskSchema = new mongoose.Schema({
 });
 
 const GroupTaskSchema = new mongoose.Schema({
-  groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false, index: true },
   username: { type: String, required: false },
   task: { type: String, required: true }, // For group tasks, this is the title/task name
   description: String,

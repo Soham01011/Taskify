@@ -8,6 +8,7 @@ const taskRoutes = require('./routes/tasks');
 const groupRoutes = require('./routes/groups');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
+const ideaRoutes = require('./routes/ideas');
 
 const app = express();
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Taskify';
@@ -50,6 +51,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/ideas', ideaRoutes);
 
 // Health check / Readiness
 app.get('/health', (req, res) => {
