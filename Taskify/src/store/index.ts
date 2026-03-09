@@ -4,13 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import authReducer from './slices/authSlice';
 import taskReducer from './slices/taskSlice';
 import groupReducer from './slices/groupSlice';
+import ideaReducer from './slices/ideaSlice';
 import { injectStore } from '../api/client';
 
 const persistConfig = {
     key: 'root',
     version: 1,
     storage: AsyncStorage,
-    whitelist: ['auth', 'tasks', 'groups'], // Persist auth, tasks and groups for local data usage
+    whitelist: ['auth', 'tasks', 'groups', 'ideas'], // Persist auth, tasks, groups and ideas for local data usage
 };
 
 
@@ -19,6 +20,7 @@ const rootReducer = combineReducers({
     auth: authReducer,
     tasks: taskReducer,
     groups: groupReducer,
+    ideas: ideaReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

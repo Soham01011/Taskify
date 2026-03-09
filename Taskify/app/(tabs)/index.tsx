@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Filter, Users, X, ArrowUp, ArrowDown, ListFilter } from 'lucide-react-native';
+import { Plus, Users, ArrowUp, ArrowDown, Lightbulb } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { DashboardToolbar } from '@/src/components/Dashboard/Toolbar';
+import { EmptyDashboardState } from '@/src/components/Dashboard/EmptyState';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -31,6 +33,7 @@ import { useMemo } from 'react';
 
 import { RootState, AppDispatch } from '@/src/store';
 import { fetchTasks, updateTask, selectUnifiedTasks } from '@/src/store/slices/taskSlice';
+import { Group } from '@/src/api/groups';
 
 import { taskApi, Task, FetchTasksParams } from '@/src/api/tasks';
 import { TaskCard } from '@/src/components/TaskCard';
@@ -82,6 +85,19 @@ export default function TaskDashboard() {
   const { isLoading, pagination } = useSelector((state: RootState) => state.tasks);
   const tasks = useSelector(selectUnifiedTasks);
   const { currentUserId } = useSelector((state: RootState) => state.auth);
+  const groups = useSelector((state: RootState) => state.groups.groups);
+  const ideas = useSelector((state: RootState) => state.ideas.ideas);
+
+  // All pending group tasks assigned to current user (across all groups)
+  const pendingGroupTasks = useMemo(() => {
+    return groups.flatMap((group: Group) =>
+      (group.tasks || [])
+        .filter((t: any) => t.userId === currentUserId && !t.completed)
+        .map((t: any) => ({ ...t, groupName: group.name }))
+    );
+  }, [groups, currentUserId]);
+
+
 
   const [state, dashboardDispatch] = useReducer(dashboardReducer, dashboardInitialState);
   const { refreshing, isCreating, filter, sortOrder, lastParams } = state;
@@ -198,51 +214,14 @@ export default function TaskDashboard() {
       <AppHeader />
 
 
-      <View style={styles.toolbar}>
-        <View style={{ flex: 1 }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-            contentContainerStyle={styles.filterContainer}
-          >
-            {[
-              { id: 'active', label: 'Active' },
-              { id: 'due', label: 'Due' },
-              { id: 'upcoming', label: 'Upcoming' },
-              { id: 'completed', label: 'Completed' }
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.filterChip,
-                  filter === item.id && styles.activeFilterChip
-                ]}
-                onPress={() => dashboardDispatch({ type: 'SET_FILTER', payload: item.id as any })}
-              >
-                <Text style={[
-                  styles.filterChipText,
-                  filter === item.id && styles.activeFilterChipText
-                ]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <TouchableOpacity
-          style={styles.sortBtn}
-          onPress={() => dashboardDispatch({ type: 'SET_SORT_ORDER', payload: sortOrder === 'asc' ? 'desc' : 'asc' })}
-        >
-          <Text style={styles.sortText}>Time</Text>
-          {sortOrder === 'asc' ? (
-            <ArrowUp size={14} color={colors.primary} />
-          ) : (
-            <ArrowDown size={14} color={colors.primary} />
-          )}
-        </TouchableOpacity>
-      </View>
+      <DashboardToolbar
+        filter={filter}
+        setFilter={(id) => dashboardDispatch({ type: 'SET_FILTER', payload: id })}
+        sortOrder={sortOrder}
+        toggleSort={() => dashboardDispatch({ type: 'SET_SORT_ORDER', payload: sortOrder === 'asc' ? 'desc' : 'asc' })}
+        colors={colors}
+        styles={styles}
+      />
 
       <FlatList
         data={filteredAndSortedTasks}
@@ -261,11 +240,15 @@ export default function TaskDashboard() {
         }
 
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {filter === 'completed' ? 'No completed tasks.' : 'No tasks found.'}
-            </Text>
-          </View>
+          <EmptyDashboardState
+            filter={filter}
+            pendingGroupTasks={pendingGroupTasks}
+            ideas={ideas}
+            colors={colors}
+            styles={styles}
+            onSeeGroups={() => router.push('/(tabs)/groups' as any)}
+            onExploreIdeas={() => router.push('/(tabs)/ideas' as any)}
+          />
         }
       />
 

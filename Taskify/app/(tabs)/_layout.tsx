@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, Users } from 'lucide-react-native';
+import { LayoutDashboard, Users, Lightbulb } from 'lucide-react-native';
 import { useAppTheme } from '@/hooks/use-theme';
 
 export default function TabLayout() {
@@ -25,6 +25,13 @@ export default function TabLayout() {
         options={{
           title: 'Tasks',
           tabBarIcon: ({ color }) => <LayoutDashboard size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="ideas"
+        options={{
+          title: 'Ideas',
+          tabBarIcon: ({ color }) => <Lightbulb size={24} color={color} />,
         }}
       />
       <Tabs.Screen

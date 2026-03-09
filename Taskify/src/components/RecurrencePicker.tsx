@@ -19,7 +19,15 @@ interface RecurrencePickerProps {
     showTimePicker: () => void;
 }
 
-const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAYS = [
+    { label: 'S', name: 'Sunday' },
+    { label: 'M', name: 'Monday' },
+    { label: 'T', name: 'Tuesday' },
+    { label: 'W', name: 'Wednesday' },
+    { label: 'T', name: 'Thursday' },
+    { label: 'F', name: 'Friday' },
+    { label: 'S', name: 'Saturday' },
+];
 
 export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
     colors,
@@ -95,7 +103,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 }}>
                     {DAYS.map((day, index) => (
                         <TouchableOpacity
-                            key={`day-btn-${day}-${index}`}
+                            key={day.name}
                             onPress={() => toggleDay(index)}
                             style={{
                                 width: 32,
@@ -106,7 +114,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                                 alignItems: 'center'
                             }}
                         >
-                            <Text style={{ fontSize: 12, color: daysOfWeek.includes(index) ? colors.white : colors.text }}>{day}</Text>
+                            <Text style={{ fontSize: 12, color: daysOfWeek.includes(index) ? colors.white : colors.text }}>{day.label}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>

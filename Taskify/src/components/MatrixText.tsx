@@ -16,12 +16,18 @@ export const MatrixText: React.FC<MatrixTextProps> = ({
   duration = 1000
 }) => {
   const [displayText, setDisplayText] = useState('');
+  const [prevText, setPrevText] = useState(text);
   const frameRef = useRef<number>(0);
   const revealTimesRef = useRef<number[]>([]);
 
-  useEffect(() => {
-    // Force reset on text change
+  // Reset state during render when text changes
+  if (text !== prevText) {
+    setPrevText(text);
     setDisplayText('');
+  }
+
+  useEffect(() => {
+    // Initialize reveal times
     revealTimesRef.current = text.split('').map(() => Math.random() * 0.7);
 
     const startTime = Date.now();
