@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { CreateGroupForm } from '@/src/components/Groups/CreateGroupForm';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter, Stack } from 'expo-router';
-import { CreateGroupForm } from '../src/components/CreateGroupForm';
+import React from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function GroupModalScreen() {
     const router = useRouter();

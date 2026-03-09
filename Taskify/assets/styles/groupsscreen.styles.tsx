@@ -24,6 +24,24 @@ export const getStyles = (colors: any) => StyleSheet.create({
     addBtn: {
         padding: SPACING.sm,
     },
+    subtasksList: {
+        marginTop: SPACING.md,
+        overflow: 'hidden',
+    },
+    subtitle: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        fontWeight: '500',
+    },
+    syncBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        backgroundColor: colors.primary15,
+        gap: 6,
+    },
     listContent: {
         padding: SPACING.md,
     },
@@ -185,5 +203,46 @@ export const getStyles = (colors: any) => StyleSheet.create({
     subtaskCompletedText: {
         textDecorationLine: 'line-through',
         color: colors.textSecondary,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: SPACING.xl,
+        right: SPACING.xl,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...SHADOWS.md,
+    },
+    fabTouch: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        zIndex: 98,
+    },
+    compactModalContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'flex-end',
+        backgroundColor: 'transparent',
+    },
+    toolbar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+    },
+    tabs: {
+        flexDirection: 'row',
+        backgroundColor: colors.border,
+        padding: 4,
+        borderRadius: RADIUS.md,
     },
 });

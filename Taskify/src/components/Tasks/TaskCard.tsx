@@ -9,11 +9,11 @@ import Animated, {
     interpolate,
     Extrapolate
 } from 'react-native-reanimated';
-import { Task, Subtask, taskApi } from '../api/tasks';
-import { SPACING, } from '../constants/theme';
+import { Task, Subtask, taskApi } from '../../api/tasks';
+import { SPACING, } from '../../constants/theme';
 import { useDispatch } from 'react-redux';
-import { fetchTasks, removeTask, updateTask } from '../store/slices/taskSlice';
-import { AppDispatch } from '../store';
+import { fetchTasks, removeTask, updateTask } from '../../store/slices/taskSlice';
+import { AppDispatch } from '../../store';
 import { getStyles } from '@/assets/styles/TaskCard.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 

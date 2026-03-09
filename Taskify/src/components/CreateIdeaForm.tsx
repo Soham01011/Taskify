@@ -66,11 +66,14 @@ export const CreateIdeaForm: React.FC<CreateIdeaFormProps> = ({ onSuccess, onCan
             return;
         }
 
+        const title = state.title.trim();
+        const description = state.description.trim() || undefined;
+
         dispatch({ type: 'SUBMIT_START' });
         try {
             const response = await ideaApi.create({
-                title: state.title.trim(),
-                description: state.description.trim() || undefined,
+                title,
+                description,
             });
             reduxDispatch(addIdea(response.data));
             dispatch({ type: 'SUBMIT_SUCCESS' });

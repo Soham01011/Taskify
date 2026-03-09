@@ -1,9 +1,9 @@
-import * as TaskManager from 'expo-task-manager';
-import { taskApi, Task } from '../api/tasks';
-import { groupApi } from '../api/groups';
-import { NotificationService } from './notificationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import * as TaskManager from 'expo-task-manager';
+import { groupApi } from '../api/groups';
+import { Task, taskApi } from '../api/tasks';
+import { NotificationService } from './notificationService';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 

@@ -232,6 +232,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: colors.border,
         paddingTop: SPACING.md,
+        paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     },
     threadInput: {
         flex: 1,

@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2, Bell, Users, Eye, EyeOff, ClipboardList, Shield } from 'lucide-react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { CheckCircle, Circle, ChevronDown, Users, Eye, EyeOff, ClipboardList, Shield } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     withSpring,
     interpolate,
     useDerivedValue
 } from 'react-native-reanimated';
-import { Group, groupApi } from '../api/groups';
+import { Group, groupApi } from '../../api/groups';
 import { useAppTheme } from '@/hooks/use-theme';
 import { getStyles } from '@/assets/styles/groupsscreen.styles';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
-import { AppDispatch, RootState } from '../store';
-import { fetchGroups } from '../store/slices/groupSlice';
+import { AppDispatch, RootState } from '../../store';
+import { fetchGroups } from '../../store/slices/groupSlice';
 
 interface GroupCardProps {
     group: Group;
@@ -51,7 +51,6 @@ const GroupTaskItem = ({ t, group, currentUserId, colors }: { t: any, group: Gro
 export const GroupCard: React.FC<GroupCardProps> = ({ group }) => {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
-    const dispatch = useDispatch<AppDispatch>();
     const router = useRouter();
     const { currentUserId } = useSelector((state: RootState) => state.auth);
     const [isExpanded, setIsExpanded] = useState(false);

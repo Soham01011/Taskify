@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter, Stack } from 'expo-router';
-import { CreateTaskForm } from '../src/components/CreateTaskForm';
+import React from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function ModalScreen() {
   const router = useRouter();
