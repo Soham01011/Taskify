@@ -1,59 +1,44 @@
+/**
+ * index.js — Monolithic Express app used for LOCAL development only.
+ *
+ * On Vercel, traffic is routed to individual functions under api/*.js.
+ * Those functions all share the same pooling logic via lib/db.js.
+ *
+ * This file is NOT listed in vercel.json builds, so it is never deployed
+ * as a Vercel function.
+ */
+
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
+const mongoose = require('mongoose');
 
-const authRoutes = require('./routes/auth');
-const taskRoutes = require('./routes/tasks');
-const groupRoutes = require('./routes/groups');
-const userRoutes = require('./routes/users');
-const notificationRoutes = require('./routes/notifications');
-const ideaRoutes = require('./routes/ideas');
+const { withDB } = require('./lib/db');
+
+const authRoutes          = require('./routes/auth');
+const taskRoutes          = require('./routes/tasks');
+const groupRoutes         = require('./routes/groups');
+const userRoutes          = require('./routes/users');
+const notificationRoutes  = require('./routes/notifications');
+const ideaRoutes          = require('./routes/ideas');
 
 const app = express();
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/Taskify';
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Middleware to handle DB Connection for Serverless Lambdas
-let isConnected = false;
-
-const connectDB = async () => {
-  if (isConnected) {
-    return;
-  }
-  
-  if (mongoose.connection.readyState === 1) {
-    isConnected = true;
-    return;
-  }
-
-  try {
-    const db = await mongoose.connect(MONGO_URI);
-    isConnected = db.connections[0].readyState === 1;
-    console.log('Connected to MongoDB');
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
-  }
-};
-
-// Inject the DB Connection requirement before handling ANY route
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
-});
+// Shared DB middleware (same pooling strategy as api/* functions)
+app.use(withDB);
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/groups', groupRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/auth',          authRoutes);
+app.use('/api/tasks',         taskRoutes);
+app.use('/api/groups',        groupRoutes);
+app.use('/api/users',         userRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/ideas', ideaRoutes);
+app.use('/api/ideas',         ideaRoutes);
 
-// Health check / Readiness
+// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -62,9 +47,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Backward compatibility or combined readiness check
+// Readiness check (backward compat)
 app.get('/api/readyness', (req, res) => {
-  if (mongoose.connection.readyState === 1 || isConnected) {
+  if (mongoose.connection.readyState === 1) {
     res.status(200).json({ status: 'ok' });
   } else {
     res.status(500).json({ status: 'not ready' });
