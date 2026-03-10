@@ -34,13 +34,13 @@ export interface Group {
 
 export const groupApi = {
     getGroups: (userId: string, createdAt?: string) => 
-        client.get<Group[]>(`/groups?userId=${userId}${createdAt ? `&created_at=${createdAt}` : ''}`),
+        client.get<Group[]>(`/groups/?userId=${userId}${createdAt ? `&created_at=${createdAt}` : ''}`),
 
     create: (data: { name: string; description: string; members: string[] }) =>
-        client.post<Group>('/groups', data),
+        client.post<Group>('/groups/', data),
 
     getDetails: (id: string) =>
-        client.get<Group>(`/groups/${id}`),
+        client.get<Group>(`/groups/${id}/`),
 
     assignTask: (id: string, data: {
         userId: string;
@@ -56,25 +56,25 @@ export const groupApi = {
             timeOfDay?: string;
         };
     }) =>
-        client.post<Group>(`/groups/${id}/tasks`, data),
+        client.post<Group>(`/groups/${id}/tasks/`, data),
 
     updateTask: (groupId: string, taskId: string, data: Partial<GroupTask>) =>
-        client.put<Group>(`/groups/${groupId}/tasks/${taskId}`, data),
+        client.put<Group>(`/groups/${groupId}/tasks/${taskId}/`, data),
 
     updateSubtask: (groupId: string, taskId: string, subtaskId: string, data: { completed: boolean }) =>
-        client.put<Group>(`/groups/${groupId}/tasks/${taskId}/subtasks/${subtaskId}`, data),
+        client.put<Group>(`/groups/${groupId}/tasks/${taskId}/subtasks/${subtaskId}/`, data),
 
 
 
     addMember: (groupId: string, userId: string) =>
-        client.post<Group>(`/groups/${groupId}/members`, { userId }),
+        client.post<Group>(`/groups/${groupId}/members/`, { userId }),
 
     removeMember: (groupId: string, userId: string) =>
-        client.delete<Group>(`/groups/${groupId}/members/${userId}`),
+        client.delete<Group>(`/groups/${groupId}/members/${userId}/`),
 
     getMembers: (groupId: string) =>
-        client.get<string[]>(`/groups/${groupId}/members`),
+        client.get<string[]>(`/groups/${groupId}/members/`),
 
     delete: (groupId: string) =>
-        client.delete<{ message: string }>(`/groups/${groupId}`),
+        client.delete<{ message: string }>(`/groups/${groupId}/`),
 };

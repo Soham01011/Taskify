@@ -45,3 +45,5 @@ app-example
 .env.local
 
 ../API_DOCS.md
+./.agents
+./.expo

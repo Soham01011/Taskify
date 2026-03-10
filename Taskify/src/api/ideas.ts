@@ -35,27 +35,27 @@ export interface PaginatedIdeasResponse {
 
 export const ideaApi = {
     getAll: (params?: FetchIdeasParams) =>
-        client.get<Idea[] | PaginatedIdeasResponse>('/ideas', { params }),
+        client.get<Idea[] | PaginatedIdeasResponse>('/ideas/', { params }),
 
     getOne: (id: string) =>
-        client.get<Idea>(`/ideas/${id}`),
+        client.get<Idea>(`/ideas/${id}/`),
 
     create: (data: { title: string; description?: string }) =>
-        client.post<Idea>('/ideas', data),
+        client.post<Idea>('/ideas/', data),
 
     update: (id: string, data: { title?: string; description?: string }) =>
-        client.put<Idea>(`/ideas/${id}`, data),
+        client.put<Idea>(`/ideas/${id}/`, data),
 
     delete: (id: string) =>
-        client.delete<{ message: string }>(`/ideas/${id}`),
+        client.delete<{ message: string }>(`/ideas/${id}/`),
 
     // Thread entry endpoints
     addThreadEntry: (id: string, content: string) =>
-        client.post<Idea>(`/ideas/${id}/thread`, { content }),
+        client.post<Idea>(`/ideas/${id}/thread/`, { content }),
 
     editThreadEntry: (id: string, entryId: string, content: string) =>
-        client.put<Idea>(`/ideas/${id}/thread/${entryId}`, { content }),
+        client.put<Idea>(`/ideas/${id}/thread/${entryId}/`, { content }),
 
     deleteThreadEntry: (id: string, entryId: string) =>
-        client.delete<Idea>(`/ideas/${id}/thread/${entryId}`),
+        client.delete<Idea>(`/ideas/${id}/thread/${entryId}/`),
 };
