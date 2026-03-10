@@ -71,7 +71,8 @@ export const NotificationManager: React.FC = () => {
                 }
 
                 // If assigned to current user, give immediate feedback and schedule reminder
-                if (data.userId === currentUserId) {
+                const prefs = currentUser?.preferences;
+                if (data.userId === currentUserId && prefs?.notificationsEnabled !== false && prefs?.groupNotificationsEnabled !== false) {
                     // Show immediate notification
                     await Notifications.scheduleNotificationAsync({
                         content: {
@@ -99,12 +100,16 @@ export const NotificationManager: React.FC = () => {
 
 
     useEffect(() => {
-        // Sync both personal and group tasks whenever they change
+        // Sync both personal and group tasks whenever they change or preferences change
         const sync = async () => {
-            await NotificationService.syncTasksWithNotifications(tasks, groups);
+            await NotificationService.syncTasksWithNotifications(
+                tasks, 
+                groups, 
+                currentUser?.preferences
+            );
         };
         sync();
-    }, [tasks, groups]);
+    }, [tasks, groups, currentUser?.preferences, dispatch]);
 
 
     useEffect(() => {

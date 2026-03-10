@@ -120,22 +120,40 @@ export class NotificationService {
         await Notifications.cancelAllScheduledNotificationsAsync();
     }
 
-    static async syncTasksWithNotifications(tasks: Task[], groups: any[] = []) {
+    static async syncTasksWithNotifications(
+        tasks: Task[], 
+        groups: any[] = [], 
+        preferences?: { 
+            notificationsEnabled: boolean; 
+            taskNotificationsEnabled: boolean; 
+            groupNotificationsEnabled: boolean; 
+        }
+    ) {
+        // If master switch is off, cancel all and return
+        if (preferences && preferences.notificationsEnabled === false) {
+            await this.cancelAllNotifications();
+            return;
+        }
+
         await this.cancelAllNotifications();
 
-        // Sync personal tasks
-        for (const task of tasks) {
-            if (!task.completed) {
-                await this.scheduleTaskNotification(task, false);
+        // Sync personal tasks if enabled
+        if (!preferences || preferences.taskNotificationsEnabled !== false) {
+            for (const task of tasks) {
+                if (!task.completed) {
+                    await this.scheduleTaskNotification(task, false);
+                }
             }
         }
 
-        // Sync group tasks assigned to the current user
-        for (const group of groups) {
-            if (group.tasks) {
-                for (const gTask of group.tasks) {
-                    if (!gTask.completed) {
-                        await this.scheduleTaskNotification(gTask, true);
+        // Sync group tasks if enabled
+        if (!preferences || preferences.groupNotificationsEnabled !== false) {
+            for (const group of groups) {
+                if (group.tasks) {
+                    for (const gTask of group.tasks) {
+                        if (!gTask.completed) {
+                            await this.scheduleTaskNotification(gTask, true);
+                        }
                     }
                 }
             }

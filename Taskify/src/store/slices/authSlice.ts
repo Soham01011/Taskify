@@ -3,6 +3,9 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export interface UserPreferences {
     theme: 'light' | 'dark' | 'system';
     primaryColor?: string;
+    notificationsEnabled: boolean;
+    taskNotificationsEnabled: boolean;
+    groupNotificationsEnabled: boolean;
 }
 
 export interface User {
@@ -28,6 +31,9 @@ const initialState: AuthState = {
     globalPreferences: {
         theme: 'system',
         primaryColor: '#00AEEF',
+        notificationsEnabled: true,
+        taskNotificationsEnabled: true,
+        groupNotificationsEnabled: true,
     },
     isLoading: false,
     error: null,

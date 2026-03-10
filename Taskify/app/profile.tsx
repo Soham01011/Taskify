@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Updates from "expo-updates";
 import { AlertTriangle, Bell, CheckCircle2, ChevronRight, Copy, Info, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -14,7 +14,7 @@ import { getStyles } from '@/assets/styles/profilescreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { Button } from '@/src/components/ui/Button';
 import { RootState } from '@/src/store';
-import { logout, switchUser } from '@/src/store/slices/authSlice';
+import { logout, switchUser, updateUserPreferences } from '@/src/store/slices/authSlice';
 
 const MenuItem = ({
     icon,
@@ -49,6 +49,45 @@ const MenuItem = ({
         </View>
         {rightIcon || <ChevronRight size={18} color={colors.textSecondary} />}
     </TouchableOpacity>
+);
+
+const MenuSwitch = ({
+    icon,
+    title,
+    subtitle,
+    value,
+    onValueChange,
+    isLast = false,
+    colors,
+    styles,
+    disabled = false
+}: {
+    icon: React.ReactNode;
+    title: string;
+    subtitle?: string;
+    value: boolean;
+    onValueChange: (val: boolean) => void;
+    isLast?: boolean;
+    colors: any;
+    styles: any;
+    disabled?: boolean;
+}) => (
+    <View style={[styles.menuItem, isLast && styles.lastMenuItem, disabled && { opacity: 0.5 }]}>
+        <View style={styles.menuIconContainer}>
+            {icon}
+        </View>
+        <View style={styles.menuTextContainer}>
+            <Text style={styles.menuTitle}>{title}</Text>
+            {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+        </View>
+        <Switch
+            value={value}
+            onValueChange={onValueChange}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={Platform.OS === 'ios' ? undefined : colors.white}
+            disabled={disabled}
+        />
+    </View>
 );
 
 export default function ProfileScreen() {
@@ -203,13 +242,82 @@ export default function ProfileScreen() {
 
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Settings</Text>
+                    <Text style={styles.sectionTitle}>Preferences</Text>
                     <View style={styles.menuCard}>
-                        <MenuItem icon={<Copy size={20} color={colors.primary} />} title="Copy User ID" subtitle={currentUserId || 'Not available'} onPress={handleCopyUserId} colors={colors} styles={styles} />
-                        <MenuItem icon={<Settings size={20} color={colors.primary} />} title="Preferences" subtitle="Theme, language, and more" onPress={() => router.push('/preferences')} colors={colors} styles={styles} />
-                        <MenuItem icon={<Bell size={20} color="#6366f1" />} title="Notifications" subtitle="Manage alerts and updates" colors={colors} styles={styles} />
-                        <MenuItem icon={<Shield size={20} color="#10b981" />} title="Privacy & Security" subtitle="Password, biometric lock" colors={colors} styles={styles} />
-                        <MenuItem icon={<Info size={20} color="#f59e0b" />} title="Help & Support" subtitle="FAQ and contact us" colors={colors} styles={styles} />
+                        <MenuItem 
+                            icon={<Settings size={20} color={colors.primary} />} 
+                            title="Visual Preferences" 
+                            subtitle="Theme, language, and more" 
+                            onPress={() => router.push('/preferences')} 
+                            colors={colors} 
+                            styles={styles} 
+                        />
+                        <MenuSwitch 
+                            icon={<Bell size={20} color="#6366f1" />} 
+                            title="Push Notifications" 
+                            subtitle="Global notification master switch" 
+                            value={currentUser?.preferences?.notificationsEnabled ?? true}
+                            onValueChange={(val) => {
+                                if (currentUserId) {
+                                    dispatch(updateUserPreferences({ userId: currentUserId, preferences: { notificationsEnabled: val } }));
+                                }
+                            }}
+                            colors={colors} 
+                            styles={styles} 
+                        />
+                        {currentUser?.preferences?.notificationsEnabled !== false && (
+                            <Animated.View entering={FadeIn} exiting={FadeOut}>
+                                <MenuSwitch 
+                                    icon={<CheckCircle2 size={18} color="#10b981" />} 
+                                    title="Task Notifications" 
+                                    subtitle="Due dates, reminders" 
+                                    value={currentUser?.preferences?.taskNotificationsEnabled ?? true}
+                                    onValueChange={(val) => {
+                                        if (currentUserId) {
+                                            dispatch(updateUserPreferences({ userId: currentUserId, preferences: { taskNotificationsEnabled: val } }));
+                                        }
+                                    }}
+                                    colors={colors} 
+                                    styles={styles} 
+                                />
+                                <MenuSwitch 
+                                    icon={<UserPlus size={18} color="#6366f1" />} 
+                                    title="Group Notifications" 
+                                    subtitle="Assignments, updates" 
+                                    value={currentUser?.preferences?.groupNotificationsEnabled ?? true}
+                                    onValueChange={(val) => {
+                                        if (currentUserId) {
+                                            dispatch(updateUserPreferences({ userId: currentUserId, preferences: { groupNotificationsEnabled: val } }));
+                                        }
+                                    }}
+                                    colors={colors} 
+                                    styles={styles} 
+                                />
+                            </Animated.View>
+                        )}
+                        <MenuItem 
+                            icon={<Shield size={20} color="#10b981" />} 
+                            title="Privacy & Security" 
+                            subtitle="Password, biometric lock" 
+                            colors={colors} 
+                            styles={styles} 
+                        />
+                         <MenuItem 
+                            icon={<Copy size={20} color={colors.primary} />} 
+                            title="External User ID" 
+                            subtitle={currentUserId || 'Not available'} 
+                            onPress={handleCopyUserId} 
+                            colors={colors} 
+                            styles={styles} 
+                        />
+                        <MenuItem 
+                            icon={<Info size={20} color="#f59e0b" />} 
+                            title="About Project" 
+                            subtitle="Version, license, contribute" 
+                            onPress={() => router.push('/about' as any)}
+                            colors={colors} 
+                            styles={styles} 
+                        />
                         <MenuItem
                             icon={<RefreshCw size={20} color={colors.primary} />}
                             title="Check for Updates"
@@ -260,7 +368,7 @@ export default function ProfileScreen() {
                                 </View>
                                 <Text style={styles.logoutModalTitle}>Logout</Text>
                                 <Text style={styles.logoutModalDesc}>
-                                    Are you sure you want to logout from {currentUser?.username}'s account?
+                                    Are you sure you want to logout from {currentUser?.username}&apos;s account?
                                 </Text>
 
                                 <View style={styles.modalFooter}>

@@ -1,6 +1,6 @@
 import { useReducer, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../store';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../store';
 import { groupApi } from '../api/groups';
 import { addGroup } from '../store/slices/groupSlice';
 
