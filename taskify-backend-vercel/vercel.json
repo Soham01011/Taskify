@@ -6,7 +6,8 @@
     { "src": "api/groups.js",         "use": "@vercel/node" },
     { "src": "api/users.js",          "use": "@vercel/node" },
     { "src": "api/ideas.js",          "use": "@vercel/node" },
-    { "src": "api/notifications.js",  "use": "@vercel/node" }
+    { "src": "api/notifications.js",  "use": "@vercel/node" },
+    { "src": "api/geminillm.js",      "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/api/auth/(.*)",          "dest": "api/auth.js" },
@@ -15,6 +16,7 @@
     { "src": "/api/users/(.*)",         "dest": "api/users.js" },
     { "src": "/api/ideas/(.*)",         "dest": "api/ideas.js" },
     { "src": "/api/notifications/(.*)", "dest": "api/notifications.js" },
+    { "src": "/api/gemini/(.*)",        "dest": "api/geminillm.js" },
     { "src": "/health",                 "dest": "api/auth.js" },
     { "src": "/api/readyness",          "dest": "api/auth.js" }
   ]
