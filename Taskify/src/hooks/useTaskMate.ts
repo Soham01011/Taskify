@@ -1,25 +1,59 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
-import { useLLM, QWEN2_5_1_5B_QUANTIZED, SMOLLM2_1_360M_QUANTIZED, ResourceFetcher, Message, ToolCall, LLMTool, parseToolCall } from 'react-native-executorch';
+import {
+    useLLM,
+    SMOLLM2_1_360M_QUANTIZED,
+    ResourceFetcher,
+    Message,
+} from 'react-native-executorch';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { ALL_TOOLS } from '../api/aiTools';
 import { taskApi } from '../api/tasks';
-import { groupApi } from '../api/groups';
 import { ideaApi } from '../api/ideas';
-import { fetchTasks, updateTask as updateTaskAction, removeTask as removeTaskAction } from '../store/slices/taskSlice';
-import { fetchGroups, updateGroupTask as updateGroupTaskAction } from '../store/slices/groupSlice';
-import { addIdea as addIdeaAction, fetchIdeas } from '../store/slices/ideaSlice';
+import { fetchTasks } from '../store/slices/taskSlice';
+import { useDeviceCapability } from '../utils/usedevicecapability';
+import { MATE_MODELS } from '../constants/mateModels';
 
 export interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
+    id: string; 
+    role: 'user' | 'assistant' | 'system'; 
+    content: string; 
     timestamp: number;
 }
 
-export type AgentStatus = 'initializing' | 'ready' | 'working' | 'fetching' | 'processing' | 'error' | string;
+export type AgentStatus = 'initializing' | 'ready' | 'analyzing' | 'executing' | 'fetching' | 'switching' | 'loading' | 'thinking' | 'api_calling' | 'error' | string;
 
+type Intent = 'create_task' | 'create_group_task' | 'create_idea' | 'get_tasks' | 'get_groups' | 'get_ideas' | 'chat';
+
+// ─── Extraction logic (Existing) ───────────────────────────────────────────
+function parseDueDate(text: string): { iso?: string, dateStr?: string } {
+    const now = new Date(); const t = text.toLowerCase();
+    const timeMatch = t.match(/(?:at|for|by)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+    let h = 9, min = 0, hasTime = false;
+    if (timeMatch) {
+        hasTime = true; h = parseInt(timeMatch[1], 10);
+        min = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+        const mer = timeMatch[3]?.toLowerCase();
+        if (mer === 'pm' && h < 12) h += 12; if (mer === 'am' && h === 12) h = 0;
+    }
+    if (t.includes('tomorrow')) {
+        const d = new Date(now); d.setDate(d.getDate() + 1);
+        return { iso: new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, min).toISOString(), dateStr: 'tomorrow' };
+    }
+    if (hasTime) return { iso: new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min).toISOString(), dateStr: timeMatch![0] };
+    return {};
+}
+
+function extractTitle(text: string, dateStr?: string): string {
+    let t = text.trim();
+    if (dateStr) t = t.replace(new RegExp(dateStr, 'i'), '');
+    const prefixes = [/^create\s+(a\s+)?task\s*/i, /^add\s+(a\s+)?task\s*/i, /^remind\s+me\s+to\s*/i, /^new\s+task\s*/i, /^capture\s+an?\s+idea\s*/i];
+    for (const re of prefixes) t = t.replace(re, '');
+    t = t.replace(/\s*(?:for|on|at|by|tomorrow|today).+$/i, '').trim();
+    return t.charAt(0).toUpperCase() + t.slice(1, 60) || 'New Task';
+}
+
+// ─── Hook ───────────────────────────────────────────────────────────────────
 export const useTaskMate = (selectedModelId: string, setSelectedModelId: (id: string) => void) => {
     const dispatch = useDispatch<AppDispatch>();
     const [agentStatus, setAgentStatus] = useState<AgentStatus>('initializing');
@@ -28,456 +62,263 @@ export const useTaskMate = (selectedModelId: string, setSelectedModelId: (id: st
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     
-    const { currentUserId, users } = useSelector((state: RootState) => state.auth);
-    const tasks = useSelector((state: RootState) => state.tasks.tasks);
-    const groups = useSelector((state: RootState) => state.groups.groups);
-    const ideas = useSelector((state: RootState) => state.ideas.ideas);
-
+    // Redux Config
+    const { useApiForReasoning, contextWindowSize } = useSelector((s: RootState) => s.mateConfig);
+    const { currentUserId, users } = useSelector((s: RootState) => s.auth);
     const currentUser = users.find(u => u.id === currentUserId);
+    const token = currentUser?.accessToken;
+    
+    // Device Capability
+    const capability = useDeviceCapability();
 
-    // Helper: convert UTC ISO string to local date-time string
-    const utcToLocal = (isoString: string) => {
-        if (!isoString) return '';
-        try {
-            const d = new Date(isoString);
-            return d.toLocaleString('en-IN', {
-                day: '2-digit', month: 'short', year: 'numeric',
-                hour: '2-digit', minute: '2-digit', hour12: true
-            });
-        } catch { return isoString; }
-    };
+    // Phase: routing (Smol), switching (unload), loading (load new), reasoning (generate), api (Gemini)
+    const [phase, setPhase] = useState<'routing' | 'switching' | 'loading' | 'reasoning' | 'api'>('routing');
+    const [modelConfig, setModelConfig] = useState<any>(SMOLLM2_1_360M_QUANTIZED);
+    const pendingHistoryRef = useRef<Message[] | null>(null);
 
-    // Broken Time Helpers (Year, Month, Date, Hour, Minute)
-    const getBrokenNow = () => {
-        const d = new Date();
-        return `${d.getFullYear()},${d.getMonth() + 1},${d.getDate()},${d.getHours()},${d.getMinutes()}`;
-    };
-
-    const utcToBrokenLocal = (isoString?: string) => {
-        if (!isoString) return 'none';
-        try {
-            const d = new Date(isoString);
-            if (isNaN(d.getTime())) return 'none';
-            return `${d.getFullYear()},${d.getMonth() + 1},${d.getDate()},${d.getHours()},${d.getMinutes()}`;
-        } catch { return 'none'; }
-    };
-
-    const brokenLocalToUtc = (broken?: string) => {
-        if (!broken || broken === 'none' || typeof broken !== 'string') return undefined;
-        try {
-            // Support formats like "2026,3,14,16,45"
-            const parts = broken.split(',').map(Number);
-            if (parts.length < 3) return undefined;
-            const [y, m, d, h = 0, min = 0] = parts;
-            const date = new Date(y, m - 1, d, h, min);
-            return isNaN(date.getTime()) ? undefined : date.toISOString();
-        } catch { return undefined; }
-    };
-
-    // Helper to minimize data sent to LLM (using broken local time)
-    const trimTask = (t: any) => ({
-        id: t._id,
-        title: t.title,
-        status: t.completed ? 'completed' : 'pending',
-        due: utcToBrokenLocal(t.dueDate),
-        subtasks: t.subtasks?.map((s: any) => ({ title: s.title, done: s.completed }))
-    });
-
-    // Tool Execution Callback
-    const executeToolCallback = useCallback(async (call: ToolCall): Promise<string | null> => {
-        const { toolName, arguments: args } = call;
-        console.log(`[TaskMate Agent] Executing tool: ${toolName}`, args);
-        setAgentStatus(`Agent: ${toolName.replace(/_/g, ' ')}...`);
-
-        try {
-            let result: any = null;
-            switch (toolName) {
-                case 'get_tasks':
-                    // Return only pending tasks by default to save tokens and avoid hallucination
-                    result = tasks.filter(t => !t.completed).map(trimTask);
-                    if (result.length === 0) result = "No pending tasks found.";
-                    break;
-                
-                case 'create_task': {
-                    const res = await taskApi.create(args as any);
-                    await dispatch(fetchTasks());
-                    result = { success: true, task: trimTask(res.data) };
-                    break;
-                }
-
-                case 'update_task': {
-                    const { taskId, updates } = args as any;
-                    const res = await taskApi.update(taskId, updates);
-                    dispatch(updateTaskAction(res.data));
-                    result = { success: true, task: trimTask(res.data) };
-                    break;
-                }
-
-                case 'delete_task': {
-                    const { taskId } = args as any;
-                    await taskApi.delete(taskId);
-                    dispatch(removeTaskAction(taskId));
-                    result = { success: true };
-                    break;
-                }
-
-                case 'get_groups':
-                    result = groups.map(g => ({ id: g._id, name: g.name }));
-                    break;
-
-                case 'get_group_members': {
-                    const { groupId } = args as any;
-                    const group = groups.find(g => g._id === groupId);
-                    result = group ? group.members.map((m: any) => ({ id: m.id, name: m.username })) : "Group not found";
-                    break;
-                }
-
-                case 'assign_group_task': {
-                    const groupArgs = args as any;
-                    const res = await groupApi.assignTask(groupArgs.groupId, groupArgs);
-                    dispatch(updateGroupTaskAction({ groupId: groupArgs.groupId, task: res.data.tasks[res.data.tasks.length - 1] }));
-                    result = { success: true };
-                    break;
-                }
-
-
-                case 'get_ideas':
-                    result = ideas.map(i => ({ id: i._id, title: i.title }));
-                    break;
-
-                case 'create_idea': {
-                    const res = await ideaApi.create(args as any);
-                    dispatch(addIdeaAction(res.data));
-                    result = { success: true, id: res.data._id };
-                    break;
-                }
-
-                default:
-                    result = `Tool ${toolName} not implemented.`;
-            }
-            const finalResult = typeof result === 'string' ? result : JSON.stringify(result);
-            console.log(`[TaskMate Agent] Tool result (minimized):`, finalResult);
-            return finalResult;
-        } catch (err: any) {
-            console.error(`[TaskMate Agent] Tool execution failed:`, err);
-            return `Error: ${err.message}`;
-        } finally {
-            setAgentStatus('working');
-        }
-    }, [tasks, groups, ideas, dispatch, updateTaskAction, removeTaskAction, updateGroupTaskAction, addIdeaAction]);
-
-
-
-
-    // Initialize Router LLM (SMOLLM2) for intent detection and JSON extraction
-    const routerLLM = useLLM({
-        model: SMOLLM2_1_360M_QUANTIZED
-    });
-
-    // Initialize Main LLM for reasoning and chat
     const llm = useLLM({
-        model: activeModel || QWEN2_5_1_5B_QUANTIZED,
-        preventLoad: !activeModel
+        model: modelConfig,
+        preventLoad: phase === 'switching' || phase === 'api' // Forces unload for switching or API calls
     });
 
-    useEffect(() => {
-        if (llm.isReady) {
-            const localTime = new Date().toLocaleString();
-            llm.configure({
-                chatConfig: {
-                    systemPrompt: `You are TaskMate, an agentic AI assistant for the Taskify app. 
-                    Current User: ${currentUser?.username || 'Unknown'} (ID: ${currentUserId})
-                    Current Local Time: ${localTime}. 
-                    All task/group/idea timestamps are stored in UTC. When displaying times to the user, convert them to their local time using the provided current time as a reference.
-                    You can interact with user data using tools. If you need information (tasks, groups, members, ideas) to fulfill a request, call the appropriate tool. 
-                    If information is missing (like an assignee for a group task), ask the user for clarification.
-                    Be concise, professional, and helpful.`
-                },
-                toolsConfig: {
-                    tools: ALL_TOOLS,
-                    executeToolCallback: executeToolCallback,
-                    displayToolCalls: false
-                }
-            });
-            setAgentStatus('ready');
-        } else if (llm.error) {
-            setAgentStatus('error');
-        } else {
-            setAgentStatus('initializing');
-        }
-    }, [llm.isReady, llm.error, currentUserId, currentUser, tasks, groups, ideas, executeToolCallback, llm]);
+    // Strategy: Sliding Window Context
+    const getSlidingWindowContext = (newInput: string): Message[] => {
+        const systemPrompt = `You are TaskMate, an AI agent helping ${currentUser?.username || 'the user'} with task management. Current local time: ${new Date().toLocaleString()}. Be helpful and concise.`;
+        const history = messages
+            .slice(-(contextWindowSize || 10))
+            .map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }));
+        
+        return [
+            { role: 'system', content: systemPrompt },
+            ...history,
+            { role: 'user', content: newInput }
+        ];
+    };
 
-    // Check for downloaded models
-    const updateDownloadedModels = useCallback(async () => {
+    // API Call: Gemini Fallback
+    const callGeminiAPI = async (context: Message[]) => {
+        setPhase('api');
+        setAgentStatus('thinking (api)');
+        
+        // Add placeholder message for assistant
+        const assistantMsgId = 'ai-' + Date.now();
+        setMessages(prev => [...prev, { id: assistantMsgId, role: 'assistant', content: '...', timestamp: Date.now() }]);
+
         try {
-            const models = await ResourceFetcher.listDownloadedModels();
-            setDownloadedModels(models);
-        } catch (error) {
-            console.error('Failed to list models:', error);
+            // Reformat messages to what the API expects (sender -> role, text -> part.text)
+            // But the user's provided API code expects { role: 'user', parts: [{ text: "..." }] }
+            const apiContents = context.map(m => ({
+                role: m.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: m.content }]
+            }));
+
+            const baseURL = currentUser?.apiEndpoint || 'http://192.168.1.50:3000/api';
+            const response = await fetch(`${baseURL}/gemini/reason`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ contents: apiContents })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'API call failed');
+            }
+
+            // The provided API streams, but here for simplicity with current UI, we'll collect or stream if possible.
+            // Since useLLM handles its own state, let's just update the message content.
+            const reader = response.body?.getReader();
+            let fullText = '';
+            
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = new TextDecoder().decode(value);
+                    fullText += chunk;
+                    setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: fullText } : m));
+                }
+            } else {
+                const text = await response.text();
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: text } : m));
+            }
+
+            setAgentStatus('ready');
+            setPhase('routing');
+        } catch (error: any) {
+            console.error('Gemini API Error:', error);
+            setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: `⚠️ Error: ${error.message}` } : m));
+            setAgentStatus('error');
+            setPhase('routing');
         }
-    }, []);
+    };
 
+    // Handle unload/load sequence to prevent OOM (Local Reasoning)
     useEffect(() => {
-        updateDownloadedModels();
-    }, [updateDownloadedModels]);
+        if (phase === 'switching' && !llm.isReady) {
+            const next = pendingHistoryRef.current ? activeModel : SMOLLM2_1_360M_QUANTIZED;
+            const timer = setTimeout(() => {
+                setModelConfig(next);
+                setPhase('loading');
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+        if (phase === 'loading' && llm.isReady) {
+            if (pendingHistoryRef.current) {
+                setPhase('reasoning');
+                setAgentStatus('thinking');
+                llm.generate(pendingHistoryRef.current)
+                    .catch(e => { console.error(e); setAgentStatus('error'); })
+                    .finally(() => {
+                        pendingHistoryRef.current = null;
+                        setPhase('switching'); // Unload and back to routing
+                    });
+            } else {
+                setPhase('routing'); setAgentStatus('ready');
+            }
+        }
+    }, [phase, llm.isReady, activeModel]);
 
-    const handleSelectModel = (model: any) => {
-        if (model.id === selectedModelId && activeModel) return true;
-        setSelectedModelId(model.id);
-        setActiveModel(model.config);
+    // Status Sync
+    useEffect(() => {
+        if (phase === 'routing' && llm.isReady) setAgentStatus('ready');
+        else if (llm.error) setAgentStatus('error');
+        else if (phase === 'loading') setAgentStatus('loading model...');
+        else if (phase === 'switching') setAgentStatus('swapping models...');
+    }, [llm.isReady, phase, llm.error]);
+
+    // Local Message Sync
+    useEffect(() => {
+        if (!llm.response || phase !== 'reasoning') return;
+        const text = llm.response.trim();
+        if (!text) return;
+        setMessages(prev => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.id.startsWith('ai-gen-')) {
+                next[next.length - 1] = { ...last, content: text };
+            } else {
+                next.push({ id: 'ai-gen-' + Date.now(), role: 'assistant', content: text, timestamp: Date.now() });
+            }
+            return next;
+        });
+    }, [llm.response, phase]);
+
+    const handleSelectModel = (m: any) => {
+        if (m.id === selectedModelId) return true;
+        setSelectedModelId(m.id);
+        setActiveModel(m.config || null);
         return true;
     };
 
-    const handleDeleteModel = async (model: any) => {
-        return new Promise<boolean>((resolve) => {
-            Alert.alert(
-                'Delete Model',
-                `Are you sure you want to delete ${model.name}?`,
-                [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { 
-                        text: 'Delete', 
-                        style: 'destructive',
-                        onPress: async () => {
-                            try {
-                                await ResourceFetcher.deleteResources(model.config.modelSource);
-                                if (model.config.tokenizerSource) await ResourceFetcher.deleteResources(model.config.tokenizerSource);
-                                if (model.config.tokenizerConfigSource) await ResourceFetcher.deleteResources(model.config.tokenizerConfigSource);
-                                if (selectedModelId === model.id) setActiveModel(null);
-                                await updateDownloadedModels();
-                                resolve(true);
-                            } catch { resolve(false); }
-                        }
-                    }
-                ]
-            );
-        });
-    };
-
-    const handleSend = useCallback(async () => {
-        const routerDownloading = !routerLLM.isReady && routerLLM.downloadProgress > 0 && routerLLM.downloadProgress < 1;
-        if (!input.trim() || !routerLLM.isReady) {
-            if (!routerLLM.isReady && !routerDownloading) {
-                Alert.alert("Assistant", "The router model is not ready. Please wait a moment.");
-            }
+    const handleDeleteModel = async (m: any) => {
+        if (!m.config) {
+            Alert.alert('Info', 'This model cannot be deleted (managed by system or API).');
             return;
         }
+        Alert.alert('Delete', `Delete ${m.name}?`, [
+            { text: 'Cancel' }, 
+            { text: 'Delete', onPress: async () => {
+                try {
+                    const modelSource = m.config?.modelSource;
+                    const isDownloaded = modelSource 
+                        ? downloadedModels.some(dm => {
+                            const downloadedName = dm.split('/').pop();
+                            const modelName = modelSource.split('/').pop();
+                            return downloadedName === modelName;
+                        })
+                        : false;
 
-        const userText = input.trim();
-        const userMsg: ChatMessage = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: userText,
-            timestamp: Date.now()
-        };
+                    if (isDownloaded) {
+                        await ResourceFetcher.deleteResources(modelSource);
+                        await updateDownloadedModels();
+                        if (selectedModelId === m.id) {
+                            setActiveModel(null);
+                            setModelConfig(SMOLLM2_1_360M_QUANTIZED);
+                        }
+                    } else {
+                        Alert.alert('Info', 'This model is not downloaded or cannot be deleted.');
+                    }
+                } catch(e) {
+                    console.error('Error deleting model:', e);
+                    Alert.alert('Error', 'Failed to delete model.');
+                }
+            }}
+        ]);
+    };
 
-        setMessages(prev => [...prev, userMsg]);
+
+    const updateDownloadedModels = useCallback(async () => {
+        try { setDownloadedModels(await ResourceFetcher.listDownloadedModels()); } catch(e) {}
+    }, []);
+    useEffect(() => { updateDownloadedModels(); }, [updateDownloadedModels]);
+
+    const handleSend = useCallback(async () => {
+        if (!input.trim() || !llm.isReady || phase !== 'routing') return;
+        
+        const text = input.trim();
+        setMessages(p => [...p, { id: Date.now().toString(), role: 'user', content: text, timestamp: Date.now() }]);
         setInput('');
         setAgentStatus('analyzing');
 
-        try {
-            // STEP 1: Intent Detection & Parameter Extraction with SMOLLM2
-            const brokenNow = getBrokenNow();
-            const routerSystemPrompt = `You are TaskMate Route Assistant. 
-Identify intent and extract parameters into JSON.
-Current Local Time (Y,M,D,H,Min): ${brokenNow}
+        const t = text.toLowerCase();
+        let intent: Intent = 'chat';
+        if (['task','add','remind'].some(k => t.includes(k))) intent = 'create_task';
+        else if (['idea','note'].some(k => t.includes(k))) intent = 'create_idea';
+        else if (['list','show','my tasks'].some(k => t.includes(k))) intent = 'get_tasks';
 
-INTENTS:
-- create_task: user wants to create a new personal task.
-- create_group_task: user wants to create a task for a group or assign to a member.
-- create_idea: user wants to capture a new idea or note.
-- get_tasks: user is asking about their tasks, schedule, or pending work.
-- get_groups: user is asking about groups, teams, or members.
-- get_ideas: user is asking about their ideas or saved notes.
-- chat: general conversation or reasoning required.
-
-JSON FORMAT:
-{
-  "intent": "string",
-  "reasoning_required": boolean,
-  "params": { 
-     "title": "string", 
-     "description": "string",
-     "dueDate": "Y,M,D,H,M", (use local broken format for all dates)
-     "groupId": "string",
-     "userId": "string",
-     "username": "string"
-  },
-  "search_query": "string" (keywords to fetch relevant data from the database)
-}
-Output ONLY valid JSON.`;
-
-            console.log(`[TaskMate] Routing request: "${userText}"`);
-            const routerResponse = await routerLLM.generate([
-                { role: 'system', content: routerSystemPrompt },
-                { role: 'user', content: userText }
-            ]);
-
-            let route: any = { intent: 'chat', reasoning_required: true };
+        // Local CRUD via SmolLM2 Agent logic
+        if (intent === 'create_task' || intent === 'create_idea') {
+            setAgentStatus('executing');
             try {
-                const jsonMatch = routerResponse.match(/\{[\s\S]*\}/);
-                if (jsonMatch) route = JSON.parse(jsonMatch[0]);
-            } catch (e) {
-                console.warn("[TaskMate] Router JSON parse failed, falling back to chat/reasoning.");
-            }
-
-            console.log(`[TaskMate] Route detected:`, route);
-
-            // STEP 2: Execute Direct API if no reasoning is needed
-            if (!route.reasoning_required && route.intent.startsWith('create')) {
-                setAgentStatus('executing');
-                try {
-                    let successMessage = "";
-                    if (route.intent === 'create_task') {
-                        const dueDate = brokenLocalToUtc(route.params?.dueDate);
-                        await taskApi.create({
-                            title: route.params?.title || 'Untitled Task',
-                            description: route.params?.description || '',
-                            ...(dueDate ? { dueDate } : {})
-                        });
-                        await dispatch(fetchTasks());
-                        successMessage = `I've created the task "${route.params?.title}" for you.`;
-                    } else if (route.intent === 'create_group_task') {
-                         const duedate = brokenLocalToUtc(route.params?.dueDate) || new Date().toISOString();
-                         const res = await groupApi.assignTask(route.params?.groupId, {
-                             userId: route.params?.userId,
-                             username: route.params?.username,
-                             task: route.params?.title || route.params?.task,
-                             duedate
-                         });
-                         dispatch(updateGroupTaskAction({
-                             groupId: route.params?.groupId,
-                             task: res.data.tasks[res.data.tasks.length - 1]
-                         }));
-                         successMessage = `I've assigned the task to ${route.params?.username || 'the group'}.`;
-                    } else if (route.intent === 'create_idea') {
-                        const res = await ideaApi.create({
-                            title: route.params?.title || 'New Idea',
-                            description: route.params?.description || ''
-                        });
-                        dispatch(addIdeaAction(res.data));
-                        successMessage = `I've saved your idea: ${route.params?.title}`;
-                    }
-
-                    if (successMessage) {
-                        setMessages(prev => [...prev, {
-                            id: 'ai-' + Date.now(),
-                            role: 'assistant',
-                            content: successMessage,
-                            timestamp: Date.now()
-                        }]);
-                        setAgentStatus('ready');
-                        return;
-                    }
-                } catch (apiErr) {
-                    console.error("[TaskMate] Direct API call failed:", apiErr);
-                    // Fallback to reasoning below
-                }
-            }
-
-            // STEP 3: Reasoning Flow - Fetch Relevant Context
-            setAgentStatus('fetching');
-            let injectedContext = "";
-            const query = (route.search_query || userText).toLowerCase();
-            
-            const needsTasks = route.intent === 'get_tasks' || query.includes('task') || query.includes('pending') || route.reasoning_required;
-            const needsGroups = route.intent === 'get_groups' || query.includes('group') || query.includes('member');
-            const needsIdeas = route.intent === 'get_ideas' || query.includes('idea');
-
-            if (needsTasks) {
-                const pending = tasks.filter(t => !t.completed).map(trimTask);
-                if (pending.length > 0) injectedContext += `\nTasks (Local Y,M,D,H,Min): ${JSON.stringify(pending)}`;
-            }
-            if (needsGroups) {
-                const groupData = groups.map(g => ({
-                    id: g._id, name: g.name,
-                    members: g.members?.map((m: any) => ({ id: m.userId || m._id, name: m.username }))
-                }));
-                if (groupData.length > 0) injectedContext += `\nGroups/Members: ${JSON.stringify(groupData)}`;
-            }
-            if (needsIdeas) {
-                const ideaData = ideas.map(i => ({ id: i._id, title: i.title }));
-                if (ideaData.length > 0) injectedContext += `\nIdeas/Notes: ${JSON.stringify(ideaData)}`;
-            }
-
-            setAgentStatus('thinking');
-            const mainSystemPrompt = `You are TaskMate, a smart AI assistant for the Taskify app. 
-Current User: ${currentUser?.username || 'User'}
-Current Local Time: ${new Date().toLocaleString('en-IN')}
-Available Context is in Local Broken Format (Year, Month, Day, Hour, Minute).
-Provide clear, helpful responses based on the context data.`;
-
-            const fullPrompt = injectedContext 
-                ? `${userText}\n\n[CONTEXT DATA (Local Time)]:\n${injectedContext}`
-                : userText;
-
-            console.log(`[TaskMate] Sending reasoning request with context length: ${injectedContext.length}`);
-            await llm.generate([
-                { role: 'system', content: mainSystemPrompt },
-                ...messages.slice(-8).map(m => ({ role: m.role as any, content: m.content })),
-                { role: 'user', content: fullPrompt }
-            ]);
-
-        } catch (error) {
-            console.error('[TaskMate] Generation process failed:', error);
-            setAgentStatus('error');
-        } finally {
-            if (!llm.isGenerating && !routerLLM.isGenerating) setAgentStatus('ready');
-        }
-    }, [input, llm, routerLLM, messages, currentUser, tasks, groups, ideas, dispatch, updateGroupTaskAction, addIdeaAction]);
-
-
-
-
-    useEffect(() => {
-        if (llm.response) {
-            // Suppress raw tool calls from UI
-            const trimmed = llm.response.trim();
-            if (trimmed.startsWith('[') || trimmed.startsWith('<tool_call>') || trimmed.includes('{"name":')) return;
-
-            // Strip ACTION block — it's for the post-processor, not the user
-            const cleanContent = llm.response.replace(/\nACTION:\{[\s\S]*?\}$/m, '').trim();
-            if (!cleanContent) return;
-
-            setMessages(prev => {
-                const newMsgs = [...prev];
-                const lastIndex = newMsgs.length - 1;
-                if (lastIndex >= 0 && newMsgs[lastIndex].role === 'assistant') {
-                    newMsgs[lastIndex] = { ...newMsgs[lastIndex], content: cleanContent };
+                const { iso, dateStr } = parseDueDate(text);
+                const title = extractTitle(text, dateStr);
+                if (intent === 'create_task') {
+                    await taskApi.create({ title, description: '', dueDate: iso });
+                    await dispatch(fetchTasks());
+                    setMessages(p => [...p, { id: 'ai-'+Date.now(), role: 'assistant', timestamp: Date.now(), content: `✅ Task created: **${title}**${iso ? `\nDue: ${new Date(iso).toLocaleString()}` : ''}` }]);
                 } else {
-                    newMsgs.push({
-                        id: 'ai-' + Date.now(),
-                        role: 'assistant',
-                        content: cleanContent,
-                        timestamp: Date.now()
-                    });
+                    await ideaApi.create({ title, description: '' });
+                    setMessages(p => [...p, { id: 'ai-'+Date.now(), role: 'assistant', timestamp: Date.now(), content: `💡 Idea saved: **${title}**` }]);
                 }
-                return newMsgs;
-            });
-        }
-    }, [llm.response]);
-
-
-    useEffect(() => {
-        if (!llm.isGenerating && agentStatus !== 'initializing' && agentStatus !== 'error' && agentStatus !== 'ready') {
+            } catch (e: any) { setMessages(p => [...p, { id: 'ai-'+Date.now(), role: 'assistant', content: `⚠️ ${e.message}`, timestamp: Date.now() }]); }
             setAgentStatus('ready');
+            return;
         }
-    }, [llm.isGenerating, agentStatus]);
 
-    const isDownloading = (!llm.isReady && llm.downloadProgress > 0 && llm.downloadProgress < 1) || (!routerLLM.isReady && routerLLM.downloadProgress > 0 && routerLLM.downloadProgress < 1);
+        // Reasoning Logic (Hybrid)
+        const context = getSlidingWindowContext(text);
+        
+        // Find model metadata to check if it's an API model
+        const allModels = [...MATE_MODELS.REASONING, ...MATE_MODELS.VTT, ...MATE_MODELS.TTV, ...MATE_MODELS.OCR];
+        const modelMetadata = allModels.find(m => m.id === selectedModelId);
+
+        // Decide: Local or API?
+        const isApiModel = selectedModelId === 'gemini_api' || modelMetadata?.isApi;
+
+        const forceApi = useApiForReasoning || isApiModel;
+        const hasLocalConfig = !!activeModel;
+
+        if (forceApi || !hasLocalConfig) {
+            // API Fallback
+            await callGeminiAPI(context);
+        } else {
+            // Local Reasoning (Respect user choice even if RAM is low, but capability.reason already warns them)
+            pendingHistoryRef.current = context;
+            setPhase('switching'); 
+        }
+
+    }, [input, llm.isReady, phase, activeModel, messages, currentUser, dispatch, useApiForReasoning, capability, selectedModelId, contextWindowSize]);
 
     return {
         llm,
-        messages,
-        input,
-        setInput,
-        handleSend,
-        handleSelectModel,
-        handleDeleteModel,
-        downloadedModels,
-        isDownloading,
-        activeModel,
-        agentStatus
+        routerReady: llm.isReady && phase === 'routing',
+        mainLlmReady: (llm.isReady && phase === 'reasoning') || phase === 'api',
+        isDownloading: !llm.isReady && llm.downloadProgress > 0 && llm.downloadProgress < 1,
+        downloadProgress: llm.downloadProgress,
+        phase, messages, input, setInput, handleSend, handleSelectModel, handleDeleteModel,
+        downloadedModels, activeModel, agentStatus, capability
     };
 };
-

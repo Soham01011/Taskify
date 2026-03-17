@@ -1,36 +1,33 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { 
-    View, 
-    Text, 
-    FlatList, 
-    KeyboardAvoidingView, 
-    Platform
-} from 'react-native';
+import { View, Text, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '@/assets/styles/mateScreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { useTaskMate, ChatMessage } from '@/src/hooks/useTaskMate';
-
-// Components
 import { ChatHeader } from '@/src/components/TaskMate/ChatHeader';
 import { ModelDropdown } from '@/src/components/TaskMate/ModelDropdown';
 import { ChatInput } from '@/src/components/TaskMate/ChatInput';
-import { 
-    WelcomeSection, 
-    DownloadOverlay, 
-    StatusIndicator 
-} from '@/src/components/TaskMate/MiscComponents';
+import { WelcomeSection, DownloadOverlay, StatusIndicator } from '@/src/components/TaskMate/MiscComponents';
+import { ControlCenter } from '@/src/components/TaskMate/ControlCenter';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/src/store';
 
 export default function TaskMateScreen() {
     const { colors } = useAppTheme();
-    const [selectedModelId, setSelectedModelId] = useState('qwen_3_5_2b');
+    const { selectedReasoningModelId } = useSelector((s: RootState) => s.mateConfig);
+    const [selectedModelId, setSelectedModelId] = useState(selectedReasoningModelId);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [showControlCenter, setShowControlCenter] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     const {
         llm,
+        routerReady,
+        mainLlmReady,
+        phase,
+        isDownloading,
+        downloadProgress,
         messages,
         input,
         setInput,
@@ -38,27 +35,24 @@ export default function TaskMateScreen() {
         handleSelectModel,
         handleDeleteModel,
         downloadedModels,
-        isDownloading,
         activeModel,
-        agentStatus
+        agentStatus,
+        capability,
     } = useTaskMate(selectedModelId, setSelectedModelId);
-
 
     const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => (
         <View style={[
             styles.messageWrapper,
-            item.role === 'user' ? styles.userMessageWrapper : styles.aiMessageWrapper
+            item.role === 'user' ? styles.userMessageWrapper : styles.aiMessageWrapper,
         ]}>
             <View style={[
                 styles.messageBubble,
-                item.role === 'user' ? 
-                    { backgroundColor: colors.primary } : 
-                    { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }
+                item.role === 'user'
+                    ? { backgroundColor: colors.primary }
+                    : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
             ]}>
                 {item.role === 'user' ? (
-                    <Text style={[styles.messageText, { color: colors.white }]}>
-                        {item.content}
-                    </Text>
+                    <Text style={[styles.messageText, { color: colors.white }]}>{item.content}</Text>
                 ) : (
                     <Markdown style={{
                         body: { color: colors.text, fontSize: 14, lineHeight: 21 },
@@ -83,31 +77,38 @@ export default function TaskMateScreen() {
         </View>
     ), [colors]);
 
+    const downloadLabel = phase === 'routing'
+        ? 'AI Router (SmolLM2 360M)'
+        : 'Reasoning Model';
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
-                <ChatHeader 
-                    colors={colors} 
-                    selectedModelId={selectedModelId} 
-                    onToggleDropdown={() => setShowDropdown(!showDropdown)} 
+                <ChatHeader
+                    colors={colors}
+                    selectedModelId={selectedModelId}
+                    onToggleDropdown={() => setShowDropdown(!showDropdown)}
+                    onToggleControlCenter={() => setShowControlCenter(!showControlCenter)}
                 />
 
                 {showDropdown && (
-                    <ModelDropdown 
+                    <ModelDropdown
                         colors={colors}
                         selectedModelId={selectedModelId}
                         downloadedModels={downloadedModels}
                         onClose={() => setShowDropdown(false)}
-                        onSelect={(m) => {
-                            handleSelectModel(m);
-                            setShowDropdown(false);
-                        }}
+                        onSelect={(m) => { handleSelectModel(m); setShowDropdown(false); }}
                         onDelete={handleDeleteModel}
+                    />
+                )}
+
+                {showControlCenter && (
+                    <ControlCenter 
+                        colors={colors} 
+                        onClose={() => setShowControlCenter(false)} 
                     />
                 )}
 
@@ -118,36 +119,40 @@ export default function TaskMateScreen() {
                     contentContainerStyle={styles.messagesContainer}
                     renderItem={renderMessageItem}
                     ListHeaderComponent={() => (
-                        <WelcomeSection 
-                            colors={colors} 
-                            hasActiveModel={!!activeModel} 
-                            onSetup={() => setShowDropdown(true)} 
+                        <WelcomeSection
+                            colors={colors}
+                            routerReady={routerReady}
+                            hasMainModel={!!activeModel}
+                            onSetup={() => setShowDropdown(true)}
                         />
                     )}
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                 />
 
                 {isDownloading && (
-                    <DownloadOverlay colors={colors} progress={llm.downloadProgress} />
-                )}
-
-                {activeModel && !isDownloading && (
-                    <StatusIndicator 
-                        colors={colors} 
-                        isReady={llm.isReady} 
-                        error={llm.error} 
-                        status={agentStatus}
-                        onRetry={() => llm.generate([])} 
+                    <DownloadOverlay
+                        colors={colors}
+                        progress={downloadProgress}
+                        label={downloadLabel}
                     />
                 )}
 
+                <StatusIndicator
+                    colors={colors}
+                    routerReady={routerReady}
+                    mainLlmReady={mainLlmReady}
+                    hasMainModel={!!activeModel}
+                    error={llm.error}
+                    status={agentStatus}
+                    onRetry={() => setShowDropdown(true)}
+                />
 
-                <ChatInput 
+                <ChatInput
                     colors={colors}
                     input={input}
                     setInput={setInput}
                     onSend={handleSend}
-                    isReady={llm.isReady}
+                    isReady={routerReady}
                     isGenerating={llm.isGenerating}
                 />
             </KeyboardAvoidingView>

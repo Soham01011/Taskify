@@ -5,13 +5,16 @@ import authReducer from './slices/authSlice';
 import taskReducer from './slices/taskSlice';
 import groupReducer from './slices/groupSlice';
 import ideaReducer from './slices/ideaSlice';
+import mateConfigReducer from './slices/mateConfigSlice';
+
 import { injectStore } from '../api/client';
 
 const persistConfig = {
     key: 'root',
     version: 1,
     storage: AsyncStorage,
-    whitelist: ['auth', 'tasks', 'groups', 'ideas'], // Persist auth, tasks, groups and ideas for local data usage
+    whitelist: ['auth', 'tasks', 'groups', 'ideas', 'mateConfig'], // Persist auth, tasks, groups and ideas for local data usage
+
 };
 
 
@@ -21,7 +24,9 @@ const rootReducer = combineReducers({
     tasks: taskReducer,
     groups: groupReducer,
     ideas: ideaReducer,
+    mateConfig: mateConfigReducer,
 });
+
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 

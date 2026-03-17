@@ -1,4 +1,5 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
+
 import { taskApi, Task, FetchTasksParams, PaginatedTasksResponse } from '../../api/tasks';
 import { RootState } from '../index';
 import { Group } from '../../api/groups';
@@ -104,26 +105,27 @@ const taskSlice = createSlice({
 
 export const { clearTasks, removeTask, updateTask } = taskSlice.actions;
 
-export const selectUnifiedTasks = (state: RootState) => {
-    const personalTasks = state.tasks.tasks;
-    const currentUserId = state.auth.currentUserId;
-    
-    // Extract tasks assigned to the current user from all groups
-    const groupTasks = state.groups.groups.flatMap((group: Group) => 
-        (group.tasks || [])
-            .filter((task: any) => task.userId === currentUserId)
-            .map((task: any) => ({
-                ...task,
-                groupId: group._id,
-                groupName: group.name,
-                // Map GroupTask fields to Task interface if they differ
-                title: task.task, // GroupTask uses 'task' for title
-                dueDate: task.duedate, // GroupTask uses 'duedate' (lowercase)
-            }))
-    );
+export const selectUnifiedTasks = createSelector(
+    [(state: RootState) => state.tasks.tasks, (state: RootState) => state.auth.currentUserId, (state: RootState) => state.groups.groups],
+    (personalTasks, currentUserId, groups) => {
+        // Extract tasks assigned to the current user from all groups
+        const groupTasks = groups.flatMap((group: Group) => 
+            (group.tasks || [])
+                .filter((task: any) => task.userId === currentUserId)
+                .map((task: any) => ({
+                    ...task,
+                    groupId: group._id,
+                    groupName: group.name,
+                    // Map GroupTask fields to Task interface if they differ
+                    title: task.task, // GroupTask uses 'task' for title
+                    dueDate: task.duedate, // GroupTask uses 'duedate' (lowercase)
+                }))
+        );
 
-    // Merge and return
-    return [...personalTasks, ...groupTasks];
-};
+        // Merge and return
+        return [...personalTasks, ...groupTasks];
+    }
+);
+
 
 export default taskSlice.reducer;

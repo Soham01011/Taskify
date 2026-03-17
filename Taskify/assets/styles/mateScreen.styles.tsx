@@ -238,5 +238,161 @@ export const styles = StyleSheet.create({
     statusText: {
         fontSize: 12,
         fontWeight: '600',
+    },
+    // Control Center Styles
+    controlCenterOverlay: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: '85%',
+        zIndex: 2000,
+        paddingTop: 60,
+    },
+    controlHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: SPACING.xl,
+        paddingBottom: SPACING.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f010',
+    },
+    controlTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+    },
+    controlScroll: {
+        padding: SPACING.xl,
+    },
+    controlSection: {
+        marginBottom: SPACING.xl,
+    },
+    sectionLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: SPACING.md,
+    },
+    sectionLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    sectionSubTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: SPACING.lg,
+    },
+    ramBarContainer: {
+        marginTop: SPACING.sm,
+    },
+    ramBarBase: {
+        width: '100%',
+        height: 12,
+        borderRadius: 6,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    ramBarFilled: {
+        height: '100%',
+        position: 'absolute',
+    },
+    ramBarLabels: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 6,
+    },
+    ramLabel: {
+        fontSize: 11,
+    },
+    ramWarning: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        padding: SPACING.md,
+        borderRadius: RADIUS.md,
+        marginTop: SPACING.md,
+    },
+    ramWarningText: {
+        fontSize: 12,
+        fontWeight: '600',
+        flex: 1,
+    },
+    configItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: SPACING.lg,
+        gap: SPACING.md,
+    },
+    configLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    configSubLabel: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    offsetInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    offsetInput: {
+        width: 60,
+        height: 36,
+        borderWidth: 1,
+        borderRadius: RADIUS.md,
+        textAlign: 'center',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    saveOffsetBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: RADIUS.md,
+    },
+    saveOffsetBtnText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    counterBtn: {
+        fontSize: 24,
+        fontWeight: '300',
+        width: 30,
+        textAlign: 'center',
+    },
+    counterText: {
+        fontSize: 16,
+        fontWeight: '700',
+        minWidth: 20,
+        textAlign: 'center',
+    },
+    strategyCard: {
+        flexDirection: 'row',
+        padding: SPACING.lg,
+        borderRadius: RADIUS.lg,
+        borderWidth: 1,
+        gap: SPACING.md,
+    },
+    strategyTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        marginBottom: 2,
+    },
+    strategyDesc: {
+        fontSize: 12,
+        lineHeight: 18,
+    },
+    controlFooter: {
+        padding: SPACING.xl,
+        borderTopWidth: 1,
+    },
+    footerText: {
+        fontSize: 11,
+        textAlign: 'center',
+        fontStyle: 'italic',
     }
 });

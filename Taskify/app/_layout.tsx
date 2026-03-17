@@ -87,7 +87,7 @@ function AppContent() {
   );
 }
 
-export default Sentry.wrap(function RootLayout() {
+function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
@@ -99,4 +99,6 @@ export default Sentry.wrap(function RootLayout() {
       </Provider>
     </GestureHandlerRootView>
   );
-});
+}
+
+export default Sentry.wrap(RootLayout);

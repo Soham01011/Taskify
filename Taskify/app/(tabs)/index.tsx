@@ -5,7 +5,9 @@ import {
     Platform,
     KeyboardAvoidingView,
     View,
+    TouchableOpacity,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -16,8 +18,8 @@ import Animated, {
     ZoomIn,
     ZoomOut,
 } from 'react-native-reanimated';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
+
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
 import { AppHeader } from '@/src/components/AppHeader';
 import { useTasks } from '@/src/hooks/useTasks';

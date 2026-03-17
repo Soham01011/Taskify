@@ -15,25 +15,25 @@ interface ModelDropdownProps {
     onDelete: (model: any) => void;
 }
 
-export const ModelDropdown: React.FC<ModelDropdownProps> = ({ 
-    colors, 
-    selectedModelId, 
-    downloadedModels, 
-    onClose, 
-    onSelect, 
-    onDelete 
+export const ModelDropdown: React.FC<ModelDropdownProps> = ({
+    colors,
+    selectedModelId,
+    downloadedModels,
+    onClose,
+    onSelect,
+    onDelete
 }) => {
     return (
-        <Animated.View 
-            entering={FadeIn.duration(200)} 
+        <Animated.View
+            entering={FadeIn.duration(200)}
             exiting={FadeOut.duration(200)}
             style={[styles.dropdownOverlay, { backgroundColor: colors.overlay }]}
         >
-            <TouchableOpacity 
-                style={StyleSheet.absoluteFill} 
-                onPress={onClose} 
+            <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                onPress={onClose}
             />
-            <Animated.View 
+            <Animated.View
                 entering={CustomGenieIn}
                 exiting={CustomGenieOut}
                 style={[styles.dropdownMenu, { backgroundColor: colors.card }]}
@@ -54,35 +54,43 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
                                 {section.icon}
                                 <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{section.title}</Text>
                             </View>
-                            
+
                             {section.models.length === 0 ? (
                                 <Text style={[styles.emptySection, { color: colors.textSecondary }]}>No models available</Text>
                             ) : (
                                 section.models.map(model => {
-                                    const isDownloaded = downloadedModels.some(m => m.includes(model.config.modelSource.split('/').pop() || ''));
+                                    const modelSource = model.config?.modelSource;
+                                    const isDownloaded = modelSource
+                                        ? downloadedModels.some(m => {
+                                            const downloadedName = m.split('/').pop();
+                                            const modelName = modelSource.split('/').pop();
+                                            return downloadedName === modelName;
+                                        })
+                                        : false;
+
                                     const isSelected = selectedModelId === model.id;
-                                    
+
                                     return (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             key={model.id}
                                             style={[
-                                                styles.modelItem, 
+                                                styles.modelItem,
                                                 isSelected && { backgroundColor: colors.primary10 }
                                             ]}
                                             onPress={() => onSelect(model)}
                                         >
                                             <View style={styles.modelItemInfo}>
                                                 <Text style={[
-                                                    styles.modelItemName, 
+                                                    styles.modelItemName,
                                                     { color: isSelected ? colors.primary : colors.text }
                                                 ]}>
                                                     {model.name}
                                                 </Text>
                                                 {isDownloaded && <CheckCircle2 size={14} color={colors.primary} />}
                                             </View>
-                                            
+
                                             {isDownloaded && (
-                                                <TouchableOpacity 
+                                                <TouchableOpacity
                                                     onPress={() => onDelete(model)}
                                                     style={styles.deleteBtn}
                                                 >
