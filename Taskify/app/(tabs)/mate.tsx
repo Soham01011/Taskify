@@ -108,7 +108,9 @@ export default function TaskMateScreen() {
                 {showControlCenter && (
                     <ControlCenter 
                         colors={colors} 
-                        onClose={() => setShowControlCenter(false)} 
+                        onClose={() => setShowControlCenter(false)}
+                        downloadedModels={downloadedModels}
+                        onDeleteModel={handleDeleteModel}
                     />
                 )}
 

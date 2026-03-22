@@ -19,13 +19,13 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
         </View>
         <Text style={[styles.welcomeTitle, { color: colors.text }]}>I'm TaskMate</Text>
         <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-            Your local AI workspace assistant. I run completely on your device, keeping your data private.
+            Your local AI workspace assistant. A fast regex router handles direct actions instantly — no LLM needed. Complex reasoning goes to your chosen model.
         </Text>
 
         {routerReady && !hasMainModel && (
             <View style={{ alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <Text style={[styles.welcomeSubtitle, { color: colors.primary, fontWeight: '600', marginBottom: 0 }]}>
-                    ✅ AI Router is ready — you can create tasks, ideas, and group tasks now!
+                    ✅ Router active — create tasks, ideas, and group tasks now!
                 </Text>
                 <TouchableOpacity 
                     style={[styles.setupBtn, { backgroundColor: colors.primary }]}

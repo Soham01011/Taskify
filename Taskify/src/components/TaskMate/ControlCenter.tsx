@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Switch, TextInput } from 'react-native';
-import { Cpu, Settings, X, Zap, Globe, AlertTriangle, Database } from 'lucide-react-native';
+import { Cpu, Settings, X, Zap, Globe, AlertTriangle, Database, Trash2, HardDrive, Route } from 'lucide-react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { setSystemRamOffset, toggleApiReasoning, setContextWindowSize } from '../../store/slices/mateConfigSlice';
@@ -8,18 +8,24 @@ import { useDeviceCapability, getModelRamRequiredGB } from '../../utils/usedevic
 import { MATE_MODELS } from '../../constants/mateModels';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { styles } from '@/assets/styles/mateScreen.styles';
+import { StyleSheet } from 'react-native';
+
+// Module-level constant prevents a new array reference on every render
+const EMPTY_DOWNLOADED: string[] = [];
 
 interface ControlCenterProps {
     colors: any;
     onClose: () => void;
+    downloadedModels?: string[];
+    onDeleteModel?: (model: any) => void;
 }
 
-export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose }) => {
+export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, downloadedModels = EMPTY_DOWNLOADED, onDeleteModel }) => {
     const dispatch = useDispatch<AppDispatch>();
     const { systemRamOffsetGB, useApiForReasoning, contextWindowSize, selectedReasoningModelId } = useSelector((s: RootState) => s.mateConfig);
     const capability = useDeviceCapability();
     
-    const [offsetInput, setOffsetInput] = useState(systemRamOffsetGB.toString());
+    const [offsetInput, setOffsetInput] = useState(() => systemRamOffsetGB.toString());
 
     const handleSaveOffset = () => {
         const val = parseFloat(offsetInput);
@@ -36,6 +42,25 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose })
     const systemUsagePercent = Math.min(100, (systemRamOffsetGB / totalRam) * 100);
     const appAvailablePercent = Math.min(100, (capability.availableForAppGB / totalRam) * 100);
     const modelRequirementPercent = Math.min(appAvailablePercent, (ramRequired / totalRam) * 100);
+
+    // Downloaded local models (cross-reference with REASONING list)
+    const downloadedReasoningModels = MATE_MODELS.REASONING.filter(m => {
+        if (m.isApi) return false;
+        const modelSource = (m as any).config?.modelSource;
+        if (!modelSource) return false;
+        const sourceStem = modelSource.split('/').pop()?.replace(/\.[^.]+$/, '') ?? '';
+        return sourceStem.length > 4 && downloadedModels.some(dm => {
+            const dmStem = dm.split('/').pop()?.replace(/\.[^.]+$/, '') ?? '';
+            return dmStem.includes(sourceStem) || sourceStem.includes(dmStem) ||
+                dm.toLowerCase().includes(sourceStem.split('-')[0]);
+        });
+    });
+
+    // Total storage estimate
+    const totalStorageMB = downloadedReasoningModels.reduce((acc, m) => acc + (m.ramMB || 0), 0);
+    const totalStorageDisplay = totalStorageMB >= 1024
+        ? `${(totalStorageMB / 1024).toFixed(1)} GB`
+        : `${totalStorageMB} MB`;
 
     return (
         <Animated.View 
@@ -86,6 +111,41 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose })
                     )}
                 </View>
 
+                {/* ─── Downloaded Models ─── */}
+                {downloadedReasoningModels.length > 0 && (
+                    <View style={styles.controlSection}>
+                        <View style={styles.sectionLabelRow}>
+                            <HardDrive size={16} color={colors.textSecondary} />
+                            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Downloaded Models</Text>
+                            <View style={[ccStyles.storageChip, { backgroundColor: colors.primary + '15' }]}>
+                                <Text style={[ccStyles.storageChipText, { color: colors.primary }]}>{totalStorageDisplay} used</Text>
+                            </View>
+                        </View>
+
+                        {downloadedReasoningModels.map(model => (
+                            <View key={model.id} style={[ccStyles.downloadedModelRow, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[ccStyles.downloadedModelName, { color: colors.text }]} numberOfLines={1}>
+                                        {model.name}
+                                    </Text>
+                                    <Text style={[ccStyles.downloadedModelSize, { color: colors.textSecondary }]}>
+                                        {model.ramMB >= 1024 ? `${(model.ramMB / 1024).toFixed(1)} GB` : `${model.ramMB} MB`}
+                                    </Text>
+                                </View>
+                                {onDeleteModel && (
+                                    <TouchableOpacity
+                                        onPress={() => onDeleteModel(model)}
+                                        style={[ccStyles.deleteModelBtn, { backgroundColor: colors.danger + '15' }]}
+                                    >
+                                        <Trash2 size={15} color={colors.danger} />
+                                        <Text style={[ccStyles.deleteModelBtnText, { color: colors.danger }]}>Delete</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 {/* ─── System Configuration ─── */}
                 <View style={styles.controlSection}>
                     <Text style={[styles.sectionSubTitle, { color: colors.text }]}>Configuration</Text>
@@ -127,6 +187,7 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose })
                         </View>
                         <View style={styles.offsetInputRow}>
                             <TouchableOpacity onPress={() => dispatch(setContextWindowSize(Math.max(1, contextWindowSize - 1)))}>
+
                                 <Text style={[styles.counterBtn, { color: colors.primary }]}>-</Text>
                             </TouchableOpacity>
                             <Text style={[styles.counterText, { color: colors.text }]}>{contextWindowSize}</Text>
@@ -143,23 +204,117 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose })
                     <View style={[styles.strategyCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
                         <Zap size={20} color={colors.primary} />
                         <View style={{ flex: 1 }}>
-                            <Text style={[styles.strategyTitle, { color: colors.primary }]}>Hybrid Agentic AI</Text>
+                            <Text style={[styles.strategyTitle, { color: colors.primary }]}>Pure LLM Routing</Text>
                             <Text style={[styles.strategyDesc, { color: colors.textSecondary }]}>
-                                SmolLM2 handles local routing and CRUD operations. 
-                                {useApiForReasoning || !capability.canRunSpecifiedReasoning 
-                                    ? " Reasoning is currently offloaded to Gemini Cloud API." 
-                                    : ` Reasoning runs locally via ${selectedModel?.name}.`}
+                                {useApiForReasoning || !capability.canRunSpecifiedReasoning
+                                    ? 'Small 0.5B model handles all intent routing. Complex reasoning hands off to Gemini Cloud.'
+                                    : `Small 0.5B model handles all intent routing. Complex reasoning uses your local ${selectedModel?.name ?? 'reasoning model'}.`}
                             </Text>
                         </View>
                     </View>
+
+                    {/* Pipeline legend */}
+                    <View style={ccStyles.pipelineLegend}>
+                        <View style={ccStyles.pipelineStep}>
+                            <View style={[ccStyles.pipelineDot, { backgroundColor: colors.primary }]} />
+                            <View>
+                                <Text style={[ccStyles.pipelineStepTitle, { color: colors.text }]}>0.5B Router Model</Text>
+                                <Text style={[ccStyles.pipelineStepDesc, { color: colors.textSecondary }]}>All inputs · extracts intent + args + writes direct reply</Text>
+                            </View>
+                        </View>
+                        <View style={ccStyles.pipelineConnector} />
+                        <View style={ccStyles.pipelineStep}>
+                            <View style={[ccStyles.pipelineDot, { backgroundColor: useApiForReasoning ? '#f59e0b' : colors.primary }]} />
+                            <View>
+                                <Text style={[ccStyles.pipelineStepTitle, { color: colors.text }]}>
+                                    {useApiForReasoning ? 'Gemini Cloud' : (selectedModel?.name ?? 'Reasoning Model')}
+                                </Text>
+                                <Text style={[ccStyles.pipelineStepDesc, { color: colors.textSecondary }]}>HANDOFF only · planning, advice, complex questions</Text>
+                            </View>
+                        </View>
+                    </View>
+
                 </View>
             </ScrollView>
             
             <View style={[styles.controlFooter, { borderTopColor: colors.border }]}>
                 <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                    Context Strategy: SlidingWindowContext
+                    Strategy: Triage · Context: SlidingWindow({contextWindowSize})
                 </Text>
             </View>
         </Animated.View>
     );
 };
+
+const ccStyles = StyleSheet.create({
+    storageChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 20,
+        marginLeft: 'auto',
+    },
+    storageChipText: {
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    downloadedModelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderRadius: 10,
+        padding: 10,
+        marginBottom: 8,
+    },
+    downloadedModelName: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    downloadedModelSize: {
+        fontSize: 12,
+    },
+    deleteModelBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        borderRadius: 8,
+        marginLeft: 8,
+    },
+    deleteModelBtnText: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    pipelineLegend: {
+        marginTop: 12,
+        paddingHorizontal: 4,
+    },
+    pipelineStep: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+    },
+    pipelineDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginTop: 3,
+        flexShrink: 0,
+    },
+    pipelineConnector: {
+        width: 2,
+        height: 14,
+        backgroundColor: '#ffffff20',
+        marginLeft: 4,
+        marginVertical: 2,
+    },
+    pipelineStepTitle: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    pipelineStepDesc: {
+        fontSize: 11,
+        marginTop: 1,
+    },
+});
