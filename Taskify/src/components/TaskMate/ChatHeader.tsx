@@ -6,7 +6,7 @@ import { MODEL_SECTIONS } from '@/src/constants/mateModels';
 
 interface ChatHeaderProps {
     colors: any;
-    selectedModelId: string;
+    selectedModelId: string | null;
     onToggleDropdown: () => void;
     onToggleControlCenter: () => void;
 }

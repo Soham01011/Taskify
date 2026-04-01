@@ -3,7 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface MateConfigState {
     systemRamOffsetGB: number; // RAM reserved for OS/other apps (default 2.5GB)
     useApiForReasoning: boolean; // Global toggle to force API
-    selectedReasoningModelId: string;
+    selectedReasoningModelId: string | null;
     selectedVttModelId: string | null;
     selectedTtvModelId: string | null;
     selectedOcrModelId: string | null;
@@ -13,7 +13,7 @@ interface MateConfigState {
 const initialState: MateConfigState = {
     systemRamOffsetGB: 2.5,
     useApiForReasoning: false,
-    selectedReasoningModelId: 'qwen_2_5_1_5b_quantized',
+    selectedReasoningModelId: null,
     selectedVttModelId: null,
     selectedTtvModelId: null,
     selectedOcrModelId: null,

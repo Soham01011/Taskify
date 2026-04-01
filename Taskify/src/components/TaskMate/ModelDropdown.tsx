@@ -8,7 +8,7 @@ import { CustomGenieIn, CustomGenieOut } from '@/src/components/GenieAnimation';
 
 interface ModelDropdownProps {
     colors: any;
-    selectedModelId: string;
+    selectedModelId: string | null;
     downloadedModels: string[];
     onClose: () => void;
     onSelect: (model: any) => void;

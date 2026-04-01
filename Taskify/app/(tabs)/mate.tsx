@@ -15,17 +15,19 @@ import { RootState } from '@/src/store';
 
 export default function TaskMateScreen() {
     const { colors } = useAppTheme();
+    const { currentUserId, users } = useSelector((s: RootState) => s.auth);
+    const currentUser = users.find(u => u.id === currentUserId);
+    const preferredModelId = currentUser?.preferences?.selectedModelId;
+    
     const { selectedReasoningModelId } = useSelector((s: RootState) => s.mateConfig);
-    const [selectedModelId, setSelectedModelId] = useState(selectedReasoningModelId);
+    const [selectedModelId, setSelectedModelId] = useState<string | null>(selectedReasoningModelId || preferredModelId || null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [showControlCenter, setShowControlCenter] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     const {
         llm,
-        routerReady,
-        mainLlmReady,
-        phase,
+        isReady,
         isDownloading,
         downloadProgress,
         messages,
@@ -34,6 +36,7 @@ export default function TaskMateScreen() {
         handleSend,
         handleSelectModel,
         handleDeleteModel,
+        handleInterrupt,
         downloadedModels,
         activeModel,
         agentStatus,
@@ -77,9 +80,7 @@ export default function TaskMateScreen() {
         </View>
     ), [colors]);
 
-    const downloadLabel = phase === 'routing'
-        ? 'AI Router (SmolLM2 360M)'
-        : 'Reasoning Model';
+    const downloadLabel = 'Intelligence Model';
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -100,8 +101,8 @@ export default function TaskMateScreen() {
                         selectedModelId={selectedModelId}
                         downloadedModels={downloadedModels}
                         onClose={() => setShowDropdown(false)}
-                        onSelect={(m) => { handleSelectModel(m); setShowDropdown(false); }}
-                        onDelete={handleDeleteModel}
+                        onSelect={(m) => { handleSelectModel(m.id); setShowDropdown(false); }}
+                        onDelete={(m) => handleDeleteModel(m.id)}
                     />
                 )}
 
@@ -110,7 +111,7 @@ export default function TaskMateScreen() {
                         colors={colors} 
                         onClose={() => setShowControlCenter(false)}
                         downloadedModels={downloadedModels}
-                        onDeleteModel={handleDeleteModel}
+                        onDeleteModel={(m) => handleDeleteModel(m.id)}
                     />
                 )}
 
@@ -123,7 +124,7 @@ export default function TaskMateScreen() {
                     ListHeaderComponent={() => (
                         <WelcomeSection
                             colors={colors}
-                            routerReady={routerReady}
+                            routerReady={isReady}
                             hasMainModel={!!activeModel}
                             onSetup={() => setShowDropdown(true)}
                         />
@@ -141,10 +142,10 @@ export default function TaskMateScreen() {
 
                 <StatusIndicator
                     colors={colors}
-                    routerReady={routerReady}
-                    mainLlmReady={mainLlmReady}
+                    routerReady={isReady}
+                    mainLlmReady={isReady}
                     hasMainModel={!!activeModel}
-                    error={llm.error}
+                    error={llm?.error}
                     status={agentStatus}
                     onRetry={() => setShowDropdown(true)}
                 />
@@ -154,8 +155,9 @@ export default function TaskMateScreen() {
                     input={input}
                     setInput={setInput}
                     onSend={handleSend}
-                    isReady={routerReady}
-                    isGenerating={llm.isGenerating}
+                    onInterrupt={handleInterrupt}
+                    isReady={isReady}
+                    isGenerating={llm?.isGenerating}
                 />
             </KeyboardAvoidingView>
         </SafeAreaView>

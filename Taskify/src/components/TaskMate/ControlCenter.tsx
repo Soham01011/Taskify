@@ -34,8 +34,12 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, d
         }
     };
 
-    const selectedModel = MATE_MODELS.REASONING.find(m => m.id === selectedReasoningModelId);
-    const ramRequired = getModelRamRequiredGB(selectedReasoningModelId);
+    // Dynamic RAM requirement
+    const selectedModel = useApiForReasoning 
+        ? MATE_MODELS.REASONING.find(m => m.id === 'gemini_api')
+        : MATE_MODELS.REASONING.find(m => m.id === selectedReasoningModelId);
+    
+    const ramRequired = selectedReasoningModelId ? getModelRamRequiredGB(selectedReasoningModelId) : 0;
     
     // RAM usage calculation for the bar
     const totalRam = capability.totalRamGB || 1;
@@ -204,11 +208,11 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, d
                     <View style={[styles.strategyCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
                         <Zap size={20} color={colors.primary} />
                         <View style={{ flex: 1 }}>
-                            <Text style={[styles.strategyTitle, { color: colors.primary }]}>Pure LLM Routing</Text>
+                            <Text style={[styles.strategyTitle, { color: colors.primary }]}>Unified Agentic Mode</Text>
                             <Text style={[styles.strategyDesc, { color: colors.textSecondary }]}>
-                                {useApiForReasoning || !capability.canRunSpecifiedReasoning
-                                    ? 'Small 0.5B model handles all intent routing. Complex reasoning hands off to Gemini Cloud.'
-                                    : `Small 0.5B model handles all intent routing. Complex reasoning uses your local ${selectedModel?.name ?? 'reasoning model'}.`}
+                                {useApiForReasoning
+                                    ? 'A single Gemini Cloud model handles all routing and reasoning tasks with maximum intelligence.'
+                                    : `A single local ${selectedModel?.name ?? 'model'} handles both intent routing and complex reasoning directly.`}
                             </Text>
                         </View>
                     </View>
@@ -216,20 +220,14 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, d
                     {/* Pipeline legend */}
                     <View style={ccStyles.pipelineLegend}>
                         <View style={ccStyles.pipelineStep}>
-                            <View style={[ccStyles.pipelineDot, { backgroundColor: colors.primary }]} />
-                            <View>
-                                <Text style={[ccStyles.pipelineStepTitle, { color: colors.text }]}>0.5B Router Model</Text>
-                                <Text style={[ccStyles.pipelineStepDesc, { color: colors.textSecondary }]}>All inputs · extracts intent + args + writes direct reply</Text>
-                            </View>
-                        </View>
-                        <View style={ccStyles.pipelineConnector} />
-                        <View style={ccStyles.pipelineStep}>
                             <View style={[ccStyles.pipelineDot, { backgroundColor: useApiForReasoning ? '#f59e0b' : colors.primary }]} />
                             <View>
                                 <Text style={[ccStyles.pipelineStepTitle, { color: colors.text }]}>
-                                    {useApiForReasoning ? 'Gemini Cloud' : (selectedModel?.name ?? 'Reasoning Model')}
+                                    {useApiForReasoning ? 'Unified Gemini Cloud' : `Unified Local ${selectedModel?.name ?? 'Model'}`}
                                 </Text>
-                                <Text style={[ccStyles.pipelineStepDesc, { color: colors.textSecondary }]}>HANDOFF only · planning, advice, complex questions</Text>
+                                <Text style={[ccStyles.pipelineStepDesc, { color: colors.textSecondary }]}>
+                                    One model for everything · Intent detection · Tool execution · Reasoning
+                                </Text>
                             </View>
                         </View>
                     </View>

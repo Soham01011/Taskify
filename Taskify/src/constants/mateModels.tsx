@@ -26,14 +26,6 @@ export interface ModelMetadata {
 }
 
 export const MATE_MODELS = {
-    // SmolLM is always the router — not user-selectable
-    ROUTER: {
-        id: 'smollm2_360m_quantized',
-        name: 'SmolLM2 360M (Quantized)',
-        ramMB: 200,
-        config: SMOLLM2_1_360M_QUANTIZED,
-    },
-
     // User-selectable reasoning / chat models
     REASONING: [
         // ── Hammer 2.1 ───────────────────────────────────────────────────────

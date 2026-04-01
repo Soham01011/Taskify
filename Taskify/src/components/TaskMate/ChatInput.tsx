@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Send } from 'lucide-react-native';
+import { View, TextInput, TouchableOpacity } from 'react-native';
+import { Send, Square } from 'lucide-react-native';
 import { styles } from '@/assets/styles/mateScreen.styles';
 
 interface ChatInputProps {
@@ -8,6 +8,7 @@ interface ChatInputProps {
     input: string;
     setInput: (text: string) => void;
     onSend: () => void;
+    onInterrupt: () => void;
     isReady: boolean;
     isGenerating: boolean;
 }
@@ -17,6 +18,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     input, 
     setInput, 
     onSend, 
+    onInterrupt,
     isReady, 
     isGenerating 
 }) => {
@@ -30,18 +32,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onChangeText={setInput}
                 multiline
                 maxLength={1000}
-                editable={isReady && !isGenerating}
+                editable={isReady}
             />
             <TouchableOpacity 
                 style={[
                     styles.sendBtn, 
-                    { backgroundColor: !input.trim() || !isReady ? colors.border : colors.primary }
+                    { backgroundColor: (!input.trim() && !isGenerating) || !isReady ? colors.border : (isGenerating ? '#ef4444' : colors.primary) }
                 ]}
-                onPress={onSend}
-                disabled={!input.trim() || !isReady}
+                onPress={isGenerating ? onInterrupt : onSend}
+                disabled={(!input.trim() && !isGenerating) || !isReady}
             >
                 {isGenerating ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <Square size={20} fill="#fff" color="#fff" />
                 ) : (
                     <Send size={20} color="#fff" />
                 )}

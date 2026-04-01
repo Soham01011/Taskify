@@ -28,6 +28,18 @@ import { getStyles } from '@/assets/styles/ideasscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { Idea } from '@/src/api/ideas';
 
+const EmptyState = ({ colors, styles }: { colors: any, styles: any }) => (
+    <View style={styles.emptyContainer}>
+        <View style={styles.emptyIcon}>
+            <Lightbulb size={32} color={colors.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>Your idea board is empty</Text>
+        <Text style={styles.emptyText}>
+            Tap the + button to capture your next big idea — no deadlines, no pressure.
+        </Text>
+    </View>
+);
+
 export default function IdeasScreen() {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
@@ -58,18 +70,6 @@ export default function IdeasScreen() {
             formatDate={formatRelativeDate}
         />
     ), [newIdeaIds, setSelectedIdea, handleDelete, colors, styles]);
-
-    const EmptyState = () => (
-        <View style={styles.emptyContainer}>
-            <View style={styles.emptyIcon}>
-                <Lightbulb size={32} color={colors.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>Your idea board is empty</Text>
-            <Text style={styles.emptyText}>
-                Tap the + button to capture your next big idea — no deadlines, no pressure.
-            </Text>
-        </View>
-    );
 
     return (
         <SafeAreaView style={styles.container}>
@@ -103,7 +103,7 @@ export default function IdeasScreen() {
                         colors={[colors.primary]}
                     />
                 }
-                ListEmptyComponent={!isLoading ? <EmptyState /> : null}
+                ListEmptyComponent={!isLoading ? <EmptyState colors={colors} styles={styles} /> : null}
             />
 
             {/* FAB */}

@@ -19,31 +19,34 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
         </View>
         <Text style={[styles.welcomeTitle, { color: colors.text }]}>I'm TaskMate</Text>
         <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-            Your local AI workspace assistant. A fast regex router handles direct actions instantly — no LLM needed. Complex reasoning goes to your chosen model.
+            Your local AI assistant. QWE single powerful model handles everything from daily tasks to complex reasoning.
         </Text>
 
         {routerReady && !hasMainModel && (
             <View style={{ alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <Text style={[styles.welcomeSubtitle, { color: colors.primary, fontWeight: '600', marginBottom: 0 }]}>
-                    ✅ Router active — create tasks, ideas, and group tasks now!
+                    ✅ Ready — select an AI model below to begin!
                 </Text>
-                <TouchableOpacity 
-                    style={[styles.setupBtn, { backgroundColor: colors.primary }]}
-                    onPress={onSetup}
-                >
-                    <Sparkles size={16} color={colors.white} />
-                    <Text style={styles.setupBtnText}>Add a reasoning model for complex questions</Text>
-                </TouchableOpacity>
             </View>
         )}
 
-        {!routerReady && (
-            <TouchableOpacity 
+        {!routerReady && hasMainModel && (
+            <TouchableOpacity
                 style={[styles.setupBtn, { backgroundColor: colors.primary }]}
                 onPress={onSetup}
             >
                 <CircleDashed size={20} color={colors.white} />
-                <Text style={styles.setupBtnText}>Initializing AI Router…</Text>
+                <Text style={styles.setupBtnText}>Initializing AI…</Text>
+            </TouchableOpacity>
+        )}
+
+        {!hasMainModel && (
+            <TouchableOpacity
+                style={[styles.setupBtn, { backgroundColor: colors.primary }]}
+                onPress={onSetup}
+            >
+                <Sparkles size={16} color={colors.white} />
+                <Text style={styles.setupBtnText}>Select an AI model to begin</Text>
             </TouchableOpacity>
         )}
     </View>
@@ -60,14 +63,14 @@ export const DownloadOverlay: React.FC<DownloadOverlayProps> = ({ colors, progre
     <Animated.View entering={FadeIn} exiting={FadeOut} style={[styles.progressOverlay, { backgroundColor: colors.card }]}>
         <ActivityIndicator color={colors.primary} size="large" />
         <Text style={[styles.progressText, { color: colors.text }]}>
-            Downloading {label}… {Math.round(progress * 100)}%
+            {progress < 1 ? 'Downloading' : 'Loading'} {label}… {Math.round(progress * 100)}%
         </Text>
         <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-            <Animated.View 
+            <Animated.View
                 style={[
-                    styles.progressBarFill, 
+                    styles.progressBarFill,
                     { backgroundColor: colors.primary, width: `${progress * 100}%` }
-                ]} 
+                ]}
             />
         </View>
         <Text style={[styles.progressSubtext, { color: colors.textSecondary }]}>
@@ -93,40 +96,44 @@ const STATUS_LABELS: Record<string, string> = {
     fetching: 'Fetching context…',
     thinking: 'Thinking…',
     working: 'Working…',
-    initializing: 'Initializing AI Router…',
+    initializing: 'Initializing AI…',
 };
 
 export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     colors, routerReady, mainLlmReady, hasMainModel, error, status, onRetry
-}) => (
-    <View style={styles.statusIndicator}>
-        {error ? (
-            <View style={styles.statusRow}>
-                <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-                <Text style={[styles.statusText, { color: colors.danger }]}>Model Error</Text>
-                <TouchableOpacity onPress={onRetry}>
-                    <RefreshCw size={14} color={colors.primary} style={{ marginLeft: 8 }} />
-                </TouchableOpacity>
-            </View>
-        ) : status === 'ready' && routerReady ? (
-            <View style={styles.statusRow}>
-                <View style={[styles.dot, { backgroundColor: '#10b981' }]} />
-                <Text style={[styles.statusText, { color: colors.textSecondary }]}>
-                    Router Ready{hasMainModel && mainLlmReady ? ' · Reasoning Model Ready' : hasMainModel ? ' · Loading reasoning model…' : ''}
-                </Text>
-            </View>
-        ) : status === 'initializing' ? (
-            <View style={styles.statusRow}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.statusText, { color: colors.textSecondary }]}>Initializing AI Router…</Text>
-            </View>
-        ) : (
-            <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.statusRow}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.statusText, { color: colors.primary, fontWeight: '700' }]}>
-                    {STATUS_LABELS[status] || status}
-                </Text>
-            </Animated.View>
-        )}
-    </View>
-);
+}) => {
+    const isActuallyReady = status === 'ready' && routerReady;
+
+    return (
+        <View style={styles.statusIndicator}>
+            {error ? (
+                <View style={styles.statusRow}>
+                    <View style={[styles.dot, { backgroundColor: colors.danger }]} />
+                    <Text style={[styles.statusText, { color: colors.danger }]}>Model Error</Text>
+                    <TouchableOpacity onPress={onRetry}>
+                        <RefreshCw size={14} color={colors.primary} style={{ marginLeft: 8 }} />
+                    </TouchableOpacity>
+                </View>
+            ) : isActuallyReady ? (
+                <View style={styles.statusRow}>
+                    <View style={[styles.dot, { backgroundColor: '#10b981' }]} />
+                    <Text style={[styles.statusText, { color: colors.textSecondary }]}>
+                        AI Active
+                    </Text>
+                </View>
+            ) : !hasMainModel ? (
+                <View style={styles.statusRow}>
+                    <View style={[styles.dot, { backgroundColor: colors.textSecondary + '50' }]} />
+                    <Text style={[styles.statusText, { color: colors.textSecondary }]}>No model selected</Text>
+                </View>
+            ) : (
+                <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.statusRow}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.statusText, { color: colors.primary, fontWeight: '700' }]}>
+                        {status.includes('Downloading') || status.includes('Loading') ? status : (STATUS_LABELS[status] || status)}
+                    </Text>
+                </Animated.View>
+            )}
+        </View>
+    );
+};

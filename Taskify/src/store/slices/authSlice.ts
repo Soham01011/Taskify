@@ -6,6 +6,7 @@ export interface UserPreferences {
     notificationsEnabled: boolean;
     taskNotificationsEnabled: boolean;
     groupNotificationsEnabled: boolean;
+    selectedModelId: string | null;
 }
 
 export interface User {
@@ -34,6 +35,7 @@ const initialState: AuthState = {
         notificationsEnabled: true,
         taskNotificationsEnabled: true,
         groupNotificationsEnabled: true,
+        selectedModelId: null,
     },
     isLoading: false,
     error: null,
