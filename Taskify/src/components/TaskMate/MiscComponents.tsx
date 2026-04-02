@@ -19,7 +19,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
         </View>
         <Text style={[styles.welcomeTitle, { color: colors.text }]}>I'm TaskMate</Text>
         <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-            Your local AI assistant. QWE single powerful model handles everything from daily tasks to complex reasoning.
+            Your local AI assistant. AA single powerful model handles everything from daily tasks to complex reasoning.
         </Text>
 
         {routerReady && !hasMainModel && (

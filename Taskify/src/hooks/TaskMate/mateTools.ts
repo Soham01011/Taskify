@@ -2,7 +2,7 @@ import { LLMTool } from 'react-native-executorch';
 
 export const MATE_TOOLS: LLMTool[] = [
     {
-        name: 'create_task',
+        name: 'createTask',
         description: 'Create a new task with optional subtasks and recurrence.',
         parameters: {
             type: 'dict',
@@ -23,7 +23,7 @@ export const MATE_TOOLS: LLMTool[] = [
         }
     },
     {
-        name: 'get_tasks',
+        name: 'fetchTasks',
         description: 'Fetch and list tasks for a specific date (YYYY-MM-DD) or all pending tasks.',
         parameters: {
             type: 'dict',

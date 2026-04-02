@@ -12,7 +12,7 @@ import { MATE_MODELS } from '../constants/mateModels';
 // Modular TaskMate components
 import { ChatMessage, AgentStatus } from './TaskMate/types';
 import { MATE_TOOLS } from './TaskMate/mateTools';
-import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
+import { buildStagePrompt, isoDate } from './TaskMate/matePrompts';
 import { updateUserPreferences } from '../store/slices/authSlice';
 import { HAMMER2_1_0_5B_QUANTIZED } from 'react-native-executorch';
 
@@ -49,6 +49,8 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
     const [history, setHistory] = useState<Message[]>([]);
     const iterationCount = useRef(0);
     const wasInterrupted = useRef(false);
+    const lastToolCallFull = useRef<string>("");
+    const lastUserText = useRef<string>("");
 
     // ─── Context & Redux ──────────────────────────────────────────────────────
     const { currentUserId, users } = useSelector((s: RootState) => s.auth);
@@ -128,6 +130,23 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
         }
     }, [llm.isGenerating, llm.isReady]);
 
+    const getCurrentContext = () => {
+        const today = isoDate(new Date());
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomStr = isoDate(tomorrow);
+
+        const tasksForContext = unifiedTasks
+            .filter(t => !t.completed && (t.dueDate?.startsWith(today) || t.dueDate?.startsWith(tomStr) || !t.dueDate))
+            .slice(0, 15);
+        
+        if (tasksForContext.length === 0) return "No pending tasks for today or tomorrow.";
+        return tasksForContext.map(t => {
+            const datePrefix = t.dueDate?.startsWith(tomStr) ? "[Tomorrow]" : "[Today]";
+            return `- ${datePrefix} ⭕ ${t.title}${t.dueDate ? ` (due ${new Date(t.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}`;
+        }).join('\n');
+    };
+
     const handleInterrupt = () => {
         wasInterrupted.current = true;
         setAgentStatus('ready');
@@ -143,7 +162,7 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
             // Support both <tool_call> and raw JSON/Markdown blocks
             const tagMatch = fullContent.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
             let cleanedContent = tagMatch ? tagMatch[1] : fullContent;
-            
+
             // Aggressively strip markdown backticks and common JSON formatting noise
             cleanedContent = cleanedContent.replace(/```(?:json)?|```/g, '').trim();
 
@@ -171,28 +190,44 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
             // Execute ONLY one tool to prevent recursion/looping
             const call = toolCalls[0];
             const cleanName = (call.name || '').replace(/\s+/g, '');
+            const callStr = `${cleanName}:${JSON.stringify(call.arguments || {})}`;
+
+            // Circuit Breaker: Stop redundant loops
+            if (callStr === lastToolCallFull.current) {
+                console.log("[MATE] Loop detected: Repeating same tool call. Stopping.");
+                setAgentStatus('ready');
+                return;
+            }
+            lastToolCallFull.current = callStr;
+
             const result = await executeTool(cleanName, call.arguments);
-            const toolResultMsg: Message = { role: 'user', content: `[TOOL_RESULT]: ${result}` };
+            const toolResultMsg: Message = {
+                role: 'user',
+                content: `[TOOL_RESULT]: ${result}\n\n(IMPORTANT: If this provides all the information requested, provided your final summary now. Do NOT call more tools.)`
+            };
             setHistory([...historyWithAssistant, toolResultMsg]);
 
-            // Trigger a follow-up completion after tool execution
-            const systemPrompt = buildSystemPrompt(isoDate(new Date()));
+            // Trigger a follow-up completion with full tool access but grounded evidence
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            const evidence = `You just called [${cleanName}] with [${JSON.stringify(call.arguments)}].\nResult: ${result}`;
+            const systemPrompt = buildStagePrompt('SUM', isoDate(new Date()), isoDate(tomorrow), getCurrentContext(), evidence);
 
             const chat: Message[] = [
                 { role: 'system', content: systemPrompt },
-                ...historyWithAssistant,
-                toolResultMsg
+                { role: 'user', content: `Original Request: ${lastUserText.current}\nNow fulfill this request.` }
             ];
 
-            console.log("[MATE] Folow-up Chat Length:", chat.length);
+            console.log("[MATE] Grounded Follow-up Length:", chat.length);
             rawLogChat(chat);
             await (llm as any).generate(chat, MATE_TOOLS);
         } else {
             iterationCount.current = 0;
             // Normal response, add to history - BUT avoid saving garbage/hallucinations
-            const isGarbage = (fullContent.includes('[{"name"') || fullContent.includes('<tool_call>')) && toolCalls.length === 0;
-            if (isGarbage || fullContent.length === 0) {
-                console.log("[MATE] Filtered garbage/empty response from history.");
+            const isGarbage = (fullContent.includes('[') || fullContent.includes('{') || fullContent.includes('<')) && toolCalls.length === 0;
+            if (isGarbage || fullContent.length < 2) {
+                console.log("[MATE] Filtered garbage/empty response:", fullContent);
                 return;
             }
             const assistantMsg: Message = { role: 'assistant', content: fullContent };
@@ -253,7 +288,7 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
         setAgentStatus(`⚙️ executing tool: ${intent}...`);
         try {
             switch (intent) {
-                case 'create_task': {
+                case 'createTask': {
                     if (!args.title) return 'Error: Task title is required.';
                     try {
                         const res = await taskApi.create({
@@ -267,7 +302,7 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
                         return `⚠️ Creation failed: ${e.message}`;
                     }
                 }
-                case 'get_tasks': {
+                case 'fetchTasks': {
                     const params: any = {};
                     if (args.filterDate) params.created_at = args.filterDate;
                     await dispatch(fetchTasks(params));
@@ -280,10 +315,10 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
                     const taskList = filtered.map((t, i) => {
                         const localTime = t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                         const timeStr = localTime ? ` (due ${localTime})` : '';
-                        const taskStatus = t.completed ? '✅' : '⭕';
+                        const taskStatus = t.completed ? 'completed' : 'pending';
                         let subInfo = '';
                         if (t.subtasks && t.subtasks.length > 0) {
-                            subInfo = t.subtasks.map((s: any) => `\n   - ${s.completed ? '✅' : '⭕'} ${s.title}`).join('');
+                            subInfo = t.subtasks.map((s: any) => `\n   - ${s.completed ? '✅' : 'pending'} ${s.title}`).join('');
                         }
                         return `${i + 1}. ${taskStatus} **${t.title}**${timeStr}${subInfo}`;
                     }).join('\n');
@@ -335,14 +370,20 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
             if (!llm.isReady) return;
             try {
                 const userMsg: Message = { role: 'user', content: userText };
+                // Clear planning state
+                lastToolCallFull.current = "";
+                lastUserText.current = userText;
+                
                 const updatedHistory = [...history, userMsg];
-                setHistory(updatedHistory);
 
-                const systemPrompt = buildSystemPrompt(isoDate(new Date()));
+                // INITIAL PLANNING STAGE
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const systemPrompt = buildStagePrompt('PLAN', isoDate(new Date()), isoDate(tomorrow), getCurrentContext());
 
                 const chat: Message[] = [
                     { role: 'system', content: systemPrompt },
-                    ...updatedHistory
+                    ...updatedHistory.slice(-4) // Keep context small
                 ];
 
                 console.log("[MATE] Generation beginning with history length:", updatedHistory.length);
@@ -354,7 +395,19 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
         }
     }, [input, llm, messages, currentUser, dispatch, unifiedTasks, groups, selectedModelId, token]);
 
-    const handleSelectModel = (id: string | null) => {
+    const handleSelectModel = async (id: string | null) => {
+        // Force cleanup of old model before loading new one to save RAM
+        try {
+            if (llmRef.current?.isReady) {
+                console.log("[MATE] Deleting old model from RAM for clean swap...");
+                await (llmRef.current as any).delete?.();
+            }
+        } catch (e) {
+            console.log("[MATE] Non-critical cleanup error:", e);
+        }
+
+        setHistory([]); // Clear chat history for the new model session
+
         if (!id) {
             setSelectedModelId(null);
             setActiveModel(null);
