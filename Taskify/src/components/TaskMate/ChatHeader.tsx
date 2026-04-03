@@ -1,32 +1,19 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Bot, ChevronDown, Settings } from 'lucide-react-native';
+import { Bot, Settings, Zap } from 'lucide-react-native';
 import { styles } from '@/assets/styles/mateScreen.styles';
-import { MODEL_SECTIONS } from '@/src/constants/mateModels';
 
 interface ChatHeaderProps {
     colors: any;
     selectedModelId: string | null;
-    onToggleDropdown: () => void;
+    onToggleDropdown: () => void; // kept for compatibility but unused
     onToggleControlCenter: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
     colors, 
-    selectedModelId, 
-    onToggleDropdown,
     onToggleControlCenter
 }) => {
-    // Find model in any section
-    let activeModelName = 'Select Model';
-    for (const section of MODEL_SECTIONS) {
-        const found = section.models.find(m => m.id === selectedModelId);
-        if (found) {
-            activeModelName = found.name;
-            break;
-        }
-    }
-
     return (
         <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <View style={styles.headerTitleContainer}>
@@ -35,15 +22,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </View>
             
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity 
-                    style={[styles.modelSelector, { backgroundColor: colors.background }]}
-                    onPress={onToggleDropdown}
-                >
-                    <Text style={[styles.modelName, { color: colors.text }]} numberOfLines={1}>
-                        {activeModelName}
+                {/* Static dual-model indicator – no manual selection */}
+                <View style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: colors.background,
+                    paddingHorizontal: 10, paddingVertical: 5,
+                    borderRadius: 16, borderWidth: 1, borderColor: colors.border
+                }}>
+                    <Zap size={12} color={colors.primary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600' }}>
+                        Hammer · Qwen3
                     </Text>
-                    <ChevronDown size={14} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </View>
 
                 <TouchableOpacity 
                     style={{ padding: 8 }}

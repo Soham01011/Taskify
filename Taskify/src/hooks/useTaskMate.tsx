@@ -14,7 +14,13 @@ import { ChatMessage, AgentStatus } from './TaskMate/types';
 import { MATE_TOOLS } from './TaskMate/mateTools';
 import { buildStagePrompt, isoDate } from './TaskMate/matePrompts';
 import { updateUserPreferences } from '../store/slices/authSlice';
-import { HAMMER2_1_0_5B_QUANTIZED } from 'react-native-executorch';
+import { HAMMER2_1_0_5B_QUANTIZED, QWEN3_0_6B_QUANTIZED } from 'react-native-executorch';
+
+// Dual-Model Architecture:
+// Hammer = Tool Router (JSON, fine-tuned for function-calling)
+// Qwen 3 0.6B = Text Summarizer (natural language, not biased toward tool calls)
+const ROUTER_MODEL = HAMMER2_1_0_5B_QUANTIZED;
+const SUMMARY_MODEL = QWEN3_0_6B_QUANTIZED;
 
 export type { ChatMessage, AgentStatus };
 
@@ -51,6 +57,33 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
     const wasInterrupted = useRef(false);
     const lastToolCallFull = useRef<string>("");
     const lastUserText = useRef<string>("");
+    const inSummaryTurn = useRef(false);
+    // Pending summary context for dual-model handoff
+    const pendingSummary = useRef<{ chat: Message[], originalModel: any } | null>(null);
+
+    // Intent-Gated Tool Router: JavaScript classifies intent — no LLM needed
+    const getToolsForIntent = (text: string) => {
+        const lower = text.toLowerCase();
+        const fetchKeywords = /\b(fetch|get|check|see|list|show|what|find|view|tell me|look up|which|when|free|schedule|available|busy)\b/;
+        const createKeywords = /\b(add|create|make|new|set|schedule|remind|book|plan a|reserve)\b/;
+        const fetchMatch = fetchKeywords.test(lower);
+        const createMatch = createKeywords.test(lower);
+
+        const fetchTool = MATE_TOOLS.find((t: any) => t.name === 'fetchTasks')!;
+        const createTool = MATE_TOOLS.find((t: any) => t.name === 'createTask')!;
+        const summaryTool = MATE_TOOLS.find((t: any) => t.name === 'provideSummary')!;
+
+        // For create-only (no check needed), go straight to createTask
+        if (createMatch && !fetchMatch) {
+            console.log("[INTENT] Create-only intent. Restricting to [createTask, provideSummary].");
+            return [createTool, summaryTool];
+        }
+        // All other cases (fetch-only, multi-step, or ambiguous) → ALWAYS fetch first.
+        // Multi-step logic (e.g. 'check if free, then create') needs the data before deciding.
+        // Qwen will handle the conditional reasoning in the summary turn.
+        console.log("[INTENT] Fetch-first strategy. Restricting to [fetchTasks, provideSummary].");
+        return [fetchTool, summaryTool];
+    };
 
     // ─── Context & Redux ──────────────────────────────────────────────────────
     const { currentUserId, users } = useSelector((s: RootState) => s.auth);
@@ -130,6 +163,79 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
         }
     }, [llm.isGenerating, llm.isReady]);
 
+    // ─── Dual-Model: Qwen Ready Trigger ───────────────────────────────────────
+    // When we swap to Qwen and it becomes ready, this fires the summary generation.
+    // After Qwen finishes, we swap back to the original model (Hammer).
+    useEffect(() => {
+        if (!llm.isReady || !pendingSummary.current) return;
+
+        const { chat, originalModel } = pendingSummary.current;
+        console.log("[MATE] Qwen ready. Generating text summary (no tools)...");
+
+        const run = async () => {
+            await (llm as any).generate(chat, []); // Qwen gets zero tools
+        };
+        run();
+    }, [llm.isReady]);
+
+    useEffect(() => {
+        // When Qwen finishes generating, capture the response, reset, and swap back.
+        if (!inSummaryTurn.current || llm.isGenerating || !pendingSummary.current) return;
+        if (!llm.response || llm.response.trim().length === 0) return;
+
+        console.log("[MATE] Qwen summary done. Swapping back to Hammer...");
+        // Strip <think>...</think> chain-of-thought blocks Qwen 3 emits
+        const cleanedResponse = llm.response
+            .replace(/<think>[\s\S]*?<\/think>/g, '')
+            .trim();
+
+        if (cleanedResponse.length > 0) {
+            const finalMsg: Message = { role: 'assistant', content: cleanedResponse };
+            setHistory(prev => [...prev, finalMsg]);
+        }
+
+        const restoreModel = pendingSummary.current.originalModel;
+        pendingSummary.current = null;
+        inSummaryTurn.current = false;
+        iterationCount.current = 0;
+        setAgentStatus('ready');
+        setActiveModel(restoreModel); // Back to Hammer
+    }, [llm.isGenerating, llm.response]);
+
+    // Client-side date resolution - do NOT trust the small model to map 'tomorrow' → ISO date
+    const resolveDateArgs = (toolName: string, args: Record<string, any>, userText: string) => {
+        if (toolName !== 'fetchTasks' && toolName !== 'createTask') return args;
+        
+        // If model already provided a sane date, keep it
+        const existingDate = args.filterDate || args.dueDate;
+        if (existingDate && /^\d{4}-\d{2}-\d{2}/.test(existingDate)) return args;
+
+        // Parse temporal keywords from the user's original text
+        const lower = userText.toLowerCase();
+        const now = new Date();
+        let resolvedDate: string | null = null;
+
+        if (/\btomorrow\b/.test(lower)) {
+            const d = new Date(now); d.setDate(d.getDate() + 1);
+            resolvedDate = isoDate(d);
+        } else if (/\btoday\b|\bnow\b/.test(lower)) {
+            resolvedDate = isoDate(now);
+        } else if (/\byesterday\b/.test(lower)) {
+            const d = new Date(now); d.setDate(d.getDate() - 1);
+            resolvedDate = isoDate(d);
+        } else if (/\bnext week\b/.test(lower)) {
+            const d = new Date(now); d.setDate(d.getDate() + 7);
+            resolvedDate = isoDate(d);
+        }
+
+        if (resolvedDate) {
+            const field = toolName === 'fetchTasks' ? 'filterDate' : 'dueDate';
+            console.log(`[DATE-RESOLVE] Injecting ${field}=${resolvedDate} from user text`);
+            return { ...args, [field]: resolvedDate };
+        }
+        return args;
+    };
+
     const getCurrentContext = () => {
         const today = isoDate(new Date());
         const tomorrow = new Date();
@@ -139,7 +245,7 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
         const tasksForContext = unifiedTasks
             .filter(t => !t.completed && (t.dueDate?.startsWith(today) || t.dueDate?.startsWith(tomStr) || !t.dueDate))
             .slice(0, 15);
-        
+
         if (tasksForContext.length === 0) return "No pending tasks for today or tomorrow.";
         return tasksForContext.map(t => {
             const datePrefix = t.dueDate?.startsWith(tomStr) ? "[Tomorrow]" : "[Today]";
@@ -190,6 +296,16 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
             // Execute ONLY one tool to prevent recursion/looping
             const call = toolCalls[0];
             const cleanName = (call.name || '').replace(/\s+/g, '');
+
+            // HARD STOP: If in summary turn and model STILL calls a tool, it's looping.
+            if (inSummaryTurn.current) {
+                console.log("[MATE] Summary-turn tool detected. Hard stopping loop.");
+                inSummaryTurn.current = false;
+                iterationCount.current = 0;
+                setAgentStatus('ready');
+                return;
+            }
+
             const callStr = `${cleanName}:${JSON.stringify(call.arguments || {})}`;
 
             // Circuit Breaker: Stop redundant loops
@@ -198,30 +314,46 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
                 setAgentStatus('ready');
                 return;
             }
+            inSummaryTurn.current = false;
             lastToolCallFull.current = callStr;
 
-            const result = await executeTool(cleanName, call.arguments);
+            // Client-side Date Resolution: don't trust 500M model to resolve 'tomorrow' -> ISO date
+            const resolvedArgs = resolveDateArgs(cleanName, call.arguments || {}, lastUserText.current);
+            const result = await executeTool(cleanName, resolvedArgs);
+
+            // SPECIAL CASE: provideSummary is a terminal state!
+            if (cleanName === 'provideSummary') {
+                iterationCount.current = 0;
+                setAgentStatus('ready');
+                const finalMsg: Message = { role: 'assistant', content: call.arguments?.text || result };
+                setHistory([...currentHistory, finalMsg]);
+                return;
+            }
+
             const toolResultMsg: Message = {
                 role: 'user',
-                content: `[TOOL_RESULT]: ${result}\n\n(IMPORTANT: If this provides all the information requested, provided your final summary now. Do NOT call more tools.)`
+                content: `[TOOL_RESULT]: ${result}\n\n(IMPORTANT: If this provides all the information requested, call "provideSummary" now.)`
             };
             setHistory([...historyWithAssistant, toolResultMsg]);
 
-            // Trigger a follow-up completion with full tool access but grounded evidence
+            // ────────────────────────────────────────────────────────────────────
+            // DUAL-MODEL SWAP: Hammer → Qwen for summarization
+            // Hammer loops when asked to summarize; Qwen speaks naturally.
+            // ────────────────────────────────────────────────────────────────────
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            const evidence = `You just called [${cleanName}] with [${JSON.stringify(call.arguments)}].\nResult: ${result}`;
+            const evidence = `You called [${cleanName}]. Result: ${result}`;
             const systemPrompt = buildStagePrompt('SUM', isoDate(new Date()), isoDate(tomorrow), getCurrentContext(), evidence);
-
-            const chat: Message[] = [
+            
+            const summaryChat: Message[] = [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: `Original Request: ${lastUserText.current}\nNow fulfill this request.` }
+                { role: 'user', content: `User asked: "${lastUserText.current}"\n\nSchedule data retrieved:\n${result}\n\nAnswer the user's question based on this data.` }
             ];
-
-            console.log("[MATE] Grounded Follow-up Length:", chat.length);
-            rawLogChat(chat);
-            await (llm as any).generate(chat, MATE_TOOLS);
+            console.log("[MATE] Swapping to Qwen for text summarization...");
+            pendingSummary.current = { chat: summaryChat, originalModel: activeModel };
+            inSummaryTurn.current = true;
+            // Switch to Qwen — useLLM re-inits and the useEffect below will trigger
+            setActiveModel(SUMMARY_MODEL);
         } else {
             iterationCount.current = 0;
             // Normal response, add to history - BUT avoid saving garbage/hallucinations
@@ -302,6 +434,9 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
                         return `⚠️ Creation failed: ${e.message}`;
                     }
                 }
+                case 'provideSummary': {
+                    return args.text || "Message provided.";
+                }
                 case 'fetchTasks': {
                     const params: any = {};
                     if (args.filterDate) params.created_at = args.filterDate;
@@ -373,7 +508,7 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
                 // Clear planning state
                 lastToolCallFull.current = "";
                 lastUserText.current = userText;
-                
+
                 const updatedHistory = [...history, userMsg];
 
                 // INITIAL PLANNING STAGE
@@ -388,7 +523,10 @@ export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: 
 
                 console.log("[MATE] Generation beginning with history length:", updatedHistory.length);
                 rawLogChat(chat);
-                await (llm as any).generate(chat, MATE_TOOLS);
+                // Intent-Gated Tool Routing: only give the model tools matching user's intent
+                const allowedTools = getToolsForIntent(userText);
+                inSummaryTurn.current = false;
+                await (llm as any).generate(chat, allowedTools);
             } catch (e) {
                 setAgentStatus('error');
             }

@@ -31,5 +31,15 @@ export const MATE_TOOLS: LLMTool[] = [
                 filterDate: { type: 'string', description: 'Date in YYYY-MM-DD' }
             }
         }
+    },
+    {
+        name: 'provideSummary',
+        description: 'Use ONLY after fetchTasks or createTask. Returns a text summary to the user.',
+        parameters: {
+            type: 'dict',
+            properties: {
+                text: { type: 'string', description: 'The message to show to the user.' }
+            }
+        }
     }
 ];

@@ -19,13 +19,13 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
         </View>
         <Text style={[styles.welcomeTitle, { color: colors.text }]}>I'm TaskMate</Text>
         <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-            Your local AI assistant. AA single powerful model handles everything from daily tasks to complex reasoning.
+            Your local AI assistant. Powered by Hammer (tool routing) + Qwen3 (reasoning) — all on-device, no cloud needed.
         </Text>
 
         {routerReady && !hasMainModel && (
             <View style={{ alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <Text style={[styles.welcomeSubtitle, { color: colors.primary, fontWeight: '600', marginBottom: 0 }]}>
-                    ✅ Ready — select an AI model below to begin!
+                    ✅ Ready — tap the mic or type to begin!
                 </Text>
             </View>
         )}
@@ -46,7 +46,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
                 onPress={onSetup}
             >
                 <Sparkles size={16} color={colors.white} />
-                <Text style={styles.setupBtnText}>Select an AI model to begin</Text>
+                <Text style={styles.setupBtnText}>Download AI models to begin</Text>
             </TouchableOpacity>
         )}
     </View>
