@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Switch, TextInput } from 'rea
 import { Cpu, Settings, X, Zap, Globe, AlertTriangle, Database, Trash2, HardDrive, Route } from 'lucide-react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
-import { setSystemRamOffset, toggleApiReasoning, setContextWindowSize } from '../../store/slices/mateConfigSlice';
+import { setSystemRamOffset, toggleApiReasoning, setContextWindowSize, toggleDualModel } from '../../store/slices/mateConfigSlice';
 import { useDeviceCapability, getModelRamRequiredGB } from '../../utils/usedevicecapability';
 import { MATE_MODELS } from '../../constants/mateModels';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
@@ -22,7 +22,7 @@ interface ControlCenterProps {
 
 export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, downloadedModels = EMPTY_DOWNLOADED, onDeleteModel }) => {
     const dispatch = useDispatch<AppDispatch>();
-    const { systemRamOffsetGB, useApiForReasoning, contextWindowSize, selectedReasoningModelId } = useSelector((s: RootState) => s.mateConfig);
+    const { systemRamOffsetGB, useApiForReasoning, contextWindowSize, selectedReasoningModelId, dualModelEnabled } = useSelector((s: RootState) => s.mateConfig);
     const capability = useDeviceCapability();
     
     const [offsetInput, setOffsetInput] = useState(() => systemRamOffsetGB.toString());
@@ -204,15 +204,38 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, d
 
                 {/* ─── Agent Mode ─── */}
                 <View style={styles.controlSection}>
-                    <Text style={[styles.sectionSubTitle, { color: colors.text }]}>Execution Strategy</Text>
-                    <View style={[styles.strategyCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+                    <View style={styles.sectionLabelRow}>
+                        <Route size={16} color={colors.textSecondary} />
+                        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Execution Strategy</Text>
+                    </View>
+
+                    <View style={styles.configItem}>
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={[styles.configLabel, { color: colors.text }]}>Dual-Model Turbo</Text>
+                                <View style={{ backgroundColor: colors.primary + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}>
+                                    <Text style={{ fontSize: 9, fontWeight: '900', color: colors.primary }}>TURBO</Text>
+                                </View>
+                            </View>
+                            <Text style={[styles.configSubLabel, { color: colors.textSecondary }]}>Keep both Router and Reasoner in RAM for zero-latency swaps. (High RAM usage)</Text>
+                        </View>
+                        <Switch
+                            value={dualModelEnabled}
+                            onValueChange={(val) => { dispatch(toggleDualModel(val)); }}
+                            trackColor={{ false: colors.border, true: colors.primary }}
+                        />
+                    </View>
+
+                    <View style={[styles.strategyCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30', marginTop: 12 }]}>
                         <Zap size={20} color={colors.primary} />
                         <View style={{ flex: 1 }}>
-                            <Text style={[styles.strategyTitle, { color: colors.primary }]}>Unified Agentic Mode</Text>
+                            <Text style={[styles.strategyTitle, { color: colors.primary }]}>
+                                {dualModelEnabled ? 'Parallel Agentic Loop' : 'Unified Agentic Mode'}
+                            </Text>
                             <Text style={[styles.strategyDesc, { color: colors.textSecondary }]}>
-                                {useApiForReasoning
-                                    ? 'A single Gemini Cloud model handles all routing and reasoning tasks with maximum intelligence.'
-                                    : `A single local ${selectedModel?.name ?? 'model'} handles both intent routing and complex reasoning directly.`}
+                                {dualModelEnabled
+                                    ? 'Zero-latency reasoning. Both Hammer (0.5B) and Qwen (0.6B) are concurrent in memory.'
+                                    : 'Balanced performance. Hammer handles intent, swapping to Qwen only when needed to save RAM.'}
                             </Text>
                         </View>
                     </View>
@@ -220,13 +243,15 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({ colors, onClose, d
                     {/* Pipeline legend */}
                     <View style={ccStyles.pipelineLegend}>
                         <View style={ccStyles.pipelineStep}>
-                            <View style={[ccStyles.pipelineDot, { backgroundColor: useApiForReasoning ? '#f59e0b' : colors.primary }]} />
+                            <View style={[ccStyles.pipelineDot, { backgroundColor: colors.primary }]} />
                             <View>
                                 <Text style={[ccStyles.pipelineStepTitle, { color: colors.text }]}>
-                                    {useApiForReasoning ? 'Unified Gemini Cloud' : `Unified Local ${selectedModel?.name ?? 'Model'}`}
+                                    {dualModelEnabled ? 'Parallel Pipeline' : 'Sequential Pipeline'}
                                 </Text>
                                 <Text style={[ccStyles.pipelineStepDesc, { color: colors.textSecondary }]}>
-                                    One model for everything · Intent detection · Tool execution · Reasoning
+                                    {dualModelEnabled 
+                                        ? 'Hammer + Qwen (In-RAM) · Instant Handover · Tool Reconciliation'
+                                        : 'Triage (Hammer) → Swap (~2s) → Reasoning (Qwen) → Swap Back'}
                                 </Text>
                             </View>
                         </View>

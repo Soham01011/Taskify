@@ -43,7 +43,7 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
                                 // Extract the stem (filename without extension) from the model source URL
                                 // e.g. "qwen2_5-0_5b_instruct-bfloat16" from the .pte URL
                                 const sourceStem = modelSource.split('/').pop()?.replace(/\.[^.]+$/, '') ?? '';
-                                return downloadedModels.some(dm => {
+                                return (downloadedModels || []).some(dm => {
                                     const dmStem = dm.split('/').pop()?.replace(/\.[^.]+$/, '') ?? '';
                                     // Match if either stem contains the other (handles path differences)
                                     return sourceStem.length > 4 && (

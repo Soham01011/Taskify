@@ -8,6 +8,7 @@ interface MateConfigState {
     selectedTtvModelId: string | null;
     selectedOcrModelId: string | null;
     contextWindowSize: number; // Number of messages to keep in sliding window
+    dualModelEnabled: boolean; // Keep both Router and Reasoner in RAM for speed
 }
 
 const initialState: MateConfigState = {
@@ -18,12 +19,16 @@ const initialState: MateConfigState = {
     selectedTtvModelId: null,
     selectedOcrModelId: null,
     contextWindowSize: 10,
+    dualModelEnabled: false, // Sequential by default
 };
 
 const mateConfigSlice = createSlice({
     name: 'mateConfig',
     initialState,
     reducers: {
+        toggleDualModel: (state, action: PayloadAction<boolean>) => {
+            state.dualModelEnabled = action.payload;
+        },
         setSystemRamOffset: (state, action: PayloadAction<number>) => {
             state.systemRamOffsetGB = action.payload;
         },
@@ -47,7 +52,8 @@ export const {
     setSystemRamOffset, 
     toggleApiReasoning, 
     setSelectedModel, 
-    setContextWindowSize 
+    setContextWindowSize,
+    toggleDualModel
 } = mateConfigSlice.actions;
 
 export default mateConfigSlice.reducer;

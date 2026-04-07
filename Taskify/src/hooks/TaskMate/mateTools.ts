@@ -3,42 +3,47 @@ import { LLMTool } from 'react-native-executorch';
 export const MATE_TOOLS: LLMTool[] = [
     {
         name: 'createTask',
-        description: 'Create a new task with optional subtasks and recurrence.',
+        description: 'Registers a new task in the system.',
         parameters: {
             type: 'dict',
             properties: {
-                title: { type: 'string', description: 'Task title' },
-                description: { type: 'string', description: 'Detailed description' },
-                subtasks: { type: 'array', items: { type: 'string' }, description: 'List of subtask titles' },
-                dueDate: { type: 'string', description: 'ISO string including Year, Month, Date, Hour, Minute. E.g. 2026-03-27T16:00:00' },
+                title: { type: 'string', description: 'Primary task objective (Required)' },
+                description: { type: 'string', description: 'Detailed context (Optional)' },
+                subtasks: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'List of sub-steps (Optional)'
+                },
                 recurrence: {
                     type: 'dict',
                     properties: {
-                        type: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly'] },
-                        monthlyType: { type: 'string', enum: ['on_date', 'on_weekend'], description: 'if it is on_date, then take the user specified date for weekend no need to provide date' }
-                    }
-                }
+                        type: {
+                            type: 'string',
+                            enum: ['none', 'daily', 'weekly', 'monthly_date', 'monthly_weekend'],
+                            description: 'Frequency of the task.'
+                        },
+                        dayOfWeek: { type: 'string', description: 'Required for weekly (e.g. Monday)' },
+                        dayOfMonth: { type: 'number', description: 'Required for monthly_date (1-31)' },
+                        weekendOfMonth: { type: 'boolean', description: 'Required for monthly_weekend (true/false)' },
+                        time: { type: 'string', description: 'HH:mm format' }
+                    },
+                    description: 'Recurrence pattern of the task (Required). For monthly either dayOfWeek or dayOfMonth or weekendOfMonth should be present.'
+                },
+                dueDate: { type: 'string', description: 'YYYY-MM-DD' },
+                dueTime: { type: 'string', description: 'HH:mm' }
             },
-            required: ['title', 'dueDate', 'recurrence']
+            required: ['title', 'recurrence', 'dueDate', 'dueTime']
         }
     },
     {
-        name: 'fetchTasks',
-        description: 'Fetch and list tasks for a specific date (YYYY-MM-DD) or all pending tasks.',
+        name: 'listTasks',
+        description: 'Fetch tasks for a specific timeline.',
         parameters: {
             type: 'dict',
             properties: {
-                filterDate: { type: 'string', description: 'Date in YYYY-MM-DD' }
-            }
-        }
-    },
-    {
-        name: 'provideSummary',
-        description: 'Use ONLY after fetchTasks or createTask. Returns a text summary to the user.',
-        parameters: {
-            type: 'dict',
-            properties: {
-                text: { type: 'string', description: 'The message to show to the user.' }
+                date: { type: 'string', description: 'YYYY-MM-DD (Calculated from current date)' },
+                allTasks: { type: 'boolean', description: 'Set true to fetch the entire database' },
+                llm_required: { type: 'boolean', description: 'True if the user response requires an explanation or summary.' }
             }
         }
     }
