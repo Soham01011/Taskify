@@ -21,7 +21,7 @@ const ollama = new Ollama({
   } : {}
 });
 
-const model = 'qwen3';
+const model = 'qwen3-next:80b';
 
 /**
  * @route POST /reason
