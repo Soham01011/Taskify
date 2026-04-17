@@ -73,7 +73,7 @@
     },
     {
       "src": "/api/ollama/(.*)",
-      "dest": "api/ollama.js"
+      "dest": "api/ollamallm.js"
     }
   ]
 }
