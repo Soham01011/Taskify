@@ -13,6 +13,6 @@ app.use(withDB);
 
 app.use('/api/gemini', geminiRoutes);
 
-app.get('/api/gemini/health', (req, res) => res.json({ status: 'ok', fn: 'gemini' }));
+app.get('/api/gemini/health', (req, res) => res.json({ status: 'ok', fn: 'groups' }));
 
 module.exports = app;

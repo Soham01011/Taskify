@@ -6,8 +6,16 @@ const { getTasks, getTasksDefinition } = require('../tools/getTasks');
 const { createTask, createTaskDefinition } = require('../tools/createTask');
 
 // Initialize Ollama client with API Key support for hosted services
+let ollamaHost = 'https://ollama.com/api';
+
+// Normalize URL: remove trailing slashes and strip redundant /api suffix
+ollamaHost = ollamaHost.replace(/\/+$/, '');
+if (ollamaHost.endsWith('/api')) {
+  ollamaHost = ollamaHost.slice(0, -4);
+}
+
 const ollama = new Ollama({
-  host: process.env.OLLAMA_HOST || 'https://ollama.com/api',
+  host: ollamaHost,
   headers: process.env.OLLAMA_API_KEY ? {
     'Authorization': `Bearer ${process.env.OLLAMA_API_KEY}`
   } : {}
