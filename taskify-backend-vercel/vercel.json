@@ -30,7 +30,7 @@
       "use": "@vercel/node"
     },
     {
-      "src": "api/ollama.js",
+      "src": "api/ollamallm.js",
       "use": "@vercel/node"
     }
   ],
