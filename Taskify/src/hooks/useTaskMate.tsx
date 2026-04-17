@@ -1,228 +1,312 @@
-import { useState, useEffect, useRef } from 'react';
-import { Message, useLLM } from 'react-native-executorch';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Message, useLLM, ToolCall } from 'react-native-executorch';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { taskApi } from '../api/tasks';
 import { fetchTasks, selectUnifiedTasks } from '../store/slices/taskSlice';
 import { useDeviceCapability } from '../utils/usedevicecapability';
-import { MATE_MODELS } from '../constants/mateModels';
 import { ChatMessage, AgentStatus } from './TaskMate/types';
+import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
+import { MATE_MODELS } from '../constants/mateModels';
 import { MATE_TOOLS } from './TaskMate/mateTools';
-import { buildStagePrompt, isoDate } from './TaskMate/matePrompts';
-import { updateUserPreferences } from '../store/slices/authSlice';
-import { HAMMER2_1_0_5B_QUANTIZED, QWEN3_0_6B_QUANTIZED } from 'react-native-executorch';
+import { taskApi } from '../api/tasks';
+import { mateApi } from '../api/mate';
 
-const ROUTER_MODEL = HAMMER2_1_0_5B_QUANTIZED;
-const SUMMARY_MODEL = QWEN3_0_6B_QUANTIZED;
-
-export const useTaskMate = (selectedModelId: string | null, setSelectedModelId: (id: string | null) => void) => {
+export const useTaskMate = () => {
     const dispatch = useDispatch<AppDispatch>();
     const capability = useDeviceCapability();
-    const { dualModelEnabled } = useSelector((s: RootState) => s.mateConfig);
     const { currentUserId } = useSelector((s: RootState) => s.auth);
     const unifiedTasks = useSelector(selectUnifiedTasks);
 
-    // --- Core State (Handles) ---
-    const [activeRouterModel, setActiveRouterModel] = useState<any>(ROUTER_MODEL);
+    // --- Core State ---
     const [agentStatus, setAgentStatus] = useState<AgentStatus>('initializing');
     const [history, setHistory] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    
-    const iterationCount = useRef(0);
-    const lastUserText = useRef<string>("");
-    const missionPlan = useRef<any[]>([]); 
-    const missionEvidence = useRef<string>("");
+    const currentPromptRef = useRef('');
 
-    const routerLlm = useLLM({ model: activeRouterModel || ROUTER_MODEL, preventLoad: false });
-    const reasonerLlm = useLLM({ model: SUMMARY_MODEL, preventLoad: !dualModelEnabled });
-    const routerRef = useRef(routerLlm); useEffect(() => { routerRef.current = routerLlm; }, [routerLlm]);
-    const reasonerRef = useRef(reasonerLlm); useEffect(() => { reasonerRef.current = reasonerLlm; }, [reasonerLlm]);
+    const llm = useLLM({
+        model: MATE_MODELS.ACTIVE.config,
+        preventLoad: false
+    });
 
-    // ─── Real-Time Status Engine ──────────────────────────────────────────
+    // ─── Tool Execution Logic ──────────────────────────────────────────────
+    const executeTool = useCallback(async (call: ToolCall): Promise<string | null> => {
+        console.log(`[MATE:TOOL] ${call.toolName}`, call.arguments);
+        
+        try {
+            switch (call.toolName) {
+                case 'createTask': {
+                    const args = call.arguments as any;
+                    const response = await taskApi.create({
+                        title: args.title,
+                        description: args.description,
+                        dueDate: args.dueDate,
+                        recurrence: args.recurrence ? {
+                            frequency: args.recurrence.type === 'none' ? 'none' : 
+                                      args.recurrence.type === 'daily' ? 'daily' : 
+                                      args.recurrence.type === 'weekly' ? 'weekly' : 'monthly',
+                            dayOfMonth: args.recurrence.dayOfMonth,
+                            lastWeekend: args.recurrence.weekendOfMonth,
+                            timeOfDay: args.recurrence.time
+                        } : undefined
+                    });
+                    dispatch(fetchTasks());
+                    const successMsg = `✅ Task created: ${args.title}`;
+                    const toolResult = `SUCCESS: ${successMsg}`;
+                    console.log("[MATE:TOOL_RESULT] createTask:", toolResult);
+                    // Add to UI history immediately
+                    setMessages(prev => [...prev, {
+                        id: 'tool-' + Date.now(),
+                        role: 'assistant',
+                        content: successMsg,
+                        timestamp: Date.now()
+                    }]);
+                    return `SUCCESS: ${successMsg}`;
+                }
+
+                case 'listTasks': {
+                    console.log("[MATE:LIST] Fetching...");
+                    const result = await dispatch(fetchTasks()).unwrap();
+                    console.log("[MATE:LIST] Result payload keys:", Object.keys(result));
+                    
+                    const data = result.data;
+                    const tasks = (Array.isArray(data) ? data : (data as any)?.tasks) || [];
+                    console.log("[MATE:LIST] Tasks found:", tasks.length);
+                    
+                    const pending = tasks.filter((t: any) => !t.completed);
+                    console.log("[MATE:LIST] Pending found:", pending.length);
+                    
+                    if (pending.length === 0) {
+                        return "NO PENDING TASKS FOUND.";
+                    }
+
+                    const listStr = pending.map((t: any) => `- ${t.title} (Due: ${new Date(t.dueDate).toLocaleTimeString()})`).join('\n');
+                    const displayMsg = `📋 Pending Tasks:\n${listStr}`;
+                    
+                    setMessages(prev => [...prev, {
+                        id: 'tool-list-' + Date.now(),
+                        role: 'assistant',
+                        content: displayMsg,
+                        timestamp: Date.now()
+                    }]);
+
+                    const resultStr = `SUCCEEDED: User can now see a list of ${pending.length} pending tasks.`;
+                    console.log("[MATE:TOOL_RESULT] listTasks:", resultStr);
+                    return resultStr;
+                }
+
+                case 'runChatReasoning': {
+                    setAgentStatus('🧠 Deep Reasoning...');
+                    const originalPrompt = currentPromptRef.current;
+                    console.log("[MATE:REASON] Using original prompt:", originalPrompt);
+                    
+                    try {
+                        const response = await mateApi.runReasoning(originalPrompt);
+                        const text = response.data;
+                        const answerMatch = text.match(/Answer:\s*([\s\S]*?)(?:\[DONE\]|$)/);
+                        const finalAnswer = answerMatch ? answerMatch[1].trim() : text;
+                        
+                        dispatch(fetchTasks());
+                        
+                        setMessages(prev => [...prev, {
+                            id: 'reason-' + Date.now(),
+                            role: 'assistant',
+                            content: finalAnswer,
+                            timestamp: Date.now()
+                        }]);
+
+                        return `REASONING COMPLETE: User has been notified.`;
+                    } catch (err) {
+                        console.error("[MATE:REASON_ERR]", err);
+                        if ((err as any).response) {
+                            console.error("[MATE:REASON_DATA]", (err as any).response.data);
+                        }
+                        return `ERROR: ${(err as any).message}`;
+                    }
+                }
+
+                default:
+                    return `Unknown tool: ${call.toolName}`;
+            }
+        } catch (error) {
+            console.error(`[MATE:TOOLERR] ${call.toolName}`, error);
+            return `FAILURE: ${(error as any).message}`;
+        }
+    }, [dispatch]);
+
+    // ─── Native RAM Disposal ──────────────────────────────────────────────
+    const llmRef = useRef(llm);
+    useEffect(() => { llmRef.current = llm; }, [llm]);
+
     useEffect(() => {
-        const isRtrReady = routerLlm.isReady;
-        const isReasReady = dualModelEnabled ? reasonerLlm.isReady : true;
-        const rtrProgress = routerLlm.downloadProgress;
-        const reasProgress = reasonerLlm.downloadProgress;
+        return () => {
+            // Explicitly kill the session and purge memory on screen exit
+            if (llmRef.current) {
+                console.log("[MATE] 🧹 Unmount: Purging LLM session from RAM...");
+                const target = llmRef.current as any;
+                if (target.delete) {
+                    target.delete().catch((e: any) => console.log("Delete failed:", e));
+                } else if (target.interrupt) {
+                    target.interrupt(); // Fallback to interrupt if delete isn't exposed
+                }
+            }
+        };
+    }, []);
 
-        if (routerLlm.isGenerating || reasonerLlm.isGenerating) {
+    // ─── Status Engine ──────────────────────────────────────────────────────
+    useEffect(() => {
+        if (llm.isGenerating) {
             setAgentStatus('🤖 Thinking...');
-        } else if (!isRtrReady && rtrProgress < 1) {
-            setAgentStatus(`Downloading Scout... ${Math.round(rtrProgress * 100)}%`);
-        } else if (!isRtrReady) {
-            setAgentStatus('Initializing Scout...');
-        } else if (dualModelEnabled && !isReasReady && reasProgress < 1) {
-            setAgentStatus(`Downloading Turbo... ${Math.round(reasProgress * 100)}%`);
-        } else if (dualModelEnabled && !isReasReady) {
-            setAgentStatus('Waking up Turbo...');
+        } else if (!llm.isReady && llm.downloadProgress < 1) {
+            setAgentStatus(`Downloading Intelligence... ${Math.round(llm.downloadProgress * 100)}%`);
+        } else if (!llm.isReady) {
+            setAgentStatus('Waking up...');
         } else {
             setAgentStatus('ready');
         }
-    }, [
-        routerLlm.isReady, 
-        reasonerLlm.isReady, 
-        routerLlm.downloadProgress, 
-        reasonerLlm.downloadProgress, 
-        dualModelEnabled, 
-        selectedModelId,
-        routerLlm.isGenerating,
-        reasonerLlm.isGenerating
-    ]);
+    }, [llm.isReady, llm.downloadProgress, llm.isGenerating]);
 
-    // ─── Recursive Orchestrator ────────────────────────────────────────────────
-    async function reconcile() {
+    // ─── Interaction Handlers ────────────────────────────────────────────────
+    const handleSend = async () => {
+        const text = input.trim();
+        if (!text || !llm.isReady) return;
+
+        console.log(`[MATE:USER_PROMPT] "${text}"`);
+        currentPromptRef.current = text;
+        setInput('');
+        
+        const newUserMsgId = 'user-' + Date.now();
+        setMessages(prev => [...prev, {
+            id: newUserMsgId,
+            role: 'user',
+            content: text,
+            timestamp: Date.now()
+        }]);
+
         try {
-            // 0. WARM-UP GUARD: Wait for native handle to stabilize
-            if (!routerRef.current.isReady) {
-                console.log("[KERNEL] Brain is cold. Waiting for warm-up...");
-                setAgentStatus('Waking up...');
-                let bootWait = 0;
-                while (!routerRef.current.isReady && bootWait < 100) {
-                    await new Promise(r => setTimeout(r, 100));
-                    bootWait++;
-                }
+            const lowText = text.toLowerCase();
+            const keywords = ['if', 'check', 'free', 'busy', 'schedule', 'planning', 'choice', 'decide', 'can i', 'should i'];
+            const needsReasoning = keywords.some(k => lowText.includes(k));
+
+            if (needsReasoning) {
+                console.log("[MATE:ROUTING] Hard-routed to Reasoning via code logic");
+                await executeTool({
+                    toolName: 'runChatReasoning',
+                    arguments: {}
+                });
+                return;
             }
 
-            while (iterationCount.current < 12) {
-                iterationCount.current += 1;
-
-                // 1. GENERATE PLAN (Brain-Led)
-                if (missionPlan.current.length === 0) {
-                    console.log("[KERNEL] Planning Mission...");
-                    const sys = buildStagePrompt('PLAN', isoDate(new Date()));
-                    const chat = [{ role: 'system', content: sys }, { role: 'user', content: lastUserText.current }];
-                    
-                    let output = "";
-                    if (dualModelEnabled) {
-                        while (!reasonerRef.current.isReady) await new Promise(r => setTimeout(r, 100));
-                        output = await (reasonerRef.current as any).generate(chat, []);
-                    } else {
-                        await safeChangeModel(SUMMARY_MODEL);
-                        output = await (routerRef.current as any).generate(chat, []);
-                    }
-                    
-                    try {
-                        const json = output.replace(/```(?:json)?|```/g, '').trim();
-                        missionPlan.current = JSON.parse(json);
-                        console.log("[KERNEL] Mission Locked:", missionPlan.current);
-                    } catch { missionPlan.current = [{"action": "final", "goal": "Error in planning"}]; }
-                }
-
-                // 2. EXECUTE NEXT STEP
-                const step = missionPlan.current.shift();
-                if (!step || step.action === 'final') break; 
-                console.log("[KERNEL] Executing:", step.action);
-
-                if (step.action === 'listTasks' || step.action === 'createTask') {
-                    // Tool Use (Scout-Led)
-                    const toolSys = buildStagePrompt('TOOL', isoDate(new Date()));
-                    const toolChat = [{ role: 'system', content: toolSys }, { role: 'user', content: `Extract ${step.action} for: ${JSON.stringify(step.params)}` }];
-                    
-                    let toolJson = "";
-                    if (dualModelEnabled) {
-                        toolJson = await (routerRef.current as any).generate(toolChat, []);
-                    } else {
-                        await safeChangeModel(ROUTER_MODEL);
-                        toolJson = await (routerRef.current as any).generate(toolChat, []);
-                    }
-
-                    const parsed = parseTools(toolJson);
-                    if (parsed.length > 0) {
-                        const result = await executeTool(parsed[0].name, parsed[0].arguments);
-                        missionEvidence.current += `\n[ACTION:${step.action}] ${result}`;
-                    }
-                } 
-                else if (step.action === 'evaluate') {
-                    // Reasoning turn (Brain-Led)
-                    const sys = buildStagePrompt('SOLVE', isoDate(new Date()), step.goal, missionEvidence.current);
-                    const chat = [{ role: 'system', content: sys }, { role: 'user', content: lastUserText.current }];
-                    
-                    let resp = "";
-                    if (dualModelEnabled) {
-                        resp = await (reasonerRef.current as any).generate(chat, []);
-                    } else {
-                        await safeChangeModel(SUMMARY_MODEL);
-                        resp = await (routerRef.current as any).generate(chat, []);
-                    }
-                    missionEvidence.current += `\n[REASON] Decision: ${resp}`;
-                    
-                    // Branching: If Conflict, stop and explain
-                    if (resp.includes('CLARIFY') || resp.includes('CONFLICT')) break;
-                }
-            }
-
-            // 3. FINAL SUMMARY
-            console.log("[KERNEL] Finalizing Mission...");
-            const finalSys = buildStagePrompt('SUM', isoDate(new Date()), "", missionEvidence.current);
-            const finalChat = [{ role: 'system', content: finalSys }, { role: 'user', content: lastUserText.current }];
+            console.log("[MATE:GEN] Proceeding to Hammer for simple intent routing...");
+            const systemPrompt = buildSystemPrompt(isoDate(new Date()));
             
-            let finalOutput = "";
-            if (dualModelEnabled) finalOutput = await (reasonerRef.current as any).generate(finalChat, []);
-            else {
-                await safeChangeModel(SUMMARY_MODEL);
-                finalOutput = await (routerRef.current as any).generate(finalChat, []);
-            }
-            
-            setHistory(prev => [...prev, { role: 'assistant', content: finalOutput }]);
+            const chat: Message[] = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: text }
+            ];
 
+            const response = await (llm as any).generate(chat, MATE_TOOLS);
+            console.log("[MATE:RAW_HAMMER]", response);
+            
+            // --- Manual Tool Parsing ---
+            const jsonMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (jsonMatch) {
+                try {
+                    const toolCalls = JSON.parse(jsonMatch[0]);
+                    console.log("[MATE:PARSED_TOOLS]", toolCalls);
+                    
+                    if (toolCalls.length > 0) {
+                        // --- Priority Selection: Prefer Reasoning over Simple Tools ---
+                        // If the model is confused and calls multiple tools, we MUST pick Reasoning
+                        // because it handles complex conditional logic.
+                        const reasoningCall = toolCalls.find((c: any) => c.name === 'runChatReasoning');
+                        const finalCall = reasoningCall || toolCalls[0];
+
+                        if (finalCall.name && finalCall.arguments) {
+                            await executeTool({
+                                toolName: finalCall.name,
+                                arguments: finalCall.arguments
+                            });
+                        }
+                    }
+                } catch (parseErr) {
+                    console.error("[MATE:PARSE_ERR]", parseErr);
+                }
+            } else {
+                const cleaned = response.trim();
+                if (cleaned && cleaned !== 'null') {
+                    setMessages(prev => [...prev, {
+                        id: 'assistant-' + Date.now(),
+                        role: 'assistant',
+                        content: cleaned,
+                        timestamp: Date.now()
+                    }]);
+                }
+            }
         } catch (e) {
-            console.error("[KERNEL:FATAL]", e);
-            setHistory(prev => [...prev, { role: 'assistant', content: "⚠️ Mission failed. Please try again." }]);
+            console.error("[MATE:GEN_FAIL]", e);
         } finally {
-            iterationCount.current = 0; missionPlan.current = []; missionEvidence.current = ""; setAgentStatus('ready');
-            if (!dualModelEnabled) setActiveRouterModel(ROUTER_MODEL); // Reset to Scout
+            // --- CRITICAL: Reset Native Session for 0.5B Stability ---
+            try {
+                if (llm.messageHistory.length > 0) {
+                    console.log(`[MATE:CLEANUP] Clearing ${llm.messageHistory.length} messages from internal state...`);
+                    // Removing messages from the hook's history helps keep the next generate call clean
+                    // We delete from index 0 until empty
+                    for (let i = 0; i < llm.messageHistory.length; i++) {
+                        llm.deleteMessage(0);
+                    }
+                }
+            } catch (cleanupErr) {
+                console.log("[MATE:CLEANUP_ERR]", cleanupErr);
+            }
+        }
+    };
+
+    // Remove the automatic tool configurator as we now use manual generate
+    useEffect(() => {
+        // No longer using llm.configure for tools since we handle it manually via llm.generate
+    }, [llm.isReady]);
+
+    const handleInterrupt = () => {
+        (llm as any).interrupt?.();
+        setAgentStatus('ready');
+    };
+
+    // ─── UI Message Stream ──────────────────────────────────────────────────
+    useEffect(() => {
+        const uiMsgs = history.map((m, i) => ({
+            id: `msg-${i}-${Date.now()}`,
+            role: m.role as 'user' | 'assistant',
+            content: (m.content || '').replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim(),
+            timestamp: Date.now()
+        })).filter(m => m.content);
+        setMessages(uiMsgs);
+    }, [history]);
+
+    const displayMessages = [...messages];
+    if (llm.isGenerating && llm.response) {
+        const cleaned = llm.response.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
+        if (cleaned) {
+            displayMessages.push({
+                id: 'streaming-' + Date.now(),
+                role: 'assistant',
+                content: cleaned,
+                timestamp: Date.now()
+            });
         }
     }
 
-    // ─── Swap & Core ───────────────────────────────────────────────────────────
-    const safeChangeModel = async (config: any) => {
-        if (dualModelEnabled || activeRouterModel === config) return;
-        try {
-            (routerRef.current as any).interrupt?.();
-            setActiveRouterModel(null);
-            await new Promise(r => setTimeout(r, 400));
-            if (routerRef.current.isReady) await (routerRef.current as any).delete?.().catch(()=>{});
-        } catch {}
-        setActiveRouterModel(config);
-        while (!routerRef.current.isReady) await new Promise(r => setTimeout(r, 100));
+    return {
+        llm,
+        messages: displayMessages,
+        input,
+        setInput,
+        handleSend,
+        handleInterrupt,
+        agentStatus,
+        capability,
+        isReady: llm.isReady,
+        isDownloading: !llm.isReady && llm.downloadProgress < 1 && llm.downloadProgress > 0,
+        downloadProgress: llm.downloadProgress
     };
-
-    function parseTools(text: string) { try { const match = text.replace(/```(?:json)?|```/g, '').trim().match(/\[\s*{\s*"name"[\s\S]*?\}\s*\]/); return match ? JSON.parse(match[0]) : []; } catch { return []; } }
-    async function executeTool(intent: string, args: Record<string, any>) {
-        const date = args.date || args.dueDate || isoDate(new Date());
-        try {
-            if (intent === 'createTask') {
-                const time = args.dueTime || "09:00";
-                const d = new Date(`${date}T${time}:00`);
-                await taskApi.create({ title: args.title, dueDate: d.toISOString(), recurrence: { frequency: 'none' } });
-                await dispatch(fetchTasks());
-                return `SUCCESS: Created ${args.title} for ${date}`;
-            } else {
-                await dispatch(fetchTasks({ created_at: date }));
-                const tasks = unifiedTasks.filter(t => !t.completed && t.dueDate?.startsWith(date));
-                if (tasks.length === 0) return `EMPTY: No tasks for ${date}`;
-                return `LIST: ` + tasks.map(t => `${t.title} (${t.dueDate?.split('T')[1].substring(0,5)})`).join(', ');
-            }
-        } catch (e: any) { return `ERROR: ${e.message}`; }
-    }
-
-    const handleSend = async () => {
-        const text = input.trim();
-        if (!text) return;
-        
-        // Instant Feedback
-        setInput('');
-        setHistory(prev => [...prev, { role: 'user', content: text }]);
-        lastUserText.current = text;
-        setAgentStatus('thinking');
-        
-        await reconcile();
-    };
-
-    const handleSelectModel = async (id: string | null) => { if (id) { setSelectedModelId(id); if (currentUserId) dispatch(updateUserPreferences({ userId: currentUserId, preferences: { selectedModelId: id } })); return true; } return false; };
-    const handleInterrupt = () => { (routerRef.current as any).interrupt?.(); (reasonerRef.current as any).interrupt?.(); setAgentStatus('ready'); };
-    useEffect(() => { const uiMsgs = history.map((m, i) => ({ id: `msg-${i}`, role: m.role as 'user' | 'assistant', content: (m.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim(), timestamp: Date.now() })).filter(m => m.content); setMessages(uiMsgs); }, [history]);
-
-    return { llm: routerLlm, messages, input, setInput, handleSend, handleSelectModel, handleInterrupt, agentStatus, capability };
 };

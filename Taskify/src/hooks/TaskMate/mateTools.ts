@@ -3,7 +3,7 @@ import { LLMTool } from 'react-native-executorch';
 export const MATE_TOOLS: LLMTool[] = [
     {
         name: 'createTask',
-        description: 'Registers a new task in the system.',
+        description: 'Registers a simple task. DO NOT use if the user request has "if", "when", or requires checking conflicts.',
         parameters: {
             type: 'dict',
             properties: {
@@ -37,14 +37,18 @@ export const MATE_TOOLS: LLMTool[] = [
     },
     {
         name: 'listTasks',
-        description: 'Fetch tasks for a specific timeline.',
+        description: 'Fetch and display pending tasks.',
         parameters: {
             type: 'dict',
-            properties: {
-                date: { type: 'string', description: 'YYYY-MM-DD (Calculated from current date)' },
-                allTasks: { type: 'boolean', description: 'Set true to fetch the entire database' },
-                llm_required: { type: 'boolean', description: 'True if the user response requires an explanation or summary.' }
-            }
+            properties: {}
+        }
+    },
+    {
+        name: 'runChatReasoning',
+        description: 'MANDATORY for any request involving "if", "when", availability checks, or complex planning.',
+        parameters: {
+            type: 'dict',
+            properties: {}
         }
     }
 ];

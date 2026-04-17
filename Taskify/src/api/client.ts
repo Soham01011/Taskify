@@ -30,16 +30,17 @@ client.interceptors.request.use(
         const currentUserId = state.auth.currentUserId;
         const currentUser = state.auth.users.find((u: User) => u.id === currentUserId);
 
-        if (currentUser) {
-            if (currentUser.apiEndpoint) {
-                config.baseURL = currentUser.apiEndpoint;
+            if (currentUser) {
+                if (currentUser.apiEndpoint) {
+                    config.baseURL = currentUser.apiEndpoint;
+                }
+                if (currentUser.accessToken) {
+                    config.headers.Authorization = `Bearer ${currentUser.accessToken}`;
+                }
             }
-            if (currentUser.accessToken) {
-                config.headers.Authorization = `Bearer ${currentUser.accessToken}`;
-            }
-        }
-        return config;
-    },
+            console.log(`[API:REQ] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+            return config;
+        },
     (error) => Promise.reject(error)
 );
 

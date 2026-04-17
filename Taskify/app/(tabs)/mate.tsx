@@ -15,14 +15,6 @@ import { RootState } from '@/src/store';
 
 export default function TaskMateScreen() {
     const { colors } = useAppTheme();
-    const { currentUserId, users } = useSelector((s: RootState) => s.auth);
-    const currentUser = users.find(u => u.id === currentUserId);
-    const preferredModelId = currentUser?.preferences?.selectedModelId;
-    
-    const { selectedReasoningModelId } = useSelector((s: RootState) => s.mateConfig);
-    const [selectedModelId, setSelectedModelId] = useState<string | null>(selectedReasoningModelId || preferredModelId || null);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [showControlCenter, setShowControlCenter] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     const {
@@ -34,14 +26,10 @@ export default function TaskMateScreen() {
         input,
         setInput,
         handleSend,
-        handleSelectModel,
-        handleDeleteModel,
         handleInterrupt,
-        downloadedModels,
-        activeModel,
         agentStatus,
         capability,
-    } = useTaskMate(selectedModelId, setSelectedModelId);
+    } = useTaskMate();
 
     const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => (
         <View style={[
@@ -80,40 +68,13 @@ export default function TaskMateScreen() {
         </View>
     ), [colors]);
 
-    const downloadLabel = 'Intelligence Model';
-
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={{ flex: 1 }}
             >
-                <ChatHeader
-                    colors={colors}
-                    selectedModelId={selectedModelId}
-                    onToggleDropdown={() => setShowDropdown(!showDropdown)}
-                    onToggleControlCenter={() => setShowControlCenter(!showControlCenter)}
-                />
-
-                {showDropdown && (
-                    <ModelDropdown
-                        colors={colors}
-                        selectedModelId={selectedModelId}
-                        downloadedModels={downloadedModels}
-                        onClose={() => setShowDropdown(false)}
-                        onSelect={(m) => { handleSelectModel(m.id); setShowDropdown(false); }}
-                        onDelete={(m) => handleDeleteModel(m.id)}
-                    />
-                )}
-
-                {showControlCenter && (
-                    <ControlCenter 
-                        colors={colors} 
-                        onClose={() => setShowControlCenter(false)}
-                        downloadedModels={downloadedModels}
-                        onDeleteModel={(m) => handleDeleteModel(m.id)}
-                    />
-                )}
+                <ChatHeader colors={colors} />
 
                 <FlatList
                     ref={flatListRef}
@@ -125,8 +86,7 @@ export default function TaskMateScreen() {
                         <WelcomeSection
                             colors={colors}
                             routerReady={isReady}
-                            hasMainModel={!!activeModel}
-                            onSetup={() => setShowDropdown(true)}
+                            hasMainModel={true}
                         />
                     )}
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
@@ -136,7 +96,7 @@ export default function TaskMateScreen() {
                     <DownloadOverlay
                         colors={colors}
                         progress={downloadProgress}
-                        label={downloadLabel}
+                        label="Intelligence Model"
                     />
                 )}
 
@@ -144,10 +104,9 @@ export default function TaskMateScreen() {
                     colors={colors}
                     routerReady={isReady}
                     mainLlmReady={isReady}
-                    hasMainModel={!!activeModel}
+                    hasMainModel={true}
                     error={llm?.error}
                     status={agentStatus}
-                    onRetry={() => setShowDropdown(true)}
                 />
 
                 <ChatInput

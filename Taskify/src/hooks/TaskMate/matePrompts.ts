@@ -1,46 +1,37 @@
-// ─── Qwen PLANNER Prompt (The General) ────────────────────────────────────────
-const buildPlanPrompt = (today: string, localTime: string) =>
-    `You are TaskMate Planner. Today: ${today}.
-Analyze the user's request and generate a MISSION PLAN (JSON Array) using these tools:
-- listTasks({"date": "YYYY-MM-DD"})
-- createTask({"title": "NAME", "dueDate": "YYYY-MM-DD", "dueTime": "HH:mm"})
+const TASKMATE_INSTRUCTIONS = `You are TaskMate, a tool router.
+ONLY output JSON. NO conversation.
 
-Pattern: [{"action": "listTasks", "params": {"date": "${today}"}}, {"action": "evaluate", "goal": "Check 4 PM slot"}, {"action": "createTask", "params": {"title": "Gym", "dueDate": "${today}", "dueTime": "16:00"}}]
-RULES:
-1. Always FETCH before CREATING if looking for a free slot.
-2. Output ONLY the JSON Array.`;
+CRITICAL RULES:
+1. ONLY CALL ONE TOOL. Calling two tools is a FATAL ERROR.
+2. If user says "IF", "CHECK", "FREE TIME", or "SCHEDULE", you MUST ONLY CALL 'runChatReasoning'.
+3. 'runChatReasoning' takes ZERO parameters: {"name": "runChatReasoning", "arguments": {}}
+4. Use 'createTask' ONLY for simple "add X" commands.
+5. Use 'listTasks' ONLY for listing.
 
-// ─── Hammer TOOL-CALLER Prompt (The Scout) ───────────────────────────────────
-const buildToolPrompt = (today: string) =>
-    `You are Tool Scout for ${today}.
-Generate the JSON tool call based on input.
-- listTasks: [{"name": "listTasks", "arguments": {"date": "YYYY-MM-DD"}}]
-- createTask: [{"name": "createTask", "arguments": {"title": "NAME", "dueDate": "YYYY-MM-DD", "dueTime": "HH:mm"}}]
-Output ONLY JSON.`;
+ROUTING:
+- Complex/IF/Check -> runChatReasoning
+- Simple Add -> createTask
+- List -> listTasks
+`;
 
-// ─── Qwen STEP-SOLVER Prompt ─────────────────────────────────────────────────
-const buildSolvePrompt = (goal: string, evidence: string) =>
-    `You are TaskMate Solver. 
-STEP GOAL: ${goal}
-MISSION EVIDENCE: ${evidence}
-Decide if the goal is met (Conflict vs Free). Use the 30-min buffer rule.
-Output: PROCEED or CLARIFY (with reason).`;
-
-// ─── Qwen SUMMARY Prompt ─────────────────────────────────────────────────────
-const buildSumPrompt = (evidence: string) =>
-    `Final Summary Turn. Friendly and clear.
-Results: ${evidence}`;
-
-export const buildStagePrompt = (
-    stage: 'PLAN' | 'TOOL' | 'SOLVE' | 'SUM',
-    today: string,
-    goal: string = "",
-    evidence: string = ""
-): string => {
-    if (stage === 'PLAN') return buildPlanPrompt(today, new Date().toLocaleTimeString()).replace(/[^\x00-\x7F]/g, " ");
-    if (stage === 'TOOL') return buildToolPrompt(today).replace(/[^\x00-\x7F]/g, " ");
-    if (stage === 'SOLVE') return buildSolvePrompt(goal, evidence).replace(/[^\x00-\x7F]/g, " ");
-    return buildSumPrompt(evidence).replace(/[^\x00-\x7F]/g, " ");
+export const buildSystemPrompt = (isoDate: string) => {
+    const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    };
+    const now = new Date().toLocaleString('en-US', options);
+    const prompt = `${TASKMATE_INSTRUCTIONS}
+---
+CURRENT SYSTEM TIME: ${now}
+DATE REFERENCE: ${isoDate}
+---
+`;
+    return prompt;
 };
 
-export const isoDate = (d: Date) => d.toISOString().split('T')[0];
+export const isoDate = (date: Date) => date.toISOString().split('T')[0];
