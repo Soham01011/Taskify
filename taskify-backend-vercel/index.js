@@ -21,6 +21,7 @@ const groupRoutes         = require('./routes/groups');
 const userRoutes          = require('./routes/users');
 const notificationRoutes  = require('./routes/notifications');
 const ideaRoutes          = require('./routes/ideas');
+const ollamaRoutes        = require('./routes/ollama');
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/groups',        groupRoutes);
 app.use('/api/users',         userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ideas',         ideaRoutes);
+app.use('/api/ollama',        ollamaRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
