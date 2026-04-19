@@ -3,12 +3,14 @@ import { Message, useLLM, ToolCall } from 'react-native-executorch';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { fetchTasks, selectUnifiedTasks } from '../store/slices/taskSlice';
+import { fetchIdeas } from '../store/slices/ideaSlice';
 import { useDeviceCapability } from '../utils/usedevicecapability';
 import { ChatMessage, AgentStatus } from './TaskMate/types';
 import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
 import { MATE_MODELS } from '../constants/mateModels';
 import { MATE_TOOLS } from './TaskMate/mateTools';
 import { taskApi } from '../api/tasks';
+import { ideaApi } from '../api/ideas';
 import { mateApi } from '../api/mate';
 
 export const useTaskMate = () => {
@@ -32,23 +34,24 @@ export const useTaskMate = () => {
     // ─── Tool Execution Logic ──────────────────────────────────────────────
     const executeTool = useCallback(async (call: ToolCall): Promise<string | null> => {
         console.log(`[MATE:TOOL] ${call.toolName}`, call.arguments);
-        
+
         try {
             switch (call.toolName) {
                 case 'createTask': {
                     const args = call.arguments as any;
+                    const fullDueDate = args.dueTime ? `${args.dueDate}T${args.dueTime}` : args.dueDate;
+                    const dateObj = new Date(fullDueDate);
+                    const utcDueDate = isNaN(dateObj.getTime()) ? fullDueDate : dateObj.toISOString();
+                    
                     const response = await taskApi.create({
                         title: args.title,
                         description: args.description,
-                        dueDate: args.dueDate,
-                        recurrence: args.recurrence ? {
-                            frequency: args.recurrence.type === 'none' ? 'none' : 
-                                      args.recurrence.type === 'daily' ? 'daily' : 
-                                      args.recurrence.type === 'weekly' ? 'weekly' : 'monthly',
-                            dayOfMonth: args.recurrence.dayOfMonth,
-                            lastWeekend: args.recurrence.weekendOfMonth,
-                            timeOfDay: args.recurrence.time
-                        } : undefined
+                        dueDate: utcDueDate,
+                        alarm_type: 'push', // Default to push notification
+                        alarm_reminder_time: utcDueDate, // Default reminder at due time
+                        recurrence: {
+                            frequency: 'none'
+                        }
                     });
                     dispatch(fetchTasks());
                     const successMsg = `✅ Task created: ${args.title}`;
@@ -68,21 +71,21 @@ export const useTaskMate = () => {
                     console.log("[MATE:LIST] Fetching...");
                     const result = await dispatch(fetchTasks()).unwrap();
                     console.log("[MATE:LIST] Result payload keys:", Object.keys(result));
-                    
+
                     const data = result.data;
                     const tasks = (Array.isArray(data) ? data : (data as any)?.tasks) || [];
                     console.log("[MATE:LIST] Tasks found:", tasks.length);
-                    
+
                     const pending = tasks.filter((t: any) => !t.completed);
                     console.log("[MATE:LIST] Pending found:", pending.length);
-                    
+
                     if (pending.length === 0) {
                         return "NO PENDING TASKS FOUND.";
                     }
 
                     const listStr = pending.map((t: any) => `- ${t.title} (Due: ${new Date(t.dueDate).toLocaleTimeString()})`).join('\n');
                     const displayMsg = `📋 Pending Tasks:\n${listStr}`;
-                    
+
                     setMessages(prev => [...prev, {
                         id: 'tool-list-' + Date.now(),
                         role: 'assistant',
@@ -95,19 +98,60 @@ export const useTaskMate = () => {
                     return resultStr;
                 }
 
+                case 'listIdeas': {
+                    console.log("[MATE:LIST] Fetching ideas...")
+                    const result = await dispatch(fetchIdeas()).unwrap();
+                    const data = result.data;
+                    const ideas = (Array.isArray(data) ? data : (data as any)?.ideas) || [];
+                    
+                    if (ideas.length === 0) {
+                        return "NO IDEAS FOUND.";
+                    }
+
+                    const listStr = ideas.map((i: any) => `- ${i.title}`).join('\n');
+                    const displayMsg = `💡 Your Ideas:\n${listStr}`;
+
+                    setMessages(prev => [...prev, {
+                        id: 'tool-list-ideas-' + Date.now(),
+                        role: 'assistant',
+                        content: displayMsg,
+                        timestamp: Date.now()
+                    }]);
+
+                    return `SUCCEEDED: Listed ${ideas.length} ideas.`;
+                }
+
+                case 'createIdea': {
+                    const args = call.arguments as any;
+                    await ideaApi.create({
+                        title: args.title,
+                        description: args.description,
+                    });
+                    dispatch(fetchIdeas());
+                    const successMsg = `💡 Idea saved: ${args.title}`;
+                    
+                    setMessages(prev => [...prev, {
+                        id: 'tool-idea-' + Date.now(),
+                        role: 'assistant',
+                        content: successMsg,
+                        timestamp: Date.now()
+                    }]);
+                    return `SUCCESS: ${successMsg}`;
+                }
+
                 case 'runChatReasoning': {
                     setAgentStatus('🧠 Deep Reasoning...');
                     const originalPrompt = currentPromptRef.current;
                     console.log("[MATE:REASON] Using original prompt:", originalPrompt);
-                    
+
                     try {
                         const response = await mateApi.runReasoning(originalPrompt);
                         const text = response.data;
                         const answerMatch = text.match(/Answer:\s*([\s\S]*?)(?:\[DONE\]|$)/);
                         const finalAnswer = answerMatch ? answerMatch[1].trim() : text;
-                        
+
                         dispatch(fetchTasks());
-                        
+
                         setMessages(prev => [...prev, {
                             id: 'reason-' + Date.now(),
                             role: 'assistant',
@@ -174,7 +218,7 @@ export const useTaskMate = () => {
         console.log(`[MATE:USER_PROMPT] "${text}"`);
         currentPromptRef.current = text;
         setInput('');
-        
+
         const newUserMsgId = 'user-' + Date.now();
         setMessages(prev => [...prev, {
             id: newUserMsgId,
@@ -199,22 +243,22 @@ export const useTaskMate = () => {
 
             console.log("[MATE:GEN] Proceeding to Hammer for simple intent routing...");
             const systemPrompt = buildSystemPrompt(isoDate(new Date()));
-            
+
             const chat: Message[] = [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: text }
             ];
 
-            const response = await (llm as any).generate(chat, MATE_TOOLS);
+            const response = await (llm as any).generate(chat);
             console.log("[MATE:RAW_HAMMER]", response);
-            
+
             // --- Manual Tool Parsing ---
             const jsonMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
             if (jsonMatch) {
                 try {
                     const toolCalls = JSON.parse(jsonMatch[0]);
                     console.log("[MATE:PARSED_TOOLS]", toolCalls);
-                    
+
                     if (toolCalls.length > 0) {
                         // --- Priority Selection: Prefer Reasoning over Simple Tools ---
                         // If the model is confused and calls multiple tools, we MUST pick Reasoning
@@ -252,7 +296,7 @@ export const useTaskMate = () => {
                     console.log(`[MATE:CLEANUP] Clearing ${llm.messageHistory.length} messages from internal state...`);
                     // Removing messages from the hook's history helps keep the next generate call clean
                     // We delete from index 0 until empty
-                    for (let i = 0; i < llm.messageHistory.length; i++) {
+                    while (llm.messageHistory.length > 0) {
                         llm.deleteMessage(0);
                     }
                 }
