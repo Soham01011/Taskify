@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,12 +10,17 @@ import { ModelDropdown } from '@/src/components/TaskMate/ModelDropdown';
 import { ChatInput } from '@/src/components/TaskMate/ChatInput';
 import { WelcomeSection, DownloadOverlay, StatusIndicator } from '@/src/components/TaskMate/MiscComponents';
 import { ControlCenter } from '@/src/components/TaskMate/ControlCenter';
+import * as Sentry from "@sentry/react-native";
 import { useSelector } from 'react-redux';
 import { RootState } from '@/src/store';
 
 export default function TaskMateScreen() {
     const { colors } = useAppTheme();
     const flatListRef = useRef<FlatList>(null);
+
+    useEffect(() => {
+        Sentry.metrics.count('taskmate_screen_view', 1);
+    }, []);
 
     const {
         llm,

@@ -1,17 +1,21 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Message, useLLM, ToolCall } from 'react-native-executorch';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../store';
-import { fetchTasks, selectUnifiedTasks } from '../store/slices/taskSlice';
-import { fetchIdeas } from '../store/slices/ideaSlice';
-import { useDeviceCapability } from '../utils/usedevicecapability';
-import { ChatMessage, AgentStatus } from './TaskMate/types';
-import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
-import { MATE_MODELS } from '../constants/mateModels';
-import { MATE_TOOLS } from './TaskMate/mateTools';
-import { taskApi } from '../api/tasks';
+import * as Sentry from "@sentry/react-native";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Message, ToolCall, useLLM } from 'react-native-executorch';
+import { useDispatch, useSelector } from 'react-redux';
 import { ideaApi } from '../api/ideas';
 import { mateApi } from '../api/mate';
+import { taskApi } from '../api/tasks';
+import { MATE_MODELS } from '../constants/mateModels';
+import { AppDispatch, RootState } from '../store';
+import { fetchIdeas } from '../store/slices/ideaSlice';
+import { fetchTasks, selectUnifiedTasks } from '../store/slices/taskSlice';
+import { useDeviceCapability } from '../utils/usedevicecapability';
+import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
+import { AgentStatus, ChatMessage } from './TaskMate/types';
+
+Sentry.init({
+    dsn: "https://81f07fb811891ce2d74da64451cccba5@o4510952845344768.ingest.de.sentry.io/4510952849342544",
+});
 
 export const useTaskMate = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -42,7 +46,7 @@ export const useTaskMate = () => {
                     const fullDueDate = args.dueTime ? `${args.dueDate}T${args.dueTime}` : args.dueDate;
                     const dateObj = new Date(fullDueDate);
                     const utcDueDate = isNaN(dateObj.getTime()) ? fullDueDate : dateObj.toISOString();
-                    
+
                     const response = await taskApi.create({
                         title: args.title,
                         description: args.description,
@@ -103,7 +107,7 @@ export const useTaskMate = () => {
                     const result = await dispatch(fetchIdeas()).unwrap();
                     const data = result.data;
                     const ideas = (Array.isArray(data) ? data : (data as any)?.ideas) || [];
-                    
+
                     if (ideas.length === 0) {
                         return "NO IDEAS FOUND.";
                     }
@@ -129,7 +133,7 @@ export const useTaskMate = () => {
                     });
                     dispatch(fetchIdeas());
                     const successMsg = `💡 Idea saved: ${args.title}`;
-                    
+
                     setMessages(prev => [...prev, {
                         id: 'tool-idea-' + Date.now(),
                         role: 'assistant',
@@ -145,7 +149,16 @@ export const useTaskMate = () => {
                     console.log("[MATE:REASON] Using original prompt:", originalPrompt);
 
                     try {
+                        const startTime = Date.now();
                         const response = await mateApi.runReasoning(originalPrompt);
+                        const duration = Date.now() - startTime;
+
+                        Sentry.metrics.count('cloud_chat_invocation', 1);
+                        Sentry.metrics.distribution('agentic_ai_time', duration, {
+                            unit: 'millisecond',
+                            attributes: { type: 'cloud_chat' }
+                        });
+
                         const text = response.data;
                         const answerMatch = text.match(/Answer:\s*([\s\S]*?)(?:\[DONE\]|$)/);
                         const finalAnswer = answerMatch ? answerMatch[1].trim() : text;
@@ -249,7 +262,16 @@ export const useTaskMate = () => {
                 { role: 'user', content: text }
             ];
 
+            const startTime = Date.now();
             const response = await (llm as any).generate(chat);
+            const duration = Date.now() - startTime;
+
+            Sentry.metrics.count('hammer_llm_invocation', 1);
+            Sentry.metrics.distribution('agentic_ai_time', duration, {
+                unit: 'millisecond',
+                attributes: { type: 'hammer_llm' }
+            });
+
             console.log("[MATE:RAW_HAMMER]", response);
 
             // --- Manual Tool Parsing ---
