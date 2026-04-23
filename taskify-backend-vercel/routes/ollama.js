@@ -5,6 +5,8 @@ const { Ollama } = require('ollama');
 const { traceable } = require('langsmith/traceable');
 const { getTasks, getTasksDefinition } = require('../tools/getTasks');
 const { createTask, createTaskDefinition } = require('../tools/createTask');
+const { getIdeas, getIdeasDefinition } = require('../tools/getIdeas');
+const { createIdea, createIdeaDefinition } = require('../tools/createIdea');
 
 // Initialize Ollama client with API Key support for hosted services
 let ollamaHost = 'https://ollama.com/api';
@@ -42,6 +44,10 @@ const executeTool = traceable(async (userId, toolCall) => {
     toolResult = await getTasks(userId, args.date, args.fromDate, args.toDate);
   } else if (name === 'createTask') {
     toolResult = await createTask(userId, args.title, args.description, args.datetime, args.recurrence);
+  } else if (name === 'getIdeas') {
+    toolResult = await getIdeas(userId);
+  } else if (name === 'createIdea') {
+    toolResult = await createIdea(userId, args.title, args.description);
   }
   
   return toolResult;
@@ -61,7 +67,7 @@ const runChat = traceable(async (userId, currentMessages, res, turnCount = 0) =>
   const stream = await chatWithOllama({
     model: model,
     messages: currentMessages,
-    tools: [getTasksDefinition, createTaskDefinition],
+    tools: [getTasksDefinition, createTaskDefinition, getIdeasDefinition, createIdeaDefinition],
     stream: true,
   });
 
@@ -138,13 +144,14 @@ router.post('/reason', verifyToken, async (req, res) => {
 
     const userId = req.userId;
     const currentDate = new Date().toISOString().replace('T', ' ').slice(0, 16);
-    const systemPrompt = `You are an intelligent task management assistant. 
+    const systemPrompt = `You are an intelligent task management and ideas assistant. 
 Current date and time is ${currentDate}. 
 Resolve all relative dates like 'today', 'tomorrow', or 'next Friday' using this timestamp. 
 Only call tools required to complete the request. 
 Each Task requires 30 min and the due date are the start time for the tasks. While cheking for free time do chekc tasks dont over lap.
 If you need more information from the user, ask for clarification instead of calling tools.
-Don't worry about timezones act as per the local time and time mentioned by the user. The timezones will be managed by tools.`;
+Don't worry about timezones act as per the local time and time mentioned by the user. The timezones will be managed by tools.
+You can also manage the user's ideas. Users can store, view, and organize creative thoughts or notes as ideas.`;
 
     // Ensure we have a system message with context
     let processedMessages = [...messages];
