@@ -5,10 +5,12 @@ import { updateGroupTask } from '../store/slices/groupSlice';
 import { NotificationService } from '../utils/notificationService';
 import { registerBackgroundFetch } from '../utils/backgroundTasks';
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { authApi } from '../api/auth';
+import { taskApi } from '../api/tasks';
+import { groupApi } from '../api/groups';
+import { updateTask } from '../store/slices/taskSlice';
+
 
 export const NotificationManager: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -16,6 +18,15 @@ export const NotificationManager: React.FC = () => {
     const groups = useSelector((state: RootState) => state.groups.groups);
     const { currentUserId, users } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
+
+    // Use refs to avoid stale closures in notification listeners
+    const tasksRef = React.useRef(tasks);
+    const groupsRef = React.useRef(groups);
+
+    useEffect(() => {
+        tasksRef.current = tasks;
+        groupsRef.current = groups;
+    }, [tasks, groups]);
 
     useEffect(() => {
         // Initialize permissions and get push token
@@ -42,11 +53,43 @@ export const NotificationManager: React.FC = () => {
         // Register background fetch
         registerBackgroundFetch();
 
-        // Handle notification selection (tapping on notification)
-        const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+        // Handle notification selection (tapping on notification or action buttons)
+        const responseSubscription = Notifications.addNotificationResponseReceivedListener(async response => {
             const data = response.notification.request.content.data;
-            if (data.taskId) {
-                console.log('Notification tapped for task:', data.taskId, 'Type:', data.type);
+            const actionIdentifier = response.actionIdentifier;
+            const taskId = data.taskId;
+
+            if (taskId) {
+                console.log('Notification interaction for task:', taskId, 'Action:', actionIdentifier);
+
+                // Handle "Mark as Completed" action
+                if (actionIdentifier === 'MARK_COMPLETED') {
+                    try {
+                        if (data.type === 'PERSONAL_TASK') {
+                            const res = await taskApi.complete(taskId);
+                            if (res.data) {
+                                dispatch(updateTask(res.data));
+                            }
+                        } else if (data.type === 'GROUP_TASK') {
+                            const group = groupsRef.current.find(g => g.tasks.some(t => t._id === taskId));
+                            if (group) {
+                                const res = await groupApi.updateTask(group._id, taskId, { completed: true });
+                                // Find the updated task in the group response
+                                const updatedTask = res.data.tasks.find(t => t._id === taskId);
+                                if (updatedTask) {
+                                    dispatch(updateGroupTask({
+                                        groupId: group._id,
+                                        task: updatedTask
+                                    }));
+                                }
+                            }
+                        }
+                        // Dismiss the notification after action
+                        await Notifications.dismissNotificationAsync(taskId);
+                    } catch (error) {
+                        console.error('Failed to mark task as completed from notification:', error);
+                    }
+                }
             }
         });
 
@@ -55,7 +98,7 @@ export const NotificationManager: React.FC = () => {
             const data = notification.request.content.data;
 
             // Check if this is a sync request from backend
-            const needsSync = await NotificationService.handleSilentSync(data, tasks);
+            const needsSync = await NotificationService.handleSilentSync(data, tasksRef.current);
             if (needsSync) {
                 console.log('Sync triggered by remote notification, refreshing data');
             }
@@ -103,8 +146,8 @@ export const NotificationManager: React.FC = () => {
         // Sync both personal and group tasks whenever they change or preferences change
         const sync = async () => {
             await NotificationService.syncTasksWithNotifications(
-                tasks, 
-                groups, 
+                tasks,
+                groups,
                 currentUser?.preferences
             );
         };

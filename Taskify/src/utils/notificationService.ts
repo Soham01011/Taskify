@@ -76,37 +76,58 @@ export class NotificationService {
         return await this.registerForPushNotificationsAsync();
     }
 
-    static async scheduleTaskNotification(task: any, isGroupTask: boolean = false) {
+    static async scheduleTaskNotification(task: any, isGroupTask: boolean = false, presentedIds: string[] = []) {
         // Handle field differences between Task and GroupTask
         const title = task.title || task.task; // GroupTask uses 'task' for title
         const description = task.description || (isGroupTask ? `Group Task: ${task.username}` : '');
         const dueDate = task.alarm_reminder_time || task.dueDate || task.duedate;
+        const taskId = task._id || task.taskId || task.id;
 
-        if (!dueDate) return;
+        if (!dueDate || !taskId) return;
 
         const triggerTime = new Date(dueDate);
-        if (triggerTime <= new Date()) return;
+        const now = new Date();
+        const isPast = triggerTime <= now;
 
-        await this.cancelTaskNotification(task._id);
+        // If it's in the past and already presented, don't repeat/re-vibrate
+        if (isPast && presentedIds.includes(taskId)) {
+            return;
+        }
 
+        // If it's in the future, we'll schedule it (this replaces any existing schedule for this ID)
+        // If it's in the past and NOT presented, we'll show it immediately (re-notify)
+        
         const isAlarm = task.alarm_type === 'alarm';
+        
+        // Define category for actions
+        const categoryId = 'TASK_REMINDER';
+        await Notifications.setNotificationCategoryAsync(categoryId, [
+            {
+                identifier: 'MARK_COMPLETED',
+                buttonTitle: '✅ Mark as Completed',
+                options: {
+                    opensAppToForeground: false,
+                },
+            },
+        ]);
 
         const id = await Notifications.scheduleNotificationAsync({
             content: {
                 title: isAlarm ? `🚨 ALARM: ${title}` : title,
                 body: description || 'Reminder for your task',
                 data: {
-                    taskId: task._id,
+                    taskId: taskId,
                     type: isGroupTask ? 'GROUP_TASK' : 'PERSONAL_TASK'
                 },
+                categoryIdentifier: categoryId,
                 sound: isAlarm ? 'default' : 'default',
                 priority: isAlarm ? Notifications.AndroidNotificationPriority.MAX : Notifications.AndroidNotificationPriority.HIGH,
             },
-            trigger: {
+            trigger: isPast ? null : {
                 type: Notifications.SchedulableTriggerInputTypes.DATE,
                 date: triggerTime,
             },
-            identifier: task._id,
+            identifier: taskId,
         });
 
         return id;
@@ -132,16 +153,27 @@ export class NotificationService {
         // If master switch is off, cancel all and return
         if (preferences && preferences.notificationsEnabled === false) {
             await this.cancelAllNotifications();
+            await Notifications.dismissAllNotificationsAsync();
             return;
         }
 
+        // Get currently presented notifications to avoid duplicates/unnecessary re-notifying
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        const presentedIds = presented.map(n => n.request.identifier);
+
+        // Cancel all FUTURE scheduled notifications to avoid duplicates and clean up
+        // Note: This does NOT clear already presented notifications
         await this.cancelAllNotifications();
 
         // Sync personal tasks if enabled
         if (!preferences || preferences.taskNotificationsEnabled !== false) {
             for (const task of tasks) {
+                const taskId = task._id || task.taskId || task.id;
                 if (!task.completed) {
-                    await this.scheduleTaskNotification(task, false);
+                    await this.scheduleTaskNotification(task, false, presentedIds);
+                } else if (taskId && presentedIds.includes(taskId)) {
+                    // If completed, make sure any presented notification is cleared
+                    await Notifications.dismissNotificationAsync(taskId);
                 }
             }
         }
@@ -151,8 +183,11 @@ export class NotificationService {
             for (const group of groups) {
                 if (group.tasks) {
                     for (const gTask of group.tasks) {
+                        const taskId = gTask._id || gTask.taskId || gTask.id;
                         if (!gTask.completed) {
-                            await this.scheduleTaskNotification(gTask, true);
+                            await this.scheduleTaskNotification(gTask, true, presentedIds);
+                        } else if (taskId && presentedIds.includes(taskId)) {
+                            await Notifications.dismissNotificationAsync(taskId);
                         }
                     }
                 }
