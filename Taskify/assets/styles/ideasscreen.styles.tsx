@@ -114,6 +114,63 @@ export const getStyles = (colors: any) => StyleSheet.create({
         padding: 6,
         borderRadius: 8,
     },
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingHorizontal: SPACING.lg,
+        marginTop: SPACING.md,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.lg,
+        marginTop: SPACING.xl,
+        marginBottom: SPACING.md,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    seeAll: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.primary,
+    },
+    quickCaptureCard: {
+        flexDirection: 'row',
+        backgroundColor: colors.card,
+        borderRadius: RADIUS.lg,
+        marginBottom: SPACING.sm,
+        marginHorizontal: SPACING.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden',
+    },
+    quickCaptureLeftBar: {
+        width: 4,
+        backgroundColor: colors.primary,
+    },
+    quickCaptureContent: {
+        flex: 1,
+        padding: SPACING.md,
+    },
+    quickCaptureTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: colors.text,
+        marginBottom: 6,
+    },
+    quickCaptureMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    quickCaptureTime: {
+        fontSize: 12,
+        color: colors.textSecondary,
+    },
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',

@@ -10,7 +10,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Lightbulb } from 'lucide-react-native';
+import { Plus, Lightbulb, Clock, Folder, Trash2 } from 'lucide-react-native';
 import Animated, {
     FadeIn,
     FadeOut,
@@ -27,6 +27,7 @@ import { formatRelativeDate } from '@/src/utils/date';
 import { getStyles } from '@/assets/styles/ideasscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { Idea } from '@/src/api/ideas';
+import { SPACING } from '@/src/constants/theme';
 
 const EmptyState = ({ colors, styles }: { colors: any, styles: any }) => (
     <View style={styles.emptyContainer}>
@@ -59,42 +60,92 @@ export default function IdeasScreen() {
         handleDeleteThread,
     } = useIdeas();
 
-    const renderIdeaItem = useCallback(({ item }: { item: Idea }) => (
-        <IdeaCard
-            item={item}
-            isNew={newIdeaIds.has(item._id)}
-            onPress={setSelectedIdea}
-            onDelete={handleDelete}
-            colors={colors}
-            styles={styles}
-            formatDate={formatRelativeDate}
-        />
-    ), [newIdeaIds, setSelectedIdea, handleDelete, colors, styles]);
+    const mainIdeas = ideas.filter(idea => idea.thread && idea.thread.length > 0);
+    const quickCaptures = ideas.filter(idea => !idea.thread || idea.thread.length === 0);
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <AppHeader />
+    const renderQuickCapture = useCallback(({ item }: { item: Idea }) => (
+        <TouchableOpacity
+            style={styles.quickCaptureCard}
+            onPress={() => setSelectedIdea(item)}
+            activeOpacity={0.8}
+        >
+            <View style={styles.quickCaptureLeftBar} />
+            <View style={styles.quickCaptureContent}>
+                <Text style={styles.quickCaptureTitle} numberOfLines={1}>
+                    {item.title}
+                </Text>
+                <View style={styles.quickCaptureMeta}>
+                    <Clock size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                    <Text style={styles.quickCaptureTime}>{formatRelativeDate(item.created_at)}</Text>
+                    <Folder size={12} color={colors.textSecondary} style={{ marginLeft: 12, marginRight: 4 }} />
+                    <Text style={styles.quickCaptureTime}>Idea Note</Text>
+                </View>
+            </View>
+            <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); handleDelete(item._id); }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ justifyContent: 'center', paddingRight: SPACING.md }}
+            >
+                <Trash2 size={16} color={colors.textSecondary} opacity={0.6} />
+            </TouchableOpacity>
+        </TouchableOpacity>
+    ), [setSelectedIdea, colors, styles]);
 
+    const renderHeader = () => (
+        <View>
+            {/* Header Content */}
             <View style={styles.subHeader}>
                 <View style={styles.headerLeft}>
-                    <Text style={styles.title}>Ideas</Text>
+                    <Text style={styles.title}>Ideas & Hobbies</Text>
                     <Text style={styles.subtitle}>
-                        {ideas.length === 0 ? 'Capture your spark' : `${ideas.length} idea${ideas.length !== 1 ? 's' : ''} captured`}
+                        Capture sparks before they fade.
                     </Text>
                 </View>
                 {syncing && (
                     <View style={styles.syncBanner}>
                         <ActivityIndicator size="small" color={colors.primary} />
-                        <Text style={styles.syncText}>Syncing…</Text>
                     </View>
                 )}
             </View>
 
+            {/* Main Ideas Grid */}
+            <View style={styles.gridContainer}>
+                {mainIdeas.map((item, index) => (
+                    <IdeaCard
+                        key={item._id}
+                        item={item}
+                        isNew={newIdeaIds.has(item._id)}
+                        onPress={setSelectedIdea}
+                        onDelete={handleDelete}
+                        colors={colors}
+                        formatDate={formatRelativeDate}
+                        index={index}
+                    />
+                ))}
+            </View>
+
+            {/* Quick Captures Header */}
+            {quickCaptures.length > 0 && (
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Quick Captures</Text>
+                    <TouchableOpacity>
+                        <Text style={styles.seeAll}>View all</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <AppHeader />
+
             <FlatList
-                data={ideas}
-                renderItem={renderIdeaItem}
+                data={quickCaptures}
+                renderItem={renderQuickCapture}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={styles.listContent}
+                ListHeaderComponent={renderHeader}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -103,7 +154,7 @@ export default function IdeasScreen() {
                         colors={[colors.primary]}
                     />
                 }
-                ListEmptyComponent={!isLoading ? <EmptyState colors={colors} styles={styles} /> : null}
+                ListEmptyComponent={!isLoading && mainIdeas.length === 0 ? <EmptyState colors={colors} styles={styles} /> : null}
             />
 
             {/* FAB */}
