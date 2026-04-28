@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
     FlatList,
     RefreshControl,
@@ -6,26 +6,28 @@ import {
     KeyboardAvoidingView,
     View,
     TouchableOpacity,
+    Text,
+    useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus } from 'lucide-react-native';
+import { Plus, Settings, Zap, AlertTriangle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { DashboardToolbar } from '@/src/components/Tasks/Dashboard/Toolbar';
-import { EmptyDashboardState } from '@/src/components/Tasks/Dashboard/EmptyState';
-import Animated, {
-    FadeOut,
-    ZoomIn,
+import { useSelector } from 'react-redux';
+import { RootState } from '@/src/store';
+import Animated, { 
+    FadeInUp, 
+    ZoomIn, 
     ZoomOut,
+    FadeOut
 } from 'react-native-reanimated';
-import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
 
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
-import { AppHeader } from '@/src/components/AppHeader';
+import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
 import { useTasks } from '@/src/hooks/useTasks';
 import { useAppTheme } from '@/hooks/use-theme';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
-import { Task } from '@/src/api/tasks';
+import { SPACING } from '@/src/constants/theme';
 
 export default function TaskDashboard() {
     const router = useRouter();
@@ -34,50 +36,125 @@ export default function TaskDashboard() {
     
     const {
         tasks,
-        isLoading,
+        groups,
         refreshing,
         isCreating,
-        filter,
-        sortOrder,
-        pendingGroupTasks,
-        ideas,
         setIsCreating,
-        setFilter,
-        toggleSort,
-        loadMoreTasks,
         onRefresh,
         handleComplete,
         loadTasks
     } = useTasks();
 
-    const renderTaskItem = useCallback(({ item }: { item: Task }) => (
-        <TaskCard
-            task={item}
-            onPress={(task) => console.log('Task pressed', task._id)}
-            onComplete={handleComplete}
-        />
-    ), [handleComplete]);
+    const { users, currentUserId } = useSelector((state: RootState) => state.auth);
+    const currentUser = users.find(u => u.id === currentUserId);
+
+    // Filter Tasks for Today & Tomorrow
+    const displayTasks = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+        const todayTasks = tasks.filter(t => t.dueDate.startsWith(todayStr));
+        const tomorrowTasks = tasks.filter(t => t.dueDate.startsWith(tomorrowStr));
+
+        // Combine today and tomorrow tasks as requested
+        return [...todayTasks, ...tomorrowTasks];
+    }, [tasks]);
+
+    const todayCount = useMemo(() => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        return tasks.filter(t => t.dueDate.startsWith(todayStr) && !t.completed).length;
+    }, [tasks]);
+
+    const activeGroups = useMemo(() => {
+        return groups.slice(0, 2).map(group => {
+            const total = group.tasks?.length || 0;
+            const completed = group.tasks?.filter(t => t.completed).length || 0;
+            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+            return { ...group, progress };
+        });
+    }, [groups]);
+
+    const renderHeader = () => (
+        <View>
+            {/* Header Greeting */}
+            <View style={styles.headerSection}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.greeting}>Hello, {currentUser?.username || 'Soham D'}</Text>
+                    <TouchableOpacity onPress={() => router.push('/profile')}>
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + '20', justifyContent: 'center', alignItems: 'center' }}>
+                            <Settings size={22} color={colors.primary} />
+                        </View>
+                    </TouchableOpacity>
+                </View>
+                <Text style={styles.summary}>You have {todayCount} tasks to finish today.</Text>
+            </View>
+
+            {/* Active Groups Section */}
+            {activeGroups.length > 0 && (
+                <View style={styles.activeSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Active</Text>
+                        <TouchableOpacity onPress={() => router.push('/(tabs)/groups' as any)}>
+                            <Text style={styles.seeAll}>SEE ALL</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {activeGroups.map((group, index) => (
+                        <Animated.View 
+                            key={group._id} 
+                            entering={FadeInUp.delay(index * 100).duration(500)}
+                            style={styles.groupCard}
+                        >
+                            <View style={styles.groupCardHeader}>
+                                <Text style={styles.groupTitle} numberOfLines={1}>{group.name}</Text>
+                                <Zap size={20} color={colors.primary} fill={colors.primary} />
+                            </View>
+                            <Text style={styles.groupDescription} numberOfLines={2}>
+                                {group.description || 'No description provided for this group.'}
+                            </Text>
+                            
+                            <View style={styles.progressLabelRow}>
+                                <Text style={styles.progressLabel}>Progress</Text>
+                                <Text style={styles.progressValue}>{group.progress}%</Text>
+                            </View>
+                            <View style={styles.progressBarBg}>
+                                <View style={[styles.progressBarFill, { width: `${group.progress}%` }]} />
+                            </View>
+                        </Animated.View>
+                    ))}
+                </View>
+            )}
+
+            {/* Today's Tasks Section Header */}
+            <View style={styles.tasksSection}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Today</Text>
+                    <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{displayTasks.length} TASKS</Text>
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <AppHeader />
-
-            <DashboardToolbar
-                filter={filter}
-                setFilter={setFilter}
-                sortOrder={sortOrder}
-                toggleSort={toggleSort}
-                colors={colors}
-                styles={styles}
-            />
-
+        <SafeAreaView style={styles.container} edges={['top']}>
             <FlatList
-                data={tasks}
-                renderItem={renderTaskItem}
+                data={displayTasks}
+                renderItem={({ item }) => (
+                    <View style={{ paddingHorizontal: SPACING.lg }}>
+                        <TaskCard
+                            task={item}
+                            onPress={() => {}}
+                            onComplete={handleComplete}
+                        />
+                    </View>
+                )}
                 keyExtractor={(item) => item._id}
+                ListHeaderComponent={renderHeader}
                 contentContainerStyle={styles.listContent}
-                onEndReached={loadMoreTasks}
-                onEndReachedThreshold={0.5}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -87,15 +164,10 @@ export default function TaskDashboard() {
                     />
                 }
                 ListEmptyComponent={
-                    <EmptyDashboardState
-                        filter={filter}
-                        pendingGroupTasks={pendingGroupTasks}
-                        ideas={ideas}
-                        colors={colors}
-                        styles={styles}
-                        onSeeGroups={() => router.push('/(tabs)/groups' as any)}
-                        onExploreIdeas={() => router.push('/(tabs)/ideas' as any)}
-                    />
+                    <View style={styles.emptyContainer}>
+                        <AlertTriangle size={48} color={colors.textSecondary} opacity={0.5} />
+                        <Text style={styles.emptyText}>No tasks for today or tomorrow.{"\n"}Take a break or add a new task!</Text>
+                    </View>
                 }
             />
 
@@ -109,10 +181,10 @@ export default function TaskDashboard() {
                 >
                     <TouchableOpacity
                         style={styles.fabTouch}
-                        onPress={() => setTimeout(() => setIsCreating(true), 100)}
+                        onPress={() => setIsCreating(true)}
                         activeOpacity={0.6}
                     >
-                        <Plus size={28} color={colors.white} />
+                        <Plus size={32} color={colors.white} />
                     </TouchableOpacity>
                 </Animated.View>
             ) : (
@@ -123,7 +195,7 @@ export default function TaskDashboard() {
                     pointerEvents="box-none"
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
                     >

@@ -159,6 +159,7 @@ export function useTasks() {
         sortOrder,
         pendingGroupTasks,
         ideas,
+        groups,
         setIsCreating: (val: boolean) => dashboardDispatch({ type: 'SET_IS_CREATING', payload: val }),
         setFilter: (val: TaskFilter) => dashboardDispatch({ type: 'SET_FILTER', payload: val }),
         toggleSort: () => dashboardDispatch({ type: 'SET_SORT_ORDER', payload: sortOrder === 'asc' ? 'desc' : 'asc' }),

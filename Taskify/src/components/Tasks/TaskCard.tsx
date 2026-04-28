@@ -118,6 +118,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
             >
                 <View style={styles.content}>
                     <View style={styles.header}>
+                        <TouchableOpacity
+                            style={styles.actionBtn}
+                            onPress={() => onComplete(task._id)}
+                        >
+                            {task.completed ? (
+                                <CheckCircle size={24} color={colors.secondary} />
+                            ) : (
+                                <Circle size={24} color={colors.border} />
+                            )}
+                        </TouchableOpacity>
+                        
                         <View style={styles.titleContainer}>
                             <Text style={[
                                 styles.title,
@@ -141,16 +152,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                                 </View>
                             )}
                         </View>
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => onComplete(task._id)}
-                        >
-                            {task.completed ? (
-                                <CheckCircle size={24} color={colors.secondary} />
-                            ) : (
-                                <Circle size={24} color={colors.border} />
-                            )}
-                        </TouchableOpacity>
                     </View>
 
                     <Text style={styles.description} numberOfLines={isExpanded ? undefined : 2}>

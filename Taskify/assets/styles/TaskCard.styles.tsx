@@ -22,9 +22,11 @@ export const getStyles = (colors: any) => StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: SPACING.xs,
+    },
+    actionBtn: {
+        marginRight: SPACING.sm,
     },
     titleContainer: {
         flex: 1,

@@ -8,62 +8,147 @@ export const getStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.background,
     },
 
-    toolbar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+    headerSection: {
         paddingHorizontal: SPACING.lg,
-        paddingVertical: SPACING.md,
+        paddingTop: SPACING.xl,
+        paddingBottom: SPACING.md,
     },
-    tabs: {
+    greeting: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: colors.text,
+        marginBottom: 4,
+    },
+    summary: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        opacity: 0.8,
+    },
+
+    // Active Section
+    activeSection: {
+        marginTop: SPACING.lg,
+        paddingHorizontal: SPACING.lg,
+    },
+    sectionHeader: {
         flexDirection: 'row',
-        backgroundColor: colors.border,
-        padding: 4,
-        borderRadius: RADIUS.md,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.md,
     },
-    tab: {
-        paddingHorizontal: SPACING.md,
-        paddingVertical: 6,
-        borderRadius: RADIUS.sm,
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: colors.text,
     },
-    activeTab: {
+    seeAll: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.primary,
+        letterSpacing: 1,
+    },
+
+    // Group Progress Cards
+    groupCard: {
         backgroundColor: colors.card,
+        borderRadius: RADIUS.lg,
+        padding: SPACING.lg,
+        marginBottom: SPACING.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
     },
-    tabText: {
+    groupCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    groupTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: colors.text,
+        flex: 1,
+    },
+    groupDescription: {
         fontSize: 14,
+        color: colors.textSecondary,
+        marginBottom: SPACING.lg,
+    },
+    progressLabelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    progressLabel: {
+        fontSize: 12,
         fontWeight: '600',
         color: colors.textSecondary,
     },
-    activeTabText: {
+    progressValue: {
+        fontSize: 12,
+        fontWeight: '700',
         color: colors.primary,
     },
-    filterBtn: {
-        padding: SPACING.sm,
+    progressBarBg: {
+        height: 6,
+        backgroundColor: colors.border,
+        borderRadius: 3,
+        overflow: 'hidden',
     },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: colors.primary,
+        borderRadius: 3,
+    },
+
+    // Tasks Section
+    tasksSection: {
+        marginTop: SPACING.xl,
+        paddingHorizontal: SPACING.lg,
+    },
+    badge: {
+        backgroundColor: colors.primary15,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.primary,
+    },
+    badgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.primary,
+        textTransform: 'uppercase',
+    },
+
     listContent: {
-        padding: SPACING.lg,
-        paddingBottom: 100,
+        paddingBottom: 120,
     },
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 100,
+        marginTop: 60,
     },
     emptyText: {
         color: colors.textSecondary,
-        fontSize: 16,
+        fontSize: 15,
+        textAlign: 'center',
+        marginTop: 12,
+        opacity: 0.7,
     },
     fab: {
         position: 'absolute',
-        bottom: SPACING.xl,
-        right: SPACING.xl,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        bottom: 30,
+        right: 25,
+        width: 65,
+        height: 65,
+        borderRadius: 32.5,
         backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.3)',
+        boxShadow: '0 8px 15px rgba(0, 174, 239, 0.4)',
     },
     fabTouch: {
         width: '100%',
@@ -73,79 +158,12 @@ export const getStyles = (colors: any) => StyleSheet.create({
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: colors.overlay,
+        backgroundColor: 'rgba(0,0,0,0.7)',
         zIndex: 98,
-    },
-    expandedModal: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        top: '15%',
-        backgroundColor: colors.card,
-        borderTopLeftRadius: RADIUS.xl,
-        borderTopRightRadius: RADIUS.xl,
-        padding: SPACING.lg,
-        boxShadow: '0 -4px 10px 0 rgba(0, 0, 0, 0.1)',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: SPACING.lg,
-        paddingHorizontal: SPACING.md,
-    },
-    modalTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: colors.text,
     },
     compactModalContainer: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'flex-end',
         backgroundColor: 'transparent',
     },
-    filterScroll: {
-        maxHeight: 50,
-        marginBottom: 8,
-    },
-    filterContainer: {
-        paddingHorizontal: SPACING.md,
-        gap: 8,
-    },
-    filterChip: {
-        paddingHorizontal: SPACING.lg,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: colors.border,
-        borderWidth: 1,
-        borderColor: 'transparent',
-    },
-    activeFilterChip: {
-        backgroundColor: colors.primary15,
-        borderColor: colors.primary,
-    },
-    filterChipText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: colors.textSecondary,
-    },
-    activeFilterChipText: {
-        color: colors.primary,
-    },
-    sortBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        borderRadius: RADIUS.sm,
-        backgroundColor: colors.border,
-        marginLeft: 8,
-    },
-    sortText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: colors.textSecondary,
-        marginRight: 4,
-    }
 });
