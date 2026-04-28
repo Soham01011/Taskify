@@ -12,7 +12,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         ...SHADOWS.sm,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'transparent',
+        borderColor: colors.border,
     },
     expandedCard: {
         borderColor: colors.primary,
@@ -23,68 +23,74 @@ export const getStyles = (colors: any) => StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: SPACING.xs,
     },
     actionBtn: {
-        marginRight: SPACING.sm,
+        marginRight: SPACING.md,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: colors.border,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    checkboxOverdue: {
+        borderColor: colors.danger,
+        backgroundColor: colors.danger + '10',
     },
     titleContainer: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
+        justifyContent: 'center',
     },
     title: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         color: colors.text,
-        marginRight: SPACING.sm,
+        marginBottom: 2,
     },
     completedTextStrike: {
         textDecorationLine: 'line-through',
         color: colors.textSecondary,
     },
-    subtaskCountBadge: {
-        backgroundColor: colors.primary15,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: RADIUS.sm,
-    },
-    subtaskCountText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: colors.primary,
-    },
-    description: {
-        fontSize: 14,
+    subtitleText: {
+        fontSize: 13,
         color: colors.textSecondary,
-        marginBottom: SPACING.md,
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        paddingTop: SPACING.sm,
-    },
-    meta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    metaText: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginLeft: SPACING.xs,
+        fontWeight: '500',
     },
     overdueText: {
         color: colors.danger,
         fontWeight: '600',
     },
-    expandIcon: {
+    rightAction: {
         marginLeft: SPACING.sm,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: 24,
     },
-    actionBtn: {
-        padding: SPACING.xs,
+    avatarStack: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    avatarMock: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: colors.card,
+    },
+    expandedContent: {
+        overflow: 'hidden',
+    },
+    description: {
+        fontSize: 14,
+        color: colors.textSecondary,
+        marginTop: SPACING.sm,
     },
     divider: {
         height: 1,
@@ -96,9 +102,6 @@ export const getStyles = (colors: any) => StyleSheet.create({
         fontWeight: '700',
         color: colors.text,
         marginBottom: SPACING.sm,
-    },
-    subtasksList: {
-        marginTop: SPACING.xs,
     },
     subtaskItem: {
         flexDirection: 'row',
@@ -123,33 +126,4 @@ export const getStyles = (colors: any) => StyleSheet.create({
         textDecorationLine: 'line-through',
         color: colors.textSecondary,
     },
-    alarmIndicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: SPACING.md,
-        backgroundColor: colors.primary10,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: RADIUS.sm,
-        gap: 4,
-    },
-    alarmTime: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: colors.primary,
-    },
-    groupBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.primary + '15',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: RADIUS.sm,
-        gap: 4,
-    },
-    groupBadgeText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: colors.primary,
-    }
 });

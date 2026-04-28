@@ -15,9 +15,9 @@ import { Plus, Settings, Zap, AlertTriangle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/src/store';
-import Animated, { 
-    FadeInUp, 
-    ZoomIn, 
+import Animated, {
+    FadeInUp,
+    ZoomIn,
     ZoomOut,
     FadeOut
 } from 'react-native-reanimated';
@@ -33,7 +33,7 @@ export default function TaskDashboard() {
     const router = useRouter();
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
-    
+
     const {
         tasks,
         groups,
@@ -102,8 +102,8 @@ export default function TaskDashboard() {
                         </TouchableOpacity>
                     </View>
                     {activeGroups.map((group, index) => (
-                        <Animated.View 
-                            key={group._id} 
+                        <Animated.View
+                            key={group._id}
                             entering={FadeInUp.delay(index * 100).duration(500)}
                             style={styles.groupCard}
                         >
@@ -114,7 +114,7 @@ export default function TaskDashboard() {
                             <Text style={styles.groupDescription} numberOfLines={2}>
                                 {group.description || 'No description provided for this group.'}
                             </Text>
-                            
+
                             <View style={styles.progressLabelRow}>
                                 <Text style={styles.progressLabel}>Progress</Text>
                                 <Text style={styles.progressValue}>{group.progress}%</Text>
@@ -147,7 +147,7 @@ export default function TaskDashboard() {
                     <View style={{ paddingHorizontal: SPACING.lg }}>
                         <TaskCard
                             task={item}
-                            onPress={() => {}}
+                            onPress={() => { }}
                             onComplete={handleComplete}
                         />
                     </View>
@@ -166,7 +166,7 @@ export default function TaskDashboard() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <AlertTriangle size={48} color={colors.textSecondary} opacity={0.5} />
-                        <Text style={styles.emptyText}>No tasks for today or tomorrow.{"\n"}Take a break or add a new task!</Text>
+                        <Text style={styles.emptyText}>No tasks for today or tomorrow.{"\n"}If you have free time then check on your ideas</Text>
                     </View>
                 }
             />

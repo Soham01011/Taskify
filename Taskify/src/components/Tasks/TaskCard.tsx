@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { CheckCircle, Circle, Clock, ChevronDown, CheckSquare, Square, Trash2, Bell, Users } from 'lucide-react-native';
+import { Check, ChevronRight, History, AlertTriangle, CheckSquare, Square, Trash2 } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     withSpring,
-    withTiming,
     useDerivedValue,
     interpolate,
-    Extrapolate
 } from 'react-native-reanimated';
-import { Task, Subtask, taskApi } from '../../api/tasks';
-import { SPACING, } from '../../constants/theme';
+import { Task, taskApi } from '../../api/tasks';
+import { SPACING } from '../../constants/theme';
 import { useDispatch } from 'react-redux';
 import { fetchTasks, removeTask, updateTask } from '../../store/slices/taskSlice';
 import { AppDispatch } from '../../store';
@@ -32,6 +30,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
 
     const toggleExpand = () => {
         setIsExpanded(!isExpanded);
+        onPress(task);
     };
 
     const handleSubtaskToggle = async (subtaskId: string, currentStatus: boolean) => {
@@ -87,8 +86,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
         );
     };
 
-    const completedSubtasks = task.subtasks.filter(s => s.completed).length;
-    const totalSubtasks = task.subtasks.length;
+    const totalSubtasks = task.subtasks?.length || 0;
 
     // Animation values
     const progress = useDerivedValue(() => {
@@ -96,14 +94,36 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
     });
 
     const chevronStyle = useAnimatedStyle(() => ({
-        transform: [{ rotate: `${progress.value * 180}deg` }]
+        transform: [{ rotate: `${progress.value * 90}deg` }]
     }));
 
-    const subtasksStyle = useAnimatedStyle(() => ({
+    const expandedStyle = useAnimatedStyle(() => ({
         opacity: progress.value,
         height: isExpanded ? 'auto' : 0,
         marginTop: interpolate(progress.value, [0, 1], [0, SPACING.md]),
     }));
+
+    const rightIcon = () => {
+        if (task.completed) {
+            return <History size={20} color={colors.textSecondary} />;
+        }
+        if (isOverdue) {
+            return <AlertTriangle size={20} color={colors.danger} />;
+        }
+        if (task.groupName) {
+            return (
+                <View style={styles.avatarStack}>
+                    <View style={[styles.avatarMock, { zIndex: 2, backgroundColor: colors.primary }]} />
+                    <View style={[styles.avatarMock, { zIndex: 1, marginLeft: -8, backgroundColor: colors.secondary }]} />
+                </View>
+            );
+        }
+        return (
+            <Animated.View style={chevronStyle}>
+                <ChevronRight size={20} color={colors.textSecondary} />
+            </Animated.View>
+        );
+    };
 
     return (
         <View style={styles.cardContainer}>
@@ -123,9 +143,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                             onPress={() => onComplete(task._id)}
                         >
                             {task.completed ? (
-                                <CheckCircle size={24} color={colors.secondary} />
+                                <View style={[styles.checkbox, styles.checkboxChecked]}>
+                                    <Check size={14} color={colors.white || '#FFF'} strokeWidth={3} />
+                                </View>
                             ) : (
-                                <Circle size={24} color={colors.border} />
+                                <View style={[styles.checkbox, isOverdue && styles.checkboxOverdue]} />
                             )}
                         </TouchableOpacity>
                         
@@ -136,96 +158,61 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                             ]} numberOfLines={1}>
                                 {task.title}
                             </Text>
-                            {totalSubtasks > 0 && (
-                                <View style={styles.subtaskCountBadge}>
-                                    <Text style={styles.subtaskCountText}>
-                                        {completedSubtasks}/{totalSubtasks}
-                                    </Text>
-                                </View>
-                            )}
-                            {task.groupName && (
-                                <View style={[styles.groupBadge, { marginLeft: 8 }]}>
-                                    <Users size={12} color={colors.primary} />
-                                    <Text style={styles.groupBadgeText}>
-                                        {task.groupName}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                    </View>
-
-                    <Text style={styles.description} numberOfLines={isExpanded ? undefined : 2}>
-                        {task.description || 'No description provided'}
-                    </Text>
-
-                    <View style={styles.footer}>
-                        <View style={styles.meta}>
-                            <Clock size={14} color={isOverdue ? colors.danger : colors.textSecondary} />
                             <Text style={[
-                                styles.metaText,
+                                styles.subtitleText,
                                 isOverdue ? styles.overdueText : null
                             ]}>
-                                {new Date(task.dueDate).toLocaleDateString()}
+                                {task.completed ? `Done at ${new Date(task.updated_at || task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 
+                                 isOverdue ? `High Priority • Overdue` :
+                                 `Due at ${new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • ${task.groupName || 'Personal'}`}
                             </Text>
-                            {task.alarm_type && (
-                                <View style={styles.alarmIndicator}>
-                                    {task.alarm_type === 'alarm' ? (
-                                        <Clock size={12} color={colors.primary} />
-                                    ) : (
-                                        <Bell size={12} color={colors.primary} />
-                                    )}
-                                    {task.alarm_reminder_time && (
-                                        <Text style={styles.alarmTime}>
-                                            {new Date(task.alarm_reminder_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </Text>
-                                    )}
-                                </View>
-                            )}
                         </View>
 
-                        <Animated.View style={[styles.expandIcon, chevronStyle]}>
-                            <ChevronDown size={20} color={colors.textSecondary} />
-                        </Animated.View>
+                        <View style={styles.rightAction}>
+                            {rightIcon()}
+                        </View>
                     </View>
-                </View>
 
-                {totalSubtasks > 0 && (
-                    <Animated.View style={[styles.subtasksList, subtasksStyle]}>
-                        <View style={{ overflow: 'hidden' }}>
-                            <View style={styles.divider} />
-                            <Text style={styles.subtaskHeader}>Subtasks</Text>
-                            {task.subtasks.map((subtask) => (
-                                <View key={subtask._id} style={styles.subtaskItem}>
-                                    <TouchableOpacity
-                                        style={styles.deleteSubtaskBtn}
-                                        onPress={() => handleDeleteSubtask(subtask._id!)}
-                                    >
-                                        <Trash2 size={16} color={colors.danger} opacity={0.6} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.subtaskMain}
-                                        onPress={() => handleSubtaskToggle(subtask._id!, subtask.completed)}
-                                    >
-                                        {subtask.completed ? (
-                                            <CheckSquare size={18} color={colors.secondary} />
-                                        ) : (
-                                            <Square size={18} color={colors.border} />
-                                        )}
-                                        <Text style={[
-                                            styles.subtaskTitle,
-                                            subtask.completed && styles.subtaskCompletedText
-                                        ]}>
-                                            {subtask.title}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </View>
+                    <Animated.View style={[styles.expandedContent, expandedStyle]}>
+                        <Text style={styles.description}>
+                            {task.description || 'No description provided'}
+                        </Text>
+
+                        {totalSubtasks > 0 && (
+                            <View style={{ overflow: 'hidden' }}>
+                                <View style={styles.divider} />
+                                <Text style={styles.subtaskHeader}>Subtasks</Text>
+                                {task.subtasks.map((subtask) => (
+                                    <View key={subtask._id} style={styles.subtaskItem}>
+                                        <TouchableOpacity
+                                            style={styles.deleteSubtaskBtn}
+                                            onPress={() => handleDeleteSubtask(subtask._id!)}
+                                        >
+                                            <Trash2 size={16} color={colors.danger} opacity={0.6} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.subtaskMain}
+                                            onPress={() => handleSubtaskToggle(subtask._id!, subtask.completed)}
+                                        >
+                                            {subtask.completed ? (
+                                                <CheckSquare size={18} color={colors.secondary} />
+                                            ) : (
+                                                <Square size={18} color={colors.border} />
+                                            )}
+                                            <Text style={[
+                                                styles.subtaskTitle,
+                                                subtask.completed && styles.subtaskCompletedText
+                                            ]}>
+                                                {subtask.title}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                     </Animated.View>
-                )}
-
+                </View>
             </TouchableOpacity>
         </View>
     );
 };
-
