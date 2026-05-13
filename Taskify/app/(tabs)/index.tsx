@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-    FlatList,
+    SectionList,
     RefreshControl,
     Platform,
     KeyboardAvoidingView,
@@ -48,24 +48,46 @@ export default function TaskDashboard() {
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
 
-    // Filter Tasks for Today & Tomorrow
-    const displayTasks = useMemo(() => {
+    // Filter Tasks for Overdue, Today & Tomorrow
+    const displaySections = useMemo(() => {
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const getLocalDateStr = (d: Date) => {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+        const todayStr = getLocalDateStr(now);
         const tomorrow = new Date(now);
         tomorrow.setDate(now.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        const tomorrowStr = getLocalDateStr(tomorrow);
 
-        const todayTasks = tasks.filter(t => t.dueDate.startsWith(todayStr));
-        const tomorrowTasks = tasks.filter(t => t.dueDate.startsWith(tomorrowStr));
+        const overdueTasks = tasks.filter(t => {
+            if (!t.dueDate) return false;
+            const taskDateStr = getLocalDateStr(new Date(t.dueDate));
+            return taskDateStr < todayStr && !t.completed;
+        });
+        const todayTasks = tasks.filter(t => {
+            if (!t.dueDate) return false;
+            return getLocalDateStr(new Date(t.dueDate)) === todayStr;
+        });
+        const tomorrowTasks = tasks.filter(t => {
+            if (!t.dueDate) return false;
+            return getLocalDateStr(new Date(t.dueDate)) === tomorrowStr;
+        });
 
-        // Combine today and tomorrow tasks as requested
-        return [...todayTasks, ...tomorrowTasks];
+        const sections = [];
+        if (overdueTasks.length > 0) sections.push({ title: 'Overdue', data: overdueTasks });
+        if (todayTasks.length > 0) sections.push({ title: 'Today', data: todayTasks });
+        if (tomorrowTasks.length > 0) sections.push({ title: 'Tomorrow', data: tomorrowTasks });
+        
+        return sections;
     }, [tasks]);
 
     const todayCount = useMemo(() => {
-        const todayStr = new Date().toISOString().split('T')[0];
-        return tasks.filter(t => t.dueDate.startsWith(todayStr) && !t.completed).length;
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return tasks.filter(t => {
+            if (!t.dueDate) return false;
+            return `${new Date(t.dueDate).getFullYear()}-${String(new Date(t.dueDate).getMonth() + 1).padStart(2, '0')}-${String(new Date(t.dueDate).getDate()).padStart(2, '0')}` === todayStr && !t.completed;
+        }).length;
     }, [tasks]);
 
     const activeGroups = useMemo(() => {
@@ -127,22 +149,13 @@ export default function TaskDashboard() {
                 </View>
             )}
 
-            {/* Today's Tasks Section Header */}
-            <View style={styles.tasksSection}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Today</Text>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{displayTasks.length} TASKS</Text>
-                    </View>
-                </View>
-            </View>
         </View>
     );
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <FlatList
-                data={displayTasks}
+            <SectionList
+                sections={displaySections}
                 renderItem={({ item }) => (
                     <View style={{ paddingHorizontal: SPACING.lg }}>
                         <TaskCard
@@ -152,6 +165,17 @@ export default function TaskDashboard() {
                         />
                     </View>
                 )}
+                renderSectionHeader={({ section: { title, data } }) => (
+                    <View style={[styles.tasksSection, { paddingBottom: SPACING.sm, backgroundColor: colors.background }]}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>{title}</Text>
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>{data.length} TASKS</Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+                stickySectionHeadersEnabled={false}
                 keyExtractor={(item) => item._id}
                 ListHeaderComponent={renderHeader}
                 contentContainerStyle={styles.listContent}
