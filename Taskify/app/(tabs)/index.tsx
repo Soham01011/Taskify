@@ -24,6 +24,7 @@ import Animated, {
 
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
 import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
+import { AppHeader } from '@/src/components/AppHeader';
 import { useTasks } from '@/src/hooks/useTasks';
 import { useAppTheme } from '@/hooks/use-theme';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
@@ -101,18 +102,7 @@ export default function TaskDashboard() {
 
     const renderHeader = () => (
         <View>
-            {/* Header Greeting */}
-            <View style={styles.headerSection}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.greeting}>Hello, {currentUser?.username || 'Soham D'}</Text>
-                    <TouchableOpacity onPress={() => router.push('/profile')}>
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + '20', justifyContent: 'center', alignItems: 'center' }}>
-                            <Settings size={22} color={colors.primary} />
-                        </View>
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.summary}>You have {todayCount} tasks to finish today.</Text>
-            </View>
+            <AppHeader />
 
             {/* Active Groups Section */}
             {activeGroups.length > 0 && (
@@ -219,7 +209,7 @@ export default function TaskDashboard() {
                     pointerEvents="box-none"
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
                     >

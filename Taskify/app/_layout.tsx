@@ -1,19 +1,19 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import 'react-native-reanimated';
 import { Provider, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import 'react-native-reanimated';
-import { useEffect } from 'react';
 
 
-import { store, persistor, RootState } from '../src/store';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { persistor, RootState, store } from '../src/store';
 
-import { AuthProvider, useAuth } from '../src/context/AuthContext';
-import { NotificationManager } from '../src/components/NotificationManager';
 import * as Sentry from '@sentry/react-native';
+import { NotificationManager } from '../src/components/NotificationManager';
+import { AuthProvider, useAuth } from '../src/context/AuthContext';
 
 Sentry.init({
   dsn: 'https://81f07fb811891ce2d74da64451cccba5@o4510952845344768.ingest.de.sentry.io/4510952849342544',
@@ -81,6 +81,9 @@ function AppContent() {
         <Stack.Screen name="modal" options={{ presentation: 'transparentModal' }} />
         <Stack.Screen name="group-modal" options={{ presentation: 'transparentModal' }} />
         <Stack.Screen name="group-members-modal" options={{ presentation: 'transparentModal' }} />
+        <Stack.Screen name="calendar" />
+        <Stack.Screen name="analytics" />
+        <Stack.Screen name="securenotes" />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

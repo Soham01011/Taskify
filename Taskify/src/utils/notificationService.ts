@@ -122,6 +122,7 @@ export class NotificationService {
                 categoryIdentifier: categoryId,
                 sound: isAlarm ? 'default' : 'default',
                 priority: isAlarm ? Notifications.AndroidNotificationPriority.MAX : Notifications.AndroidNotificationPriority.HIGH,
+                channelId: isAlarm ? 'alarm' : 'default',
             },
             trigger: isPast ? null : {
                 type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -161,17 +162,23 @@ export class NotificationService {
         const presented = await Notifications.getPresentedNotificationsAsync();
         const presentedIds = presented.map(n => n.request.identifier);
 
-        // Cancel all FUTURE scheduled notifications to avoid duplicates and clean up
-        // Note: This does NOT clear already presented notifications
-        await this.cancelAllNotifications();
+        // Get currently scheduled notifications to avoid constant canceling/rescheduling
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const scheduledIds = scheduled.map(n => n.identifier);
+        
+        // We track which tasks are currently active so we can cancel scheduled notifications for deleted/completed tasks
+        const activeTaskIds = new Set<string>();
 
         // Sync personal tasks if enabled
         if (!preferences || preferences.taskNotificationsEnabled !== false) {
             for (const task of tasks) {
                 const taskId = task._id || task.taskId || task.id;
+                if (!taskId) continue;
+
                 if (!task.completed) {
+                    activeTaskIds.add(taskId);
                     await this.scheduleTaskNotification(task, false, presentedIds);
-                } else if (taskId && presentedIds.includes(taskId)) {
+                } else if (presentedIds.includes(taskId)) {
                     // If completed, make sure any presented notification is cleared
                     await Notifications.dismissNotificationAsync(taskId);
                 }
@@ -184,13 +191,23 @@ export class NotificationService {
                 if (group.tasks) {
                     for (const gTask of group.tasks) {
                         const taskId = gTask._id || gTask.taskId || gTask.id;
+                        if (!taskId) continue;
+
                         if (!gTask.completed) {
+                            activeTaskIds.add(taskId);
                             await this.scheduleTaskNotification(gTask, true, presentedIds);
-                        } else if (taskId && presentedIds.includes(taskId)) {
+                        } else if (presentedIds.includes(taskId)) {
                             await Notifications.dismissNotificationAsync(taskId);
                         }
                     }
                 }
+            }
+        }
+
+        // Cancel scheduled notifications for tasks that are completed or no longer exist
+        for (const scheduledId of scheduledIds) {
+            if (!activeTaskIds.has(scheduledId)) {
+                await Notifications.cancelScheduledNotificationAsync(scheduledId);
             }
         }
     }

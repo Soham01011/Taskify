@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, Users, Lightbulb, Bot, CalendarDays } from 'lucide-react-native';
+import { LayoutDashboard, Users, Lightbulb, Bot, Menu } from 'lucide-react-native';
 import { useAppTheme } from '@/hooks/use-theme';
 
 export default function TabLayout() {
@@ -49,10 +49,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="more"
         options={{
-          title: 'Calendar',
-          tabBarIcon: ({ color }) => <CalendarDays size={24} color={color} />,
+          title: 'More',
+          tabBarIcon: ({ color }) => <Menu size={24} color={color} />,
         }}
       />
     </Tabs>

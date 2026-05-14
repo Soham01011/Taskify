@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { User } from 'lucide-react-native';
+import { Settings } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -39,23 +39,20 @@ export const AppHeader = () => {
 
     return (
         <View style={styles.header}>
-            <View>
-                <Text style={styles.greeting}>{"Hello , "}{currentUser?.username || 'Guest'}</Text>
-                <MatrixText
-                    key={displayText}
-                    text={displayText}
-                    style={styles.subtitle}
-                    duration={1000}
-                />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.greeting}>Hello, {currentUser?.username || 'Soham D'}</Text>
+                <TouchableOpacity onPress={() => router.push('/profile')}>
+                    <View style={[styles.avatarContainer, { backgroundColor: colors.primary + '20' }]}>
+                        <Settings size={22} color={colors.primary} />
+                    </View>
+                </TouchableOpacity>
             </View>
-            <TouchableOpacity
-                style={styles.profileBtn}
-                onPress={() => router.push('/profile')}
-            >
-                <View style={styles.avatarContainer}>
-                    <User size={24} color={colors.primary} strokeWidth={2.5} />
-                </View>
-            </TouchableOpacity>
+            <MatrixText
+                key={displayText}
+                text={displayText}
+                style={styles.subtitle}
+                duration={1000}
+            />
         </View>
     );
 };
@@ -64,34 +61,28 @@ const getStyles = (colors: any) => StyleSheet.create({
     header: {
         paddingHorizontal: SPACING.lg,
         paddingTop: Platform.OS === 'android' ? SPACING.md : SPACING.xl,
-        paddingBottom: SPACING.md,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: colors.card,
+        paddingBottom: SPACING.xs,
+        backgroundColor: colors.background,
     },
     greeting: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: 'bold',
         color: colors.text,
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: 15,
         color: colors.textSecondary,
-        marginTop: 2,
+        marginTop: 4,
     },
     profileBtn: {
         borderRadius: 25,
         boxShadow: '0 2px 4px 0 rgba(0, 0, 0, 0.1)',
     },
     avatarContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: colors.background,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: colors.border,
     },
 });
