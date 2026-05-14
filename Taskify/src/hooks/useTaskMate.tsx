@@ -8,6 +8,7 @@ import { taskApi } from '../api/tasks';
 import { MATE_MODELS } from '../constants/mateModels';
 import { AppDispatch, RootState } from '../store';
 import { fetchIdeas } from '../store/slices/ideaSlice';
+import { fetchGroups } from '../store/slices/groupSlice';
 import { fetchTasks, selectUnifiedTasks } from '../store/slices/taskSlice';
 import { useDeviceCapability } from '../utils/usedevicecapability';
 import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
@@ -87,7 +88,14 @@ export const useTaskMate = () => {
                         return "NO PENDING TASKS FOUND.";
                     }
 
-                    const listStr = pending.map((t: any) => `- ${t.title} (Due: ${new Date(t.dueDate).toLocaleTimeString()})`).join('\n');
+                    const listStr = pending.map((t: any) => {
+                        let str = `- ${t.title} (Due: ${new Date(t.dueDate).toLocaleTimeString()})`;
+                        if (t.subtasks && t.subtasks.length > 0) {
+                            const subStr = t.subtasks.map((st: any) => `  * ${st.title} [${st.completed ? 'x' : ' '}]`).join('\n');
+                            str += `\n${subStr}`;
+                        }
+                        return str;
+                    }).join('\n');
                     const displayMsg = `📋 Pending Tasks:\n${listStr}`;
 
                     setMessages(prev => [...prev, {
@@ -123,6 +131,33 @@ export const useTaskMate = () => {
                     }]);
 
                     return `SUCCEEDED: Listed ${ideas.length} ideas.`;
+                }
+
+                case 'listGroups': {
+                    console.log("[MATE:LIST] Fetching groups...");
+                    if (!currentUserId) {
+                        return "ERROR: User ID missing.";
+                    }
+                    const result = await dispatch(fetchGroups({ userId: currentUserId })).unwrap();
+                    const groups = result.groups || [];
+
+                    if (groups.length === 0) {
+                        const msg = "NO GROUPS FOUND.";
+                        setMessages(prev => [...prev, { id: 'tool-list-groups-' + Date.now(), role: 'assistant', content: msg, timestamp: Date.now() }]);
+                        return msg;
+                    }
+
+                    const listStr = groups.map((g: any) => `- ${g.name} (${g.tasks?.length || 0} tasks)`).join('\n');
+                    const displayMsg = `👥 Your Groups:\n${listStr}`;
+
+                    setMessages(prev => [...prev, {
+                        id: 'tool-list-groups-' + Date.now(),
+                        role: 'assistant',
+                        content: displayMsg,
+                        timestamp: Date.now()
+                    }]);
+
+                    return `SUCCEEDED: Listed ${groups.length} groups.`;
                 }
 
                 case 'createIdea': {
@@ -242,11 +277,66 @@ export const useTaskMate = () => {
 
         try {
             const lowText = text.toLowerCase();
+            const words = lowText.split(/\s+/);
+            
+            const justKeyword = text.trim().startsWith('@') && words.length === 1;
+            let additionalContext = '';
+            
+            // --- Keyword Shortcuts & Context Injection ---
+            if (words.includes('@task') || words.includes('@tasks')) {
+                if (justKeyword) {
+                    await executeTool({ toolName: 'listTasks', arguments: {} });
+                    return;
+                }
+                console.log("[MATE:ROUTING] Context injection: @task");
+                const result = await dispatch(fetchTasks()).unwrap();
+                const data = result.data;
+                const tasks = (Array.isArray(data) ? data : (data as any)?.tasks) || [];
+                const pending = tasks.filter((t: any) => !t.completed);
+                additionalContext += `\n[SYSTEM INJECTED USER TASKS]:\n${pending.map((t: any) => {
+                    let str = `- ${t.title} (Due: ${t.dueDate ? new Date(t.dueDate).toLocaleString() : 'None'})`;
+                    if (t.subtasks && t.subtasks.length > 0) {
+                        const subStr = t.subtasks.map((st: any) => `  * ${st.title} [${st.completed ? 'x' : ' '}]`).join('\n');
+                        str += `\n${subStr}`;
+                    }
+                    return str;
+                }).join('\n')}\n`;
+            }
+            
+            if (words.includes('@idea') || words.includes('@ideas')) {
+                if (justKeyword) {
+                    await executeTool({ toolName: 'listIdeas', arguments: {} });
+                    return;
+                }
+                console.log("[MATE:ROUTING] Context injection: @idea");
+                const result = await dispatch(fetchIdeas()).unwrap();
+                const data = result.data;
+                const ideas = (Array.isArray(data) ? data : (data as any)?.ideas) || [];
+                additionalContext += `\n[SYSTEM INJECTED USER IDEAS]:\n${ideas.map((i: any) => `- ${i.title}`).join('\n')}\n`;
+            }
+            
+            if (words.includes('@group') || words.includes('@groups')) {
+                if (justKeyword) {
+                    await executeTool({ toolName: 'listGroups', arguments: {} });
+                    return;
+                }
+                console.log("[MATE:ROUTING] Context injection: @group");
+                if (currentUserId) {
+                    const result = await dispatch(fetchGroups({ userId: currentUserId })).unwrap();
+                    const groups = result.groups || [];
+                    additionalContext += `\n[SYSTEM INJECTED USER GROUPS]:\n${groups.map((g: any) => `- ${g.name} (${g.tasks?.length || 0} tasks)`).join('\n')}\n`;
+                }
+            }
+
+            const effectiveText = additionalContext ? `${text}\n${additionalContext}` : text;
+            currentPromptRef.current = effectiveText;
+
             const keywords = ['if', 'check', 'free', 'busy', 'schedule', 'planning', 'choice', 'decide', 'can i', 'should i'];
-            const needsReasoning = keywords.some(k => lowText.includes(k));
+            const hasReasoningKeyword = keywords.some(k => lowText.includes(k));
+            const needsReasoning = hasReasoningKeyword || additionalContext !== '';
 
             if (needsReasoning) {
-                console.log("[MATE:ROUTING] Hard-routed to Reasoning via code logic");
+                console.log("[MATE:ROUTING] Hard-routed to Reasoning (Code Logic or Context Injection)");
                 await executeTool({
                     toolName: 'runChatReasoning',
                     arguments: {}
@@ -259,7 +349,7 @@ export const useTaskMate = () => {
 
             const chat: Message[] = [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: text }
+                { role: 'user', content: effectiveText }
             ];
 
             const startTime = Date.now();
