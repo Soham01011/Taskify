@@ -22,6 +22,7 @@ const userRoutes          = require('./routes/users');
 const notificationRoutes  = require('./routes/notifications');
 const ideaRoutes          = require('./routes/ideas');
 const ollamaRoutes        = require('./routes/ollama');
+const workflowRoutes      = require('./routes/workflows');
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/api/users',         userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ideas',         ideaRoutes);
 app.use('/api/ollama',        ollamaRoutes);
+app.use('/api/workflows',     workflowRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -8,3 +8,4 @@ API_DOCS.md
 .env*.local
 backend_notification_guide.md
 taskify-backend-vercel/.vercel
+taskify-backend-vercel/workflow_plan.md

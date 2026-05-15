@@ -32,6 +32,10 @@
     {
       "src": "api/ollamallm.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/workflows.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -74,6 +78,10 @@
     {
       "src": "/api/ollama/(.*)",
       "dest": "api/ollamallm.js"
+    },
+    {
+      "src": "/api/workflows/(.*)",
+      "dest": "api/workflows.js"
     }
   ]
 }
