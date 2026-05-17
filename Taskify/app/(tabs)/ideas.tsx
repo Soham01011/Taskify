@@ -1,33 +1,33 @@
+import { Clock, Folder, Lightbulb, Plus, Trash2 } from 'lucide-react-native';
 import React, { useCallback } from 'react';
 import {
+    ActivityIndicator,
     FlatList,
-    View,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
     Text,
     TouchableOpacity,
-    RefreshControl,
-    Platform,
-    KeyboardAvoidingView,
-    ActivityIndicator,
+    View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Lightbulb, Clock, Folder, Trash2 } from 'lucide-react-native';
 import Animated, {
     FadeIn,
     FadeOut,
     ZoomIn,
     ZoomOut,
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { getStyles } from '@/assets/styles/ideasscreen.styles';
+import { useAppTheme } from '@/hooks/use-theme';
+import { Idea } from '@/src/api/ideas';
 import { AppHeader } from '@/src/components/AppHeader';
 import { CreateIdeaForm } from '@/src/components/CreateIdeaForm';
 import { IdeaCard } from '@/src/components/Ideas/IdeaCard';
 import { ThreadModal } from '@/src/components/Ideas/ThreadModal';
+import { SPACING } from '@/src/constants/theme';
 import { useIdeas } from '@/src/hooks/useIdeas';
 import { formatRelativeDate } from '@/src/utils/date';
-import { getStyles } from '@/assets/styles/ideasscreen.styles';
-import { useAppTheme } from '@/hooks/use-theme';
-import { Idea } from '@/src/api/ideas';
-import { SPACING } from '@/src/constants/theme';
 
 const EmptyState = ({ colors, styles }: { colors: any, styles: any }) => (
     <View style={styles.emptyContainer}>

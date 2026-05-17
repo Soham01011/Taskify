@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/hooks/use-theme';
 import { CustomCalendar } from '@/src/components/Calendar/CustomCalendar';
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
-import { SPACING, RADIUS } from '@/src/constants/theme';
-import { getTasksForDate } from '@/src/utils/calendar';
+import { RADIUS, SPACING } from '@/src/constants/theme';
 import { useTasks } from '@/src/hooks/useTasks';
+import { getTasksForDate } from '@/src/utils/calendar';
 import { MoreVertical } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CalendarScreen() {
     const { colors } = useAppTheme();
@@ -26,7 +26,7 @@ export default function CalendarScreen() {
 
     const renderHeader = () => (
         <View style={styles.headerContainer}>
-            <CustomCalendar 
+            <CustomCalendar
                 colors={colors}
                 tasks={tasks}
                 selectedDate={selectedDate}
@@ -82,9 +82,9 @@ export default function CalendarScreen() {
                 ListHeaderComponent={renderHeader}
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => (
-                    <TaskCard 
+                    <TaskCard
                         task={item}
-                        onPress={() => {}}
+                        onPress={() => { }}
                         onComplete={handleComplete}
                     />
                 )}

@@ -1,14 +1,14 @@
 "use no memo";
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Modal, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/hooks/use-theme';
-import { useRouter } from 'expo-router';
-import { ChevronLeft, Plus, Lock, Unlock, Trash2, X } from 'lucide-react-native';
-import Animated, { ZoomIn, ZoomOut, FadeOut, FadeInUp } from 'react-native-reanimated';
-import { SPACING, RADIUS } from '@/src/constants/theme';
-import { useSecureNotes, NoteMeta } from '@/src/hooks/useSecureNotes';
 import { CreateNoteForm } from '@/src/components/Notes/CreateNoteForm';
+import { RADIUS, SPACING } from '@/src/constants/theme';
+import { NoteMeta, useSecureNotes } from '@/src/hooks/useSecureNotes';
+import { useRouter } from 'expo-router';
+import { ChevronLeft, Lock, Plus, Trash2, Unlock, X } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeInUp, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface NoteCardProps {
     item: NoteMeta;
@@ -20,8 +20,8 @@ interface NoteCardProps {
 
 const NoteCard = React.memo(({ item, index, colors, onOpen, onDelete }: NoteCardProps) => (
     <Animated.View entering={FadeInUp.delay(index * 50).duration(400)}>
-        <TouchableOpacity 
-            activeOpacity={0.7} 
+        <TouchableOpacity
+            activeOpacity={0.7}
             style={[styles.noteCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => onOpen(item)}
         >
@@ -45,9 +45,8 @@ export default function NotesScreen() {
     const { colors } = useAppTheme();
     const router = useRouter();
     const { notes, loading, saveNote, readNoteBody, deleteNote } = useSecureNotes();
-
     const [isCreating, setIsCreating] = useState(false);
-    
+
     // Viewing State
     const [viewingNote, setViewingNote] = useState<NoteMeta | null>(null);
     const [viewingBody, setViewingBody] = useState<string>('');
@@ -96,12 +95,12 @@ export default function NotesScreen() {
                 data={notes}
                 keyExtractor={item => item.id}
                 renderItem={({ item, index }) => (
-                    <NoteCard 
-                        item={item} 
-                        index={index} 
-                        colors={colors} 
-                        onOpen={handleOpenNote} 
-                        onDelete={handleDelete} 
+                    <NoteCard
+                        item={item}
+                        index={index}
+                        colors={colors}
+                        onOpen={handleOpenNote}
+                        onDelete={handleDelete}
                     />
                 )}
                 contentContainerStyle={styles.listContent}
@@ -141,7 +140,13 @@ export default function NotesScreen() {
                     key="fab-container"
                     entering={ZoomIn.duration(400).springify()}
                     exiting={ZoomOut.duration(300).springify()}
-                    style={[styles.fab, { zIndex: 99 }]}
+                    style={[
+                        styles.fab,
+                        {
+                            bottom: bottomOffset + 16,
+                            zIndex: 99,
+                        },
+                    ]}
                 >
                     <TouchableOpacity
                         style={[styles.fabTouch, { backgroundColor: colors.primary }]}
@@ -155,7 +160,13 @@ export default function NotesScreen() {
                 <Animated.View
                     key="modal-container"
                     exiting={FadeOut.duration(400)}
-                    style={[styles.compactModalContainer, { zIndex: 100 }]}
+                    style={[
+                        styles.compactModalContainer,
+                        {
+                            paddingBottom: bottomOffset,
+                            zIndex: 100,
+                        },
+                    ]}
                     pointerEvents="box-none"
                 >
                     <KeyboardAvoidingView

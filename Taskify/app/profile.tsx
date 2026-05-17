@@ -244,79 +244,79 @@ export default function ProfileScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Preferences</Text>
                     <View style={styles.menuCard}>
-                        <MenuItem 
-                            icon={<Settings size={20} color={colors.primary} />} 
-                            title="Visual Preferences" 
-                            subtitle="Theme, language, and more" 
-                            onPress={() => router.push('/preferences')} 
-                            colors={colors} 
-                            styles={styles} 
+                        <MenuItem
+                            icon={<Settings size={20} color={colors.primary} />}
+                            title="Visual Preferences"
+                            subtitle="Theme, language, and more"
+                            onPress={() => router.push('/preferences')}
+                            colors={colors}
+                            styles={styles}
                         />
-                        <MenuSwitch 
-                            icon={<Bell size={20} color="#6366f1" />} 
-                            title="Push Notifications" 
-                            subtitle="Global notification master switch" 
+                        <MenuSwitch
+                            icon={<Bell size={20} color="#6366f1" />}
+                            title="Push Notifications"
+                            subtitle="Global notification master switch"
                             value={currentUser?.preferences?.notificationsEnabled ?? true}
                             onValueChange={(val) => {
                                 if (currentUserId) {
                                     dispatch(updateUserPreferences({ userId: currentUserId, preferences: { notificationsEnabled: val } }));
                                 }
                             }}
-                            colors={colors} 
-                            styles={styles} 
+                            colors={colors}
+                            styles={styles}
                         />
                         {currentUser?.preferences?.notificationsEnabled !== false && (
                             <Animated.View entering={FadeIn} exiting={FadeOut}>
-                                <MenuSwitch 
-                                    icon={<CheckCircle2 size={18} color="#10b981" />} 
-                                    title="Task Notifications" 
-                                    subtitle="Due dates, reminders" 
+                                <MenuSwitch
+                                    icon={<CheckCircle2 size={18} color="#10b981" />}
+                                    title="Task Notifications"
+                                    subtitle="Due dates, reminders"
                                     value={currentUser?.preferences?.taskNotificationsEnabled ?? true}
                                     onValueChange={(val) => {
                                         if (currentUserId) {
                                             dispatch(updateUserPreferences({ userId: currentUserId, preferences: { taskNotificationsEnabled: val } }));
                                         }
                                     }}
-                                    colors={colors} 
-                                    styles={styles} 
+                                    colors={colors}
+                                    styles={styles}
                                 />
-                                <MenuSwitch 
-                                    icon={<UserPlus size={18} color="#6366f1" />} 
-                                    title="Group Notifications" 
-                                    subtitle="Assignments, updates" 
+                                <MenuSwitch
+                                    icon={<UserPlus size={18} color="#6366f1" />}
+                                    title="Group Notifications"
+                                    subtitle="Assignments, updates"
                                     value={currentUser?.preferences?.groupNotificationsEnabled ?? true}
                                     onValueChange={(val) => {
                                         if (currentUserId) {
                                             dispatch(updateUserPreferences({ userId: currentUserId, preferences: { groupNotificationsEnabled: val } }));
                                         }
                                     }}
-                                    colors={colors} 
-                                    styles={styles} 
+                                    colors={colors}
+                                    styles={styles}
                                 />
                             </Animated.View>
                         )}
-                        <MenuItem 
-                            icon={<Shield size={20} color="#10b981" />} 
-                            title="Privacy & Security" 
-                            subtitle="Password, biometric lock" 
-                            colors={colors} 
-                            styles={styles} 
+                        <MenuItem
+                            icon={<Shield size={20} color="#10b981" />}
+                            title="Privacy & Security"
+                            subtitle="Password, biometric lock"
+                            colors={colors}
+                            styles={styles}
                         />
-                         <MenuItem 
-                            icon={<Copy size={20} color={colors.primary} />} 
-                            title="External User ID" 
-                            subtitle={currentUserId || 'Not available'} 
-                            onPress={handleCopyUserId} 
-                            colors={colors} 
-                            styles={styles} 
+                        <MenuItem
+                            icon={<Copy size={20} color={colors.primary} />}
+                            title="External User ID"
+                            subtitle={currentUserId || 'Not available'}
+                            onPress={handleCopyUserId}
+                            colors={colors}
+                            styles={styles}
                         />
-                        <MenuItem 
-                            icon={<Info size={20} color="#f59e0b" />} 
-                            title="About Project" 
-                            subtitle="Version, license, contribute" 
+                        <MenuItem
+                            icon={<Info size={20} color="#f59e0b" />}
+                            title="About Project"
+                            subtitle="Version, license, contribute"
                             onPress={() => router.push('/about' as any)}
-                            colors={colors} 
-                            styles={styles} 
+                            colors={colors}
+                            styles={styles}
                         />
                         <MenuItem
                             icon={<RefreshCw size={20} color={colors.primary} />}

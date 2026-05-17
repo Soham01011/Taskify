@@ -1,34 +1,33 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
-    SectionList,
-    RefreshControl,
-    Platform,
     KeyboardAvoidingView,
-    View,
-    TouchableOpacity,
+    Platform,
+    RefreshControl,
+    SectionList,
     Text,
-    useWindowDimensions,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Settings, Zap, AlertTriangle } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { useSelector } from 'react-redux';
 import { RootState } from '@/src/store';
+import { useRouter } from 'expo-router';
+import { AlertTriangle, Plus, Zap } from 'lucide-react-native';
 import Animated, {
     FadeInUp,
+    FadeOut,
     ZoomIn,
-    ZoomOut,
-    FadeOut
+    ZoomOut
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
-import { TaskCard } from '@/src/components/Tasks/TaskCard';
-import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
-import { AppHeader } from '@/src/components/AppHeader';
-import { useTasks } from '@/src/hooks/useTasks';
-import { useAppTheme } from '@/hooks/use-theme';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
+import { useAppTheme } from '@/hooks/use-theme';
+import { AppHeader } from '@/src/components/AppHeader';
+import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
+import { TaskCard } from '@/src/components/Tasks/TaskCard';
 import { SPACING } from '@/src/constants/theme';
+import { useTasks } from '@/src/hooks/useTasks';
 
 export default function TaskDashboard() {
     const router = useRouter();
@@ -78,7 +77,7 @@ export default function TaskDashboard() {
         if (overdueTasks.length > 0) sections.push({ title: 'Overdue', data: overdueTasks });
         if (todayTasks.length > 0) sections.push({ title: 'Today', data: todayTasks });
         if (tomorrowTasks.length > 0) sections.push({ title: 'Tomorrow', data: tomorrowTasks });
-        
+
         return sections;
     }, [tasks]);
 

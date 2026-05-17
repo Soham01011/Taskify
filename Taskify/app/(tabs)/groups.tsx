@@ -1,35 +1,35 @@
-import React, { useState, useCallback } from 'react';
+import { Plus } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
 import {
+    ActivityIndicator,
     FlatList,
-    View,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
     Text,
     TouchableOpacity,
-    RefreshControl,
-    Platform,
-    KeyboardAvoidingView,
-    ActivityIndicator
+    View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus } from 'lucide-react-native';
 import Animated, {
     FadeOut,
     ZoomIn,
     ZoomOut,
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useGroups } from '@/src/hooks/useGroups';
-import { GroupCard } from '@/src/components/Groups/GroupCard';
-import { CreateGroupForm } from '@/src/components/Groups/CreateGroupForm';
-import { AppHeader } from '@/src/components/AppHeader';
-import { useAppTheme } from '@/hooks/use-theme';
 import { getStyles } from '@/assets/styles/groupsscreen.styles';
+import { useAppTheme } from '@/hooks/use-theme';
 import { Group } from '@/src/api/groups';
+import { AppHeader } from '@/src/components/AppHeader';
+import { CreateGroupForm } from '@/src/components/Groups/CreateGroupForm';
+import { GroupCard } from '@/src/components/Groups/GroupCard';
+import { useGroups } from '@/src/hooks/useGroups';
 
 export default function GroupsScreen() {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
     const [isCreating, setIsCreating] = useState(false);
-    
+
     const {
         groups,
         isLoading,

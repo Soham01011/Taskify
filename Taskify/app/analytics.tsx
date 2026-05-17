@@ -76,7 +76,7 @@ export default function AnalyticsScreen() {
                             animationDuration={1000}
                         />
                     </View>
-                    
+
                     {/* Legend for Stacked Bar Chart */}
                     <View style={[styles.legendRow, { marginTop: 15 }]}>
                         <View style={styles.legendItem}>
