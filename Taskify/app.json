@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "taskify",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sohamdalvi.taskify"
@@ -19,7 +18,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.soham_dalvi.taskify",
       "googleServicesFile": "./google-services.json"
@@ -57,7 +55,8 @@
           "enableBackgroundRecording": false
         }
       ],
-      "expo-widgets"
+      "expo-widgets",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
