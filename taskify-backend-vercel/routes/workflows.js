@@ -139,12 +139,17 @@ router.post('/:id/nodes', async (req, res) => {
     const { source_type, source_id, new_task_data, new_idea_data, due_date, assigned_to, completion_rule, notes } = req.body;
     let actualSourceId = source_id;
 
+    const workflow = await Workflow.findById(req.params.id);
+    if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
+
     if (!actualSourceId) {
       if (source_type === 'TASK' && new_task_data) {
+        if (!new_task_data.userId) new_task_data.userId = req.body.userId || workflow.created_by;
         const task = new Task(new_task_data);
         await task.save();
         actualSourceId = task._id;
       } else if (source_type === 'IDEA' && new_idea_data) {
+        if (!new_idea_data.userId) new_idea_data.userId = req.body.userId || workflow.created_by;
         const idea = new Idea(new_idea_data);
         await idea.save();
         actualSourceId = idea._id;

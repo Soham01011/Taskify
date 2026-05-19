@@ -13,6 +13,6 @@ app.use(withDB);
 
 app.use('/api/workflows', workflowRoutes);
 
-app.get('/health', (req, res) => res.json({ status: 'ok', fn: 'workflows' }));
+app.get('/api/workflows/health', (req, res) => res.json({ status: 'ok', fn: 'workflows' }));
 
 module.exports = app;

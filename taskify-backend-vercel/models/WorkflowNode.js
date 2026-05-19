@@ -17,6 +17,5 @@ const WorkflowNodeSchema = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-WorkflowNodeSchema.index({ source_type: 1, source_id: 1 });
-
+WorkflowNodeSchema.index({ workflow_id: 1, source_type: 1, source_id: 1 }, { unique: true });
 module.exports = mongoose.model('WorkflowNode', WorkflowNodeSchema);
