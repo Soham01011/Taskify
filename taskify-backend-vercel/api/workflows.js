@@ -11,8 +11,8 @@ app.use(express.json());
 
 app.use(withDB);
 
-app.use('/api/workflows', workflowRoutes);
-
 app.get('/api/workflows/health', (req, res) => res.json({ status: 'ok', fn: 'workflows' }));
+
+app.use('/api/workflows', workflowRoutes);
 
 module.exports = app;

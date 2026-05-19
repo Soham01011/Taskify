@@ -80,6 +80,10 @@
       "dest": "api/ollamallm.js"
     },
     {
+      "src": "/api/workflows",
+      "dest": "api/workflows.js"
+    },
+    {
       "src": "/api/workflows/(.*)",
       "dest": "api/workflows.js"
     }
