@@ -85,7 +85,7 @@ export default function AnalyticsScreen() {
                         </View>
                         <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#FF3B30' }]} />
-                            <Text style={[styles.legendText, { color: colors.textSecondary }]}>Late (>30m)</Text>
+                            <Text style={[styles.legendText, { color: colors.textSecondary }]}>Late ({'>'}30m)</Text>
                         </View>
                     </View>
                 </View>

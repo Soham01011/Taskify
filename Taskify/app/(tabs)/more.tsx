@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/hooks/use-theme';
 import { useRouter } from 'expo-router';
-import { Activity, CalendarDays, ChevronRight, PieChart, StickyNote } from 'lucide-react-native';
+import { Activity, CalendarDays, ChevronRight, Network, PieChart, StickyNote } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +29,14 @@ const FEATURES = [
         icon: StickyNote,
         active: true,
         route: '/securenotes'
+    },
+    {
+        id: 'workflows',
+        title: 'Workflows',
+        description: 'Plan your daily task and ideas in a workflow',
+        icon: Network,
+        active: true,
+        route: '/workflows'
     },
     {
         id: 'habits',

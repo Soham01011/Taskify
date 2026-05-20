@@ -28,6 +28,8 @@ import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
 import { SPACING } from '@/src/constants/theme';
 import { useTasks } from '@/src/hooks/useTasks';
+import { useWorkflows } from '@/src/hooks/useWorkflows';
+import { Network } from 'lucide-react-native';
 
 export default function TaskDashboard() {
     const router = useRouter();
@@ -44,6 +46,8 @@ export default function TaskDashboard() {
         handleComplete,
         loadTasks
     } = useTasks();
+
+    const { workflows, isLoading: isLoadingWorkflows } = useWorkflows('PERSONAL');
 
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
@@ -134,6 +138,42 @@ export default function TaskDashboard() {
                                 <View style={[styles.progressBarFill, { width: `${group.progress}%` }]} />
                             </View>
                         </Animated.View>
+                    ))}
+                </View>
+            )}
+
+            {/* Active Workflows Section */}
+            {workflows && workflows.length > 0 && (
+                <View style={styles.activeSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Active Workflows</Text>
+                        <TouchableOpacity onPress={() => router.push('/workflows' as any)}>
+                            <Text style={styles.seeAll}>SEE ALL</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {workflows.slice(0, 2).map((workflow, index) => (
+                        <TouchableOpacity
+                            key={workflow._id || (workflow as any).id}
+                            onPress={() => router.push(`/workflows/${workflow._id || (workflow as any).id}` as any)}
+                            activeOpacity={0.8}
+                        >
+                            <Animated.View
+                                entering={FadeInUp.delay(index * 100).duration(500)}
+                                style={styles.groupCard}
+                            >
+                                <View style={styles.groupCardHeader}>
+                                    <Text style={styles.groupTitle} numberOfLines={1}>{workflow.name}</Text>
+                                    <Network size={20} color={colors.primary} />
+                                </View>
+                                <Text style={styles.groupDescription} numberOfLines={2}>
+                                    {workflow.description || 'DAG Workflow'}
+                                </Text>
+                                <View style={styles.progressLabelRow}>
+                                    <Text style={styles.progressLabel}>Status</Text>
+                                    <Text style={[styles.progressValue, { color: colors.primary }]}>{workflow.status}</Text>
+                                </View>
+                            </Animated.View>
+                        </TouchableOpacity>
                     ))}
                 </View>
             )}
