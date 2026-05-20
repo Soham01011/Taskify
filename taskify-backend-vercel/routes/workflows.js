@@ -136,7 +136,20 @@ router.delete('/:id', async (req, res) => {
 // 2. Node CRUD within a Workflow
 router.post('/:id/nodes', async (req, res) => {
   try {
-    const { source_type, source_id, new_task_data, new_idea_data, due_date, assigned_to, completion_rule, notes } = req.body;
+    const { 
+      source_type, 
+      source_id, 
+      new_task_data, 
+      new_idea_data, 
+      due_date, 
+      assigned_to, 
+      completion_rule, 
+      notes,
+      position_x,
+      position_y,
+      node_type,
+      status
+    } = req.body;
     let actualSourceId = source_id;
 
     const workflow = await Workflow.findById(req.params.id);
@@ -163,7 +176,11 @@ router.post('/:id/nodes', async (req, res) => {
       due_date,
       assigned_to,
       completion_rule,
-      notes
+      notes,
+      position_x,
+      position_y,
+      node_type,
+      status
     });
 
     // Check if it's a root node
