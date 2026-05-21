@@ -9,6 +9,7 @@ import { ChevronLeft, Edit2, Plus, Settings } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { styles } from '@/assets/styles/workflow-id.styles'
 
 import { CreateEdgeModal } from '@/src/components/Workflows/CreateEdgeModal';
 import { CreateNodeModal } from '@/src/components/Workflows/CreateNodeModal';
@@ -31,7 +32,7 @@ export default function WorkflowDetailScreen() {
         try {
             const response = await workflowsApi.getDag(id as string);
             let fetchedDag = response.data;
-            
+
             // Enrichment: backend populate fails for embedded sub-tasks and threads.
             // If any node lacks source_data.title, we manually find it.
             const nodesMissingTitle = fetchedDag.nodes.filter(n => !n.source_data || !n.source_data.title);
@@ -40,13 +41,13 @@ export default function WorkflowDetailScreen() {
                     taskApi.getAll().catch(() => ({ data: [] })),
                     ideaApi.getAll().catch(() => ({ data: [] }))
                 ]);
-                
+
                 const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : (tasksRes.data as any).tasks || [];
                 const ideas = Array.isArray(ideasRes.data) ? ideasRes.data : (ideasRes.data as any).ideas || [];
-                
+
                 fetchedDag.nodes = fetchedDag.nodes.map(node => {
                     if (node.source_data?.title) return node;
-                    
+
                     let foundTitle = 'Unknown Node';
                     if (node.source_type === 'TASK') {
                         tasks.forEach((t: Task) => {
@@ -67,14 +68,14 @@ export default function WorkflowDetailScreen() {
                             });
                         });
                     }
-                    
+
                     return {
                         ...node,
                         source_data: { ...node.source_data, title: foundTitle }
                     };
                 });
             }
-            
+
             setDag(fetchedDag);
         } catch (error) {
             console.error("Failed to fetch DAG", error);
@@ -213,83 +214,4 @@ export default function WorkflowDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
-        borderBottomWidth: 1,
-        zIndex: 10,
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    iconBtn: {
-        padding: 8,
-    },
-    titleContainer: {
-        marginLeft: 8,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    headerRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.sm,
-    },
-    editBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-        gap: 6,
-    },
-    editBtnText: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    canvasContainer: {
-        flex: 1,
-        overflow: 'hidden',
-    },
-    bottomBar: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: SPACING.lg,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-    },
-    bottomLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    bottomRight: {
-        alignItems: 'flex-end',
-        gap: 16,
-    },
-    fab: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-});
+

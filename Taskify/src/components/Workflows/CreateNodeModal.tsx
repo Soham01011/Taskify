@@ -17,6 +17,7 @@ import { RootState } from '@/src/store';
 import { taskApi, Task } from '@/src/api/tasks';
 import { ideaApi, Idea } from '@/src/api/ideas';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { styles } from "@/assets/styles/create-node-modal.styles";
 
 export const CreateNodeModal = ({
     workflowId,
@@ -31,19 +32,19 @@ export const CreateNodeModal = ({
 }) => {
     const { colors } = useAppTheme();
     const { currentUserId } = useSelector((state: RootState) => state.auth);
-    
+
     const isEditing = !!initialNode;
-    
+
     const [sourceType, setSourceType] = useState<'TASK' | 'IDEA'>(initialNode?.source_type || 'TASK');
     const [isExisting, setIsExisting] = useState(isEditing ? !!initialNode.source_id : false);
-    
+
     const [title, setTitle] = useState(isEditing ? (initialNode.source_data?.title || '') : '');
     const [description, setDescription] = useState(isEditing ? (initialNode.source_data?.description || '') : '');
     const [dueDate, setDueDate] = useState<Date | null>(isEditing && initialNode.due_date ? new Date(initialNode.due_date) : null);
     const [isDatePickerVisible, setDatePickerVisible] = useState(false);
-    
-    const [existingTasks, setExistingTasks] = useState<{_id: string, title: string}[]>([]);
-    const [existingIdeas, setExistingIdeas] = useState<{_id: string, title: string}[]>([]);
+
+    const [existingTasks, setExistingTasks] = useState<{ _id: string, title: string }[]>([]);
+    const [existingIdeas, setExistingIdeas] = useState<{ _id: string, title: string }[]>([]);
     const [selectedExistingId, setSelectedExistingId] = useState<string | null>(initialNode?.source_id || null);
 
     const [loading, setLoading] = useState(false);
@@ -93,7 +94,7 @@ export const CreateNodeModal = ({
     const handleSave = async () => {
         setLoading(true);
         try {
-            const selectedTitle = sourceType === 'TASK' 
+            const selectedTitle = sourceType === 'TASK'
                 ? existingTasks.find(t => t._id === selectedExistingId)?.title
                 : existingIdeas.find(i => i._id === selectedExistingId)?.title;
 
@@ -144,7 +145,7 @@ export const CreateNodeModal = ({
         <GenieAnimation>
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.title, { color: colors.text }]}>{isEditing ? 'Edit Node' : 'Add New Node'}</Text>
-                
+
                 <ScrollView style={{ maxHeight: 400 }}>
                     <View style={styles.typeSelector}>
                         <TouchableOpacity
@@ -202,7 +203,7 @@ export const CreateNodeModal = ({
                                 placeholder="Enter title..."
                                 placeholderTextColor={colors.textSecondary}
                             />
-                            
+
                             <Text style={[styles.label, { color: colors.textSecondary, marginTop: SPACING.md }]}>Description (Optional)</Text>
                             <TextInput
                                 style={[styles.input, { color: colors.text, borderColor: colors.border, height: 60, textAlignVertical: 'top' }]}
@@ -286,67 +287,3 @@ export const CreateNodeModal = ({
     );
 };
 
-const styles = StyleSheet.create({
-    card: {
-        borderRadius: RADIUS.xl,
-        padding: SPACING.lg,
-        borderWidth: 1,
-        margin: SPACING.md,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: SPACING.lg,
-    },
-    typeSelector: {
-        flexDirection: 'row',
-        gap: SPACING.md,
-        marginBottom: SPACING.md,
-    },
-    typeBtn: {
-        flex: 1,
-        padding: SPACING.sm,
-        alignItems: 'center',
-        borderRadius: RADIUS.md,
-        borderWidth: 1,
-    },
-    formGroup: {
-        marginBottom: SPACING.md,
-    },
-    label: {
-        fontSize: 14,
-        marginBottom: SPACING.xs,
-    },
-    input: {
-        borderWidth: 1,
-        borderRadius: RADIUS.md,
-        padding: SPACING.sm,
-    },
-    itemBtn: {
-        padding: SPACING.sm,
-        borderRadius: RADIUS.md,
-        borderWidth: 1,
-        marginBottom: SPACING.xs,
-    },
-    dateBtn: {
-        padding: SPACING.sm,
-        borderRadius: RADIUS.md,
-        borderWidth: 1,
-        alignItems: 'center',
-    },
-    actions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        gap: SPACING.lg,
-        marginTop: SPACING.md,
-    },
-    cancelBtn: {
-        paddingVertical: SPACING.sm,
-    },
-    addBtn: {
-        paddingHorizontal: SPACING.lg,
-        paddingVertical: SPACING.sm,
-        borderRadius: RADIUS.lg,
-    },
-});

@@ -9,10 +9,10 @@ import {
 } from 'react-native';
 import { useAppTheme } from '@/hooks/use-theme';
 import { GenieAnimation } from '@/src/components/GenieAnimation';
-import { SPACING, RADIUS } from '@/src/constants/theme';
 import { useWorkflows } from '@/src/hooks/useWorkflows';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/src/store';
+import { styles } from "@/assets/styles/create-workflow-form.styles";
 
 export const CreateWorkflowForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) => {
     const { colors } = useAppTheme();
@@ -103,48 +103,3 @@ export const CreateWorkflowForm = ({ onSuccess, onCancel }: { onSuccess: () => v
     );
 };
 
-const styles = StyleSheet.create({
-    card: {
-        borderRadius: RADIUS.xl,
-        padding: SPACING.lg,
-        borderWidth: 1,
-        margin: SPACING.md,
-    },
-    titleInput: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: SPACING.sm,
-    },
-    descriptionInput: {
-        fontSize: 16,
-        minHeight: 60,
-        textAlignVertical: 'top',
-        marginBottom: SPACING.md,
-    },
-    typeSelector: {
-        flexDirection: 'row',
-        gap: SPACING.md,
-        marginBottom: SPACING.lg,
-    },
-    typeBtn: {
-        flex: 1,
-        padding: SPACING.sm,
-        alignItems: 'center',
-        borderRadius: RADIUS.md,
-        borderWidth: 1,
-    },
-    actions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        gap: SPACING.lg,
-    },
-    cancelBtn: {
-        paddingVertical: SPACING.sm,
-    },
-    addBtn: {
-        paddingHorizontal: SPACING.lg,
-        paddingVertical: SPACING.sm,
-        borderRadius: RADIUS.lg,
-    },
-});
