@@ -68,6 +68,27 @@ async function cascadeStatus(workflowId, nodeId, newStatus, oldStatus) {
   }
 }
 
+// Helper to sync task completion
+async function syncTaskCompletion(node) {
+  if (node.source_type === 'TASK') {
+    const isCompleted = node.status === 'DONE';
+    let task = await Task.findById(node.source_id);
+    if (task) {
+      task.completed = isCompleted;
+      await task.save();
+    } else {
+      task = await Task.findOne({ 'subtasks._id': node.source_id });
+      if (task) {
+        const subtask = task.subtasks.id(node.source_id);
+        if (subtask) {
+          subtask.completed = isCompleted;
+          await task.save();
+        }
+      }
+    }
+  }
+}
+
 // 1. Workflow CRUD
 // Create a new workflow
 router.post('/', async (req, res) => {
@@ -218,6 +239,11 @@ router.get('/:id/nodes/:nodeId', async (req, res) => {
 router.patch('/:id/nodes/:nodeId', async (req, res) => {
   try {
     const node = await WorkflowNode.findByIdAndUpdate(req.params.nodeId, req.body, { new: true });
+    
+    if (node && req.body.status !== undefined) {
+      await syncTaskCompletion(node);
+    }
+    
     res.json(node);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -346,6 +372,7 @@ router.patch('/:id/nodes/:nodeId/status', async (req, res) => {
 
     if (oldStatus !== newStatus) {
       await cascadeStatus(req.params.id, req.params.nodeId, newStatus, oldStatus);
+      await syncTaskCompletion(node);
     }
 
     res.json(node);
