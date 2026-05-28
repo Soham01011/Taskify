@@ -181,11 +181,35 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ nodes, edges, co
         };
     });
 
+    let minX = 0;
+    let minY = 0;
+    let maxX = 0;
+    let maxY = 0;
+
+    if (nodes.length > 0) {
+        minX = Math.min(...nodes.map(n => livePositions[n._id]?.x ?? n.position_x));
+        minY = Math.min(...nodes.map(n => livePositions[n._id]?.y ?? n.position_y));
+        maxX = Math.max(...nodes.map(n => (livePositions[n._id]?.x ?? n.position_x) + NODE_WIDTH));
+        maxY = Math.max(...nodes.map(n => (livePositions[n._id]?.y ?? n.position_y) + NODE_HEIGHT));
+    }
+
+    const PADDING = 500;
+    const svgX = minX - PADDING;
+    const svgY = minY - PADDING;
+    const svgWidth = Math.max(1000, maxX - minX + PADDING * 2);
+    const svgHeight = Math.max(1000, maxY - minY + PADDING * 2);
+
     return (
         <GestureDetector gesture={combinedGesture}>
             <View style={styles.container}>
                 <Animated.View style={[styles.canvas, animatedStyle]}>
-                    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <Svg 
+                        width={svgWidth} 
+                        height={svgHeight} 
+                        viewBox={`${svgX} ${svgY} ${svgWidth} ${svgHeight}`} 
+                        style={{ position: 'absolute', top: svgY, left: svgX, overflow: 'visible' }} 
+                        pointerEvents="none"
+                    >
                         {edges.map((edge) => {
                             const fromNode = nodes.find((n) => n._id === edge.from_node_id);
                             const toNode = nodes.find((n) => n._id === edge.to_node_id);
