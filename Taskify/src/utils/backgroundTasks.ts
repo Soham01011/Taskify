@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as TaskManager from 'expo-task-manager';
 import { groupApi } from '../api/groups';
+import { ideaApi } from '../api/ideas';
 import { Task, taskApi } from '../api/tasks';
 import { NotificationService } from './notificationService';
 
@@ -69,6 +70,42 @@ if (!isExpoGo) {
             if (tasks && tasks.length > 0) {
                 await NotificationService.syncTasksWithNotifications(tasks);
                 console.log('Synchronized notifications from background task');
+            }
+
+            // Free time logic: check if there are no incomplete tasks due within the next 2 hours
+            const now = new Date();
+            const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+            
+            const hasUpcomingTasks = tasks.some(t => {
+                if (t.completed || !t.dueDate) return false;
+                const dueDate = new Date(t.dueDate);
+                return dueDate > now && dueDate <= twoHoursFromNow;
+            });
+
+            if (!hasUpcomingTasks) {
+                try {
+                    const ideaRes = await ideaApi.getAll({
+                        headers: { Authorization: `Bearer ${accessToken}` }
+                    } as any);
+                    
+                    const ideas = Array.isArray(ideaRes.data) ? ideaRes.data : ideaRes.data.ideas;
+                    
+                    if (ideas && ideas.length > 0) {
+                        const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
+                        await NotificationService.scheduleFreeTimeSuggestion(randomIdea, 'IDEA');
+                    } else {
+                        const nonRecurringTasks = tasks.filter(t => !t.completed && (!t.recurrence || t.recurrence.frequency === 'none'));
+                        if (nonRecurringTasks.length > 0) {
+                            const randomTask = nonRecurringTasks[Math.floor(Math.random() * nonRecurringTasks.length)];
+                            await NotificationService.scheduleFreeTimeSuggestion(randomTask, 'TASK');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to handle free time logic', e);
+                }
+            }
+
+            if (tasks && tasks.length > 0) {
                 return BackgroundFetch.BackgroundFetchResult.NewData;
             }
 

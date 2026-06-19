@@ -59,6 +59,12 @@ export const NotificationManager: React.FC = () => {
             const actionIdentifier = response.actionIdentifier;
             const taskId = data.taskId;
 
+            if (data.type === 'FREE_TIME_IDEA' || data.type === 'FREE_TIME_TASK') {
+                console.log('Opened free time suggestion:', data.type, data.itemId);
+                await Notifications.dismissNotificationAsync(response.notification.request.identifier);
+                return;
+            }
+
             if (taskId) {
                 console.log('Notification interaction for task:', taskId, 'Action:', actionIdentifier);
 

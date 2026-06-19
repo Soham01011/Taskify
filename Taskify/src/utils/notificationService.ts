@@ -221,6 +221,47 @@ export class NotificationService {
         }
         return false;
     }
+
+    static async scheduleFreeTimeSuggestion(item: any, type: 'IDEA' | 'TASK') {
+        const title = type === 'IDEA' ? `💡 Got some free time?` : `🎯 Free time available!`;
+        const body = type === 'IDEA' 
+            ? `Why not work on your idea: ${item.title}` 
+            : `How about making progress on: ${item.title || item.task}`;
+        const identifier = `freetime_${item._id || item.taskId || item.id}`;
+
+        // Don't show if already presented
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        if (presented.some(n => n.request.identifier === identifier)) {
+            return;
+        }
+
+        const categoryId = 'FREE_TIME_SUGGESTION';
+        
+        await Notifications.setNotificationCategoryAsync(categoryId, [
+            {
+                identifier: 'OPEN',
+                buttonTitle: 'Open',
+                options: {
+                    opensAppToForeground: true,
+                },
+            },
+        ]);
+
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title,
+                body,
+                data: {
+                    itemId: item._id || item.taskId || item.id,
+                    type: type === 'IDEA' ? 'FREE_TIME_IDEA' : 'FREE_TIME_TASK',
+                },
+                categoryIdentifier: categoryId,
+                sound: 'default',
+            },
+            trigger: null, // show immediately
+            identifier,
+        });
+    }
 }
 
 
