@@ -128,9 +128,6 @@ export default function IdeasScreen() {
             {quickCaptures.length > 0 && (
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Quick Captures</Text>
-                    <TouchableOpacity>
-                        <Text style={styles.seeAll}>View all</Text>
-                    </TouchableOpacity>
                 </View>
             )}
         </View>

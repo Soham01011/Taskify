@@ -11,9 +11,9 @@ const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreCl
 let BackgroundFetch: any = null;
 if (!isExpoGo) {
     try {
-        BackgroundFetch = require('expo-background-fetch');
+        BackgroundFetch = require('expo-background-task');
     } catch (e) {
-        console.log('Failed to load expo-background-fetch', e);
+        console.log('Failed to load expo-background-task', e);
     }
 }
 
@@ -75,7 +75,7 @@ if (!isExpoGo) {
             // Free time logic: check if there are no incomplete tasks due within the next 2 hours
             const now = new Date();
             const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-            
+
             const hasUpcomingTasks = tasks.some(t => {
                 if (t.completed || !t.dueDate) return false;
                 const dueDate = new Date(t.dueDate);
@@ -87,9 +87,9 @@ if (!isExpoGo) {
                     const ideaRes = await ideaApi.getAll({
                         headers: { Authorization: `Bearer ${accessToken}` }
                     } as any);
-                    
+
                     const ideas = Array.isArray(ideaRes.data) ? ideaRes.data : ideaRes.data.ideas;
-                    
+
                     if (ideas && ideas.length > 0) {
                         const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
                         await NotificationService.scheduleFreeTimeSuggestion(randomIdea, 'IDEA');

@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { InteractionManager } from 'react-native';
 import { Message, ToolCall, useLLM } from 'react-native-executorch';
 import { useDispatch, useSelector } from 'react-redux';
 import { ideaApi } from '../api/ideas';
@@ -31,9 +32,21 @@ export const useTaskMate = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const currentPromptRef = useRef('');
 
+    const [shouldLoad, setShouldLoad] = useState(false);
+
+    useEffect(() => {
+        const task = InteractionManager.runAfterInteractions(() => {
+            // Allow UI to mount and render completely before starting heavy native load
+            setTimeout(() => {
+                setShouldLoad(true);
+            }, 100);
+        });
+        return () => task.cancel();
+    }, []);
+
     const llm = useLLM({
         model: MATE_MODELS.ACTIVE.config,
-        preventLoad: false
+        preventLoad: !shouldLoad
     });
 
     // ─── Tool Execution Logic ──────────────────────────────────────────────
