@@ -1,11 +1,11 @@
-import { Clock, Folder, Lightbulb, Plus, Trash2 } from 'lucide-react-native';
-import React, { useCallback } from 'react';
+import { Lightbulb, Plus } from 'lucide-react-native';
+import React from 'react';
 import {
     ActivityIndicator,
-    FlatList,
     KeyboardAvoidingView,
     Platform,
     RefreshControl,
+    ScrollView,
     Text,
     TouchableOpacity,
     View,
@@ -60,39 +60,8 @@ export default function IdeasScreen() {
         handleDeleteThread,
     } = useIdeas();
 
-    const mainIdeas = ideas.filter(idea => idea.thread && idea.thread.length > 0);
-    const quickCaptures = ideas.filter(idea => !idea.thread || idea.thread.length === 0);
-
-    const renderQuickCapture = useCallback(({ item }: { item: Idea }) => (
-        <TouchableOpacity
-            style={styles.quickCaptureCard}
-            onPress={() => setSelectedIdea(item)}
-            activeOpacity={0.8}
-        >
-            <View style={styles.quickCaptureLeftBar} />
-            <View style={styles.quickCaptureContent}>
-                <Text style={styles.quickCaptureTitle} numberOfLines={1}>
-                    {item.title}
-                </Text>
-                <View style={styles.quickCaptureMeta}>
-                    <Clock size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                    <Text style={styles.quickCaptureTime}>{formatRelativeDate(item.created_at)}</Text>
-                    <Folder size={12} color={colors.textSecondary} style={{ marginLeft: 12, marginRight: 4 }} />
-                    <Text style={styles.quickCaptureTime}>Idea Note</Text>
-                </View>
-            </View>
-            <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); handleDelete(item._id); }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{ justifyContent: 'center', paddingRight: SPACING.md }}
-            >
-                <Trash2 size={16} color={colors.textSecondary} opacity={0.6} />
-            </TouchableOpacity>
-        </TouchableOpacity>
-    ), [setSelectedIdea, colors, styles]);
-
-    const renderHeader = () => (
-        <View>
+    const renderContent = () => (
+        <View style={{ paddingBottom: 100 }}>
             {/* Header Content */}
             <View style={styles.subHeader}>
                 <View style={styles.headerLeft}>
@@ -108,27 +77,24 @@ export default function IdeasScreen() {
                 )}
             </View>
 
-            {/* Main Ideas Grid */}
-            <View style={styles.gridContainer}>
-                {mainIdeas.map((item, index) => (
-                    <IdeaCard
-                        key={item._id}
-                        item={item}
-                        isNew={newIdeaIds.has(item._id)}
-                        onPress={setSelectedIdea}
-                        onDelete={handleDelete}
-                        colors={colors}
-                        formatDate={formatRelativeDate}
-                        index={index}
-                    />
-                ))}
-            </View>
-
-            {/* Quick Captures Header */}
-            {quickCaptures.length > 0 && (
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Quick Captures</Text>
+            {/* Ideas Grid */}
+            {ideas.length > 0 ? (
+                <View style={styles.gridContainer}>
+                    {ideas.map((item, index) => (
+                        <IdeaCard
+                            key={item._id}
+                            item={item}
+                            isNew={newIdeaIds.has(item._id)}
+                            onPress={setSelectedIdea}
+                            onDelete={handleDelete}
+                            colors={colors}
+                            formatDate={formatRelativeDate}
+                            index={index}
+                        />
+                    ))}
                 </View>
+            ) : (
+                !isLoading && <EmptyState colors={colors} styles={styles} />
             )}
         </View>
     );
@@ -137,12 +103,8 @@ export default function IdeasScreen() {
         <SafeAreaView style={styles.container}>
             <AppHeader />
 
-            <FlatList
-                data={quickCaptures}
-                renderItem={renderQuickCapture}
-                keyExtractor={(item) => item._id}
+            <ScrollView
                 contentContainerStyle={styles.listContent}
-                ListHeaderComponent={renderHeader}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -151,8 +113,9 @@ export default function IdeasScreen() {
                         colors={[colors.primary]}
                     />
                 }
-                ListEmptyComponent={!isLoading && mainIdeas.length === 0 ? <EmptyState colors={colors} styles={styles} /> : null}
-            />
+            >
+                {renderContent()}
+            </ScrollView>
 
             {/* FAB */}
             {!isCreating && (
