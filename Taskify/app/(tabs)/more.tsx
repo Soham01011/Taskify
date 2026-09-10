@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/hooks/use-theme';
 import { useRouter } from 'expo-router';
-import { Activity, CalendarDays, ChevronRight, Network, PieChart, StickyNote } from 'lucide-react-native';
+import { Activity, BarChart2, CalendarDays, ChevronRight, Network, PieChart, StickyNote } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,6 +37,14 @@ const FEATURES = [
         icon: Network,
         active: true,
         route: '/workflows'
+    },
+    {
+        id: 'weekly-evaluation',
+        title: 'Weekly Evaluation',
+        description: 'Review your performance report for the previous week',
+        icon: BarChart2,
+        route: '/weekly-evaluation',
+        active: true
     },
     {
         id: 'habits',

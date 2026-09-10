@@ -32,8 +32,7 @@ export const CreateWorkflowForm = ({ onSuccess, onCancel }: { onSuccess: () => v
                 name,
                 description,
                 type,
-                owner_id: currentUserId,
-                created_by: currentUserId,
+                // owner_id and created_by are derived from the JWT server-side — do not send them
             });
             onSuccess();
         } catch (error) {

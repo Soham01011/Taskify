@@ -46,6 +46,41 @@ export interface PaginatedTasksResponse {
     };
 }
 
+export interface WeeklyEvaluationResponse {
+    week: string;
+    evaluation_window: {
+        from: string;
+        to: string;
+    };
+    summary: {
+        total_tasks: number;
+        completed: number;
+        incomplete: number;
+        overdue: number;
+        on_time: number;
+        completion_rate_percent: number;
+        recurring_tasks: number;
+        one_off_tasks: number;
+    };
+    subtasks: {
+        total: number;
+        completed: number;
+        completion_rate_percent: number;
+    };
+    daily_breakdown: Record<string, { due: number; completed: number }>;
+    insights: {
+        most_productive_day: string | null;
+        most_productive_day_completions: number;
+    };
+}
+
+export interface WeeklyEvaluationLockedResponse {
+    error: string;
+    message: string;
+    week: string;
+    next_available_after: string;
+}
+
 export const taskApi = {
     getAll: (params?: FetchTasksParams) => client.get<Task[] | PaginatedTasksResponse>('/tasks/', { params }),
 
@@ -86,5 +121,24 @@ export const taskApi = {
 
     deleteSubtask: (taskId: string, subtaskId: string) =>
         client.delete<Task>(`/tasks/${taskId}/subtasks/${subtaskId}/`),
+
+    /**
+     * Fetches the weekly evaluation report for the previous completed calendar week (Mon–Sun UTC).
+     *
+     * The device's local time is read and converted to a UTC ISO 8601 string via
+     * `new Date().toISOString()` — JavaScript's Date always serialises to UTC, so no
+     * manual timezone conversion is required.
+     *
+     * Returns 200 with the report on the first call for a given past week, or 423
+     * (Locked) if the report has already been viewed.
+     */
+    getWeeklyEvaluation: () => {
+        // `new Date()` captures the device's current local moment; `.toISOString()`
+        // converts it to a UTC ISO 8601 string (e.g. "2026-09-10T14:00:00.000Z").
+        const clientTime = new Date().toISOString();
+        return client.get<WeeklyEvaluationResponse>('/tasks/weekly-evaluation', {
+            params: { clientTime },
+        });
+    },
 };
 
