@@ -341,10 +341,10 @@ router.delete('/:taskId/subtasks/:subtaskId', verifyToken, async (req, res) => {
 // GET /api/tasks/weekly-evaluation
 //
 // Rules:
-//  • Always evaluates the PREVIOUS completed calendar week (Mon 00:00 – Sun 23:59 UTC).
-//  • A user can only view their report once per past week.
-//    After viewing, the endpoint returns 423 until the NEXT week completes.
-//  • The current in-progress week is never exposed.
+//  • Evaluates completed calendar weeks (Mon 00:00 – Sun 23:59 UTC).
+//  • Unlimited views: users can check their evaluation as many times as they want.
+//  • The current in-progress week is never evaluated (only completed past weeks).
+//  • Optional query param `weeksAgo` (default: 1) allows viewing previous weeks.
 //
 // Helpers ─────────────────────────────────────────────────────────────────────
 // Returns the Monday 00:00:00 UTC of the ISO week that contains `date`.
@@ -356,13 +356,14 @@ function getWeekStart(date) {
   return d;
 }
 
-// Returns a stable string key for the week, e.g. "2026-W36"
-function isoWeekKey(mondayDate) {
-  const jan4 = new Date(Date.UTC(mondayDate.getUTCFullYear(), 0, 4));
-  const weekNum = Math.ceil(
-    ((mondayDate - getWeekStart(jan4)) / 86400000 + 1) / 7
-  );
-  return `${mondayDate.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+// Returns a stable string key for the week, e.g. "2026-W36" (ISO 8601 compliant)
+function isoWeekKey(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
 router.get('/weekly-evaluation', verifyToken, async (req, res) => {
@@ -383,48 +384,38 @@ router.get('/weekly-evaluation', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid clientTime. Must be a valid ISO 8601 UTC string.' });
     }
     // Drift guard: reject if client time is more than 24 h away from server time
-    // (prevents week-boundary manipulation by sending a fake far-future date)
     const serverNow = new Date();
     if (Math.abs(now - serverNow) > 24 * 60 * 60 * 1000) {
       return res.status(400).json({ error: 'clientTime is too far from server time. Max allowed drift is 24 hours.' });
     }
 
-    // ── Determine the previous completed week ──────────────────────────────
-    // Week key is an ISO week string like "2026-W36".
-    // No reset cron is needed — when a new week starts the server computes a
-    // different weekKey (e.g. "2026-W37") which won't match the stored key,
-    // so the gate opens automatically without touching the DB.
-    const thisWeekMonday = getWeekStart(now);
-    // Previous week starts 7 days before this Monday
-    const prevWeekMonday = new Date(thisWeekMonday);
-    prevWeekMonday.setUTCDate(prevWeekMonday.getUTCDate() - 7);
-    // Previous week ends Sunday 23:59:59.999 UTC (= this Monday - 1ms)
-    const prevWeekSunday = new Date(thisWeekMonday.getTime() - 1);
+    // ── Determine which previous week to evaluate ──────────────────────────
+    // weeksAgo = 1 (default) evaluates the immediately preceding completed week.
+    // weeksAgo = 2 evaluates 2 weeks ago, etc.
+    // Current in-progress week (weeksAgo = 0) is never evaluated.
+    const weeksAgoParam = req.query.weeksAgo || req.query.weekOffset;
+    const weeksAgo = weeksAgoParam !== undefined ? parseInt(weeksAgoParam, 10) : 1;
 
-    const weekKey = isoWeekKey(prevWeekMonday); // e.g. "2026-W36"
-
-    // ── Check if user has already viewed this week's report ───────────────
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-
-    if (user.lastWeeklyEvalViewed === weekKey) {
-      // Already consumed — tell client when the next one will be available
-      const nextAvailableDate = new Date(thisWeekMonday);
-      nextAvailableDate.setUTCDate(nextAvailableDate.getUTCDate() + 7); // next Monday
-
-      return res.status(423).json({
-        error: 'Weekly evaluation already viewed.',
-        message: 'You have already seen your report for this past week. Come back once the current week ends.',
-        week: weekKey,
-        next_available_after: nextAvailableDate.toISOString()
+    if (isNaN(weeksAgo) || weeksAgo < 1) {
+      return res.status(400).json({
+        error: 'Invalid weeksAgo parameter. Evaluation is only available for completed past weeks (weeksAgo must be an integer >= 1).'
       });
     }
 
-    // ── Fetch tasks due in the previous week ───────────────────────────────
+    const thisWeekMonday = getWeekStart(now);
+    const targetWeekMonday = new Date(thisWeekMonday);
+    targetWeekMonday.setUTCDate(targetWeekMonday.getUTCDate() - (weeksAgo * 7));
+
+    const targetWeekSunday = new Date(targetWeekMonday);
+    targetWeekSunday.setUTCDate(targetWeekSunday.getUTCDate() + 7);
+    targetWeekSunday.setTime(targetWeekSunday.getTime() - 1);
+
+    const weekKey = isoWeekKey(targetWeekMonday);
+
+    // ── Fetch tasks due in the evaluated week ──────────────────────────────
     const tasks = await Task.find({
       userId,
-      dueDate: { $gte: prevWeekMonday, $lte: prevWeekSunday }
+      dueDate: { $gte: targetWeekMonday, $lte: targetWeekSunday }
     }).lean();
 
     // ── Aggregate metrics ──────────────────────────────────────────────────
@@ -452,7 +443,7 @@ router.get('/weekly-evaluation', verifyToken, async (req, res) => {
     // Daily breakdown Mon–Sun
     const dailyBreakdown = {};
     for (let i = 0; i < 7; i++) {
-      const day = new Date(prevWeekMonday);
+      const day = new Date(targetWeekMonday);
       day.setUTCDate(day.getUTCDate() + i);
       const key = day.toISOString().split('T')[0]; // YYYY-MM-DD
       dailyBreakdown[key] = { due: 0, completed: 0 };
@@ -480,15 +471,12 @@ router.get('/weekly-evaluation', verifyToken, async (req, res) => {
       }
     }
 
-    // ── Mark as viewed ─────────────────────────────────────────────────────
-    user.lastWeeklyEvalViewed = weekKey;
-    await user.save();
-
     res.json({
       week: weekKey,
+      weeks_ago: weeksAgo,
       evaluation_window: {
-        from: prevWeekMonday.toISOString(),
-        to: prevWeekSunday.toISOString()
+        from: targetWeekMonday.toISOString(),
+        to: targetWeekSunday.toISOString()
       },
       summary: {
         total_tasks: totalTasks,
