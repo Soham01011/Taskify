@@ -7,6 +7,21 @@ const WorkflowNode = require('../models/WorkflowNode');
 const WorkflowEdge = require('../models/WorkflowEdge');
 const Task = require('../models/Task');
 const Idea = require('../models/idea');
+const verifyToken = require('../middleware/auth');
+
+// Helper: ensure the calling user owns the workflow; returns the workflow or sends 403/404
+async function requireOwner(req, res) {
+  const workflow = await Workflow.findById(req.params.id);
+  if (!workflow) {
+    res.status(404).json({ error: 'Workflow not found' });
+    return null;
+  }
+  if (workflow.owner_id.toString() !== req.userId.toString()) {
+    res.status(403).json({ error: 'Forbidden: you do not own this workflow' });
+    return null;
+  }
+  return workflow;
+}
 
 // Helper to check for cycles
 async function wouldCreateCycle(workflowId, fromNodeId, toNodeId) {
@@ -90,12 +105,12 @@ async function syncTaskCompletion(node) {
 }
 
 // 1. Workflow CRUD
-// Create a new workflow
-router.post('/', async (req, res) => {
+// Create a new workflow (authenticated; owner is always the calling user)
+router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, type, owner_id } = req.body;
-    // Assuming created_by is provided in body or auth. Let's assume body for simplicity (like other routes might do if auth middleware isn't present here yet. Actually, how does the user auth work? Check `req.user`?)
-    const created_by = req.body.userId || owner_id; // temporary fallback
+    const { name, description, type } = req.body;
+    const owner_id = req.userId;
+    const created_by = req.userId;
     const workflow = new Workflow({
       name,
       description,
@@ -110,8 +125,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get workflows
-router.get('/', async (req, res) => {
+// Get workflows (any authenticated user can list/view)
+router.get('/', verifyToken, async (req, res) => {
   try {
     const { type, owner_id } = req.query;
     const query = {};
@@ -124,7 +139,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', verifyToken, async (req, res) => {
   try {
     const workflow = await Workflow.findById(req.params.id);
     if (!workflow) return res.status(404).json({ error: 'Not found' });
@@ -134,8 +149,9 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     const workflow = await Workflow.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(workflow);
   } catch (error) {
@@ -143,8 +159,9 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     await WorkflowNode.deleteMany({ workflow_id: req.params.id });
     await WorkflowEdge.deleteMany({ workflow_id: req.params.id });
     await Workflow.findByIdAndDelete(req.params.id);
@@ -155,7 +172,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // 2. Node CRUD within a Workflow
-router.post('/:id/nodes', async (req, res) => {
+router.post('/:id/nodes', verifyToken, async (req, res) => {
   try {
     const { 
       source_type, 
@@ -173,8 +190,8 @@ router.post('/:id/nodes', async (req, res) => {
     } = req.body;
     let actualSourceId = source_id;
 
-    const workflow = await Workflow.findById(req.params.id);
-    if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
+    const workflow = await requireOwner(req, res);
+    if (!workflow) return;
 
     if (!actualSourceId) {
       if (source_type === 'TASK' && new_task_data) {
@@ -217,7 +234,7 @@ router.post('/:id/nodes', async (req, res) => {
   }
 });
 
-router.get('/:id/nodes', async (req, res) => {
+router.get('/:id/nodes', verifyToken, async (req, res) => {
   try {
     const nodes = await WorkflowNode.find({ workflow_id: req.params.id });
     res.json(nodes);
@@ -226,7 +243,7 @@ router.get('/:id/nodes', async (req, res) => {
   }
 });
 
-router.get('/:id/nodes/:nodeId', async (req, res) => {
+router.get('/:id/nodes/:nodeId', verifyToken, async (req, res) => {
   try {
     const node = await WorkflowNode.findById(req.params.nodeId);
     if (!node) return res.status(404).json({ error: 'Node not found' });
@@ -236,8 +253,9 @@ router.get('/:id/nodes/:nodeId', async (req, res) => {
   }
 });
 
-router.patch('/:id/nodes/:nodeId', async (req, res) => {
+router.patch('/:id/nodes/:nodeId', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     const node = await WorkflowNode.findByIdAndUpdate(req.params.nodeId, req.body, { new: true });
     
     if (node && req.body.status !== undefined) {
@@ -250,8 +268,9 @@ router.patch('/:id/nodes/:nodeId', async (req, res) => {
   }
 });
 
-router.delete('/:id/nodes/:nodeId', async (req, res) => {
+router.delete('/:id/nodes/:nodeId', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     // Delete associated edges first
     await WorkflowEdge.deleteMany({
       workflow_id: req.params.id,
@@ -265,8 +284,9 @@ router.delete('/:id/nodes/:nodeId', async (req, res) => {
 });
 
 // 3. Edge CRUD
-router.post('/:id/edges', async (req, res) => {
+router.post('/:id/edges', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     const { from_node_id, to_node_id, edge_type } = req.body;
     
     // Cycle check
@@ -300,7 +320,7 @@ router.post('/:id/edges', async (req, res) => {
   }
 });
 
-router.get('/:id/edges', async (req, res) => {
+router.get('/:id/edges', verifyToken, async (req, res) => {
   try {
     const edges = await WorkflowEdge.find({ workflow_id: req.params.id });
     res.json(edges);
@@ -309,8 +329,9 @@ router.get('/:id/edges', async (req, res) => {
   }
 });
 
-router.delete('/:id/edges/:edgeId', async (req, res) => {
+router.delete('/:id/edges/:edgeId', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     const edge = await WorkflowEdge.findById(req.params.edgeId);
     if (!edge) return res.status(404).json({ error: 'Edge not found' });
     const toNodeId = edge.to_node_id;
@@ -339,9 +360,10 @@ router.delete('/:id/edges/:edgeId', async (req, res) => {
   }
 });
 
-// 4. Node Status Update
-router.patch('/:id/nodes/:nodeId/status', async (req, res) => {
+// 4. Node Status Update (owner-only — assignees update via their own task routes)
+router.patch('/:id/nodes/:nodeId/status', verifyToken, async (req, res) => {
   try {
+    if (!await requireOwner(req, res)) return;
     const { status, user_id } = req.body;
     const node = await WorkflowNode.findById(req.params.nodeId);
     if (!node) return res.status(404).json({ error: 'Node not found' });
@@ -381,8 +403,8 @@ router.patch('/:id/nodes/:nodeId/status', async (req, res) => {
   }
 });
 
-// 5. Full DAG Fetch
-router.get('/:id/dag', async (req, res) => {
+// 5. Full DAG Fetch (any authenticated user can view)
+router.get('/:id/dag', verifyToken, async (req, res) => {
   try {
     const workflow = await Workflow.findById(req.params.id);
     if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
@@ -405,8 +427,8 @@ router.get('/:id/dag', async (req, res) => {
   }
 });
 
-// 6. Validate
-router.get('/:id/validate', async (req, res) => {
+// 6. Validate (any authenticated user can validate)
+router.get('/:id/validate', verifyToken, async (req, res) => {
   try {
     const nodes = await WorkflowNode.find({ workflow_id: req.params.id });
     const edges = await WorkflowEdge.find({ workflow_id: req.params.id });

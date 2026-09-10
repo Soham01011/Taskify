@@ -337,4 +337,186 @@ router.delete('/:taskId/subtasks/:subtaskId', verifyToken, async (req, res) => {
   }
 });
 
+// ─── Weekly Evaluation ────────────────────────────────────────────────────────
+// GET /api/tasks/weekly-evaluation
+//
+// Rules:
+//  • Always evaluates the PREVIOUS completed calendar week (Mon 00:00 – Sun 23:59 UTC).
+//  • A user can only view their report once per past week.
+//    After viewing, the endpoint returns 423 until the NEXT week completes.
+//  • The current in-progress week is never exposed.
+//
+// Helpers ─────────────────────────────────────────────────────────────────────
+// Returns the Monday 00:00:00 UTC of the ISO week that contains `date`.
+function getWeekStart(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay(); // 0 = Sun … 6 = Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift so Monday = 0
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d;
+}
+
+// Returns a stable string key for the week, e.g. "2026-W36"
+function isoWeekKey(mondayDate) {
+  const jan4 = new Date(Date.UTC(mondayDate.getUTCFullYear(), 0, 4));
+  const weekNum = Math.ceil(
+    ((mondayDate - getWeekStart(jan4)) / 86400000 + 1) / 7
+  );
+  return `${mondayDate.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+router.get('/weekly-evaluation', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // ── Use client-supplied UTC time ───────────────────────────────────────
+    // Lambda functions can run in any AWS region, so server `new Date()` may
+    // reflect a region clock. The frontend must send its current UTC time so
+    // week boundaries are computed from the user's perspective.
+    if (!req.query.clientTime) {
+      return res.status(400).json({
+        error: 'Missing required query param: clientTime (ISO 8601 UTC string, e.g. new Date().toISOString())'
+      });
+    }
+    const now = new Date(req.query.clientTime);
+    if (isNaN(now.getTime())) {
+      return res.status(400).json({ error: 'Invalid clientTime. Must be a valid ISO 8601 UTC string.' });
+    }
+    // Drift guard: reject if client time is more than 24 h away from server time
+    // (prevents week-boundary manipulation by sending a fake far-future date)
+    const serverNow = new Date();
+    if (Math.abs(now - serverNow) > 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ error: 'clientTime is too far from server time. Max allowed drift is 24 hours.' });
+    }
+
+    // ── Determine the previous completed week ──────────────────────────────
+    // Week key is an ISO week string like "2026-W36".
+    // No reset cron is needed — when a new week starts the server computes a
+    // different weekKey (e.g. "2026-W37") which won't match the stored key,
+    // so the gate opens automatically without touching the DB.
+    const thisWeekMonday = getWeekStart(now);
+    // Previous week starts 7 days before this Monday
+    const prevWeekMonday = new Date(thisWeekMonday);
+    prevWeekMonday.setUTCDate(prevWeekMonday.getUTCDate() - 7);
+    // Previous week ends Sunday 23:59:59.999 UTC (= this Monday - 1ms)
+    const prevWeekSunday = new Date(thisWeekMonday.getTime() - 1);
+
+    const weekKey = isoWeekKey(prevWeekMonday); // e.g. "2026-W36"
+
+    // ── Check if user has already viewed this week's report ───────────────
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+
+    if (user.lastWeeklyEvalViewed === weekKey) {
+      // Already consumed — tell client when the next one will be available
+      const nextAvailableDate = new Date(thisWeekMonday);
+      nextAvailableDate.setUTCDate(nextAvailableDate.getUTCDate() + 7); // next Monday
+
+      return res.status(423).json({
+        error: 'Weekly evaluation already viewed.',
+        message: 'You have already seen your report for this past week. Come back once the current week ends.',
+        week: weekKey,
+        next_available_after: nextAvailableDate.toISOString()
+      });
+    }
+
+    // ── Fetch tasks due in the previous week ───────────────────────────────
+    const tasks = await Task.find({
+      userId,
+      dueDate: { $gte: prevWeekMonday, $lte: prevWeekSunday }
+    }).lean();
+
+    // ── Aggregate metrics ──────────────────────────────────────────────────
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.completed);
+    const incompleteTasks = tasks.filter(t => !t.completed);
+    const completionRate = totalTasks > 0
+      ? Math.round((completedTasks.length / totalTasks) * 100)
+      : 0;
+
+    // Overdue = not completed AND dueDate is in the past
+    const overdueTasks = incompleteTasks.filter(t => new Date(t.dueDate) < now);
+
+    // On-time = completed before or by its dueDate (updated_at as proxy)
+    const onTimeTasks = completedTasks.filter(
+      t => t.updated_at && new Date(t.updated_at) <= new Date(t.dueDate)
+    );
+
+    // Subtask stats
+    const totalSubtasks = tasks.reduce((acc, t) => acc + (t.subtasks?.length || 0), 0);
+    const completedSubtasks = tasks.reduce(
+      (acc, t) => acc + (t.subtasks?.filter(s => s.completed).length || 0), 0
+    );
+
+    // Daily breakdown Mon–Sun
+    const dailyBreakdown = {};
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(prevWeekMonday);
+      day.setUTCDate(day.getUTCDate() + i);
+      const key = day.toISOString().split('T')[0]; // YYYY-MM-DD
+      dailyBreakdown[key] = { due: 0, completed: 0 };
+    }
+    for (const task of tasks) {
+      const key = new Date(task.dueDate).toISOString().split('T')[0];
+      if (dailyBreakdown[key]) {
+        dailyBreakdown[key].due += 1;
+        if (task.completed) dailyBreakdown[key].completed += 1;
+      }
+    }
+
+    // Recurring vs one-off
+    const recurringCount = tasks.filter(
+      t => t.recurrence?.frequency && t.recurrence.frequency !== 'none'
+    ).length;
+
+    // Most productive day
+    let mostProductiveDay = null;
+    let maxCompletions = 0;
+    for (const [day, stats] of Object.entries(dailyBreakdown)) {
+      if (stats.completed > maxCompletions) {
+        maxCompletions = stats.completed;
+        mostProductiveDay = day;
+      }
+    }
+
+    // ── Mark as viewed ─────────────────────────────────────────────────────
+    user.lastWeeklyEvalViewed = weekKey;
+    await user.save();
+
+    res.json({
+      week: weekKey,
+      evaluation_window: {
+        from: prevWeekMonday.toISOString(),
+        to: prevWeekSunday.toISOString()
+      },
+      summary: {
+        total_tasks: totalTasks,
+        completed: completedTasks.length,
+        incomplete: incompleteTasks.length,
+        overdue: overdueTasks.length,
+        on_time: onTimeTasks.length,
+        completion_rate_percent: completionRate,
+        recurring_tasks: recurringCount,
+        one_off_tasks: totalTasks - recurringCount
+      },
+      subtasks: {
+        total: totalSubtasks,
+        completed: completedSubtasks,
+        completion_rate_percent: totalSubtasks > 0
+          ? Math.round((completedSubtasks / totalSubtasks) * 100)
+          : 0
+      },
+      daily_breakdown: dailyBreakdown,
+      insights: {
+        most_productive_day: mostProductiveDay,
+        most_productive_day_completions: maxCompletions
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+
