@@ -9,11 +9,11 @@ const verifyToken = require('../middleware/auth');
 // Create a new task (with optional subtasks)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, description, dueDate, subtasks, alarm_type, alarm_reminder_time, recurrence } = req.body;
+    const { title, description, dueDate, subtasks, timeSlots, alarm_type, alarm_reminder_time, recurrence } = req.body;
     const userId = req.userId;
-    console.log("user : ",userId ,"Created Task :",title, description, "Due Date :", dueDate, "Subtasks :", subtasks, "Alarm Type :", alarm_type, "Alarm Reminder Time :", alarm_reminder_time, "Recurrence :", recurrence)
+    console.log("user : ", userId, "Created Task :", title, description, "Due Date :", dueDate, "Subtasks :", subtasks, "Time Slots :", timeSlots, "Alarm Type :", alarm_type, "Alarm Reminder Time :", alarm_reminder_time, "Recurrence :", recurrence)
     let taskDueDate;
-    
+
     if (recurrence && recurrence.frequency !== 'none') {
       // If recurring, calculate the first occurrence
       taskDueDate = calculateInitialDueDate(recurrence);
@@ -37,21 +37,27 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const taskData = { 
-      userId, 
-      title, 
-      description, 
-      dueDate: taskDueDate, 
+    if (!timeSlots || timeSlots.length === 0) {
+      //set defult time to 0 hrs 30 minutes
+      timeSlots = [{ hours: 0, minutes: 30 }];
+    }
+
+    const taskData = {
+      userId,
+      title,
+      description,
+      dueDate: taskDueDate,
       subtasks: processedSubtasks,
       alarm_type,
       alarm_reminder_time: alarm_reminder_time ? new Date(alarm_reminder_time) : taskDueDate,
       created_at: new Date(),
       updated_at: new Date(),
-      recurrence
+      recurrence,
+      timeSlots: timeSlots
     };
 
     const task = new Task(taskData);
-    
+
     // Set originTaskId if recurring
     if (recurrence && recurrence.frequency !== 'none') {
       task.recurrence.originTaskId = task._id;
@@ -67,10 +73,10 @@ router.post('/', verifyToken, async (req, res) => {
           user.pushTokens,
           null, // No title = Silent
           null, // No body = Silent
-          { 
-            taskId: task._id.toString(), 
-            type: 'TASK_SYNC', 
-            title: task.title, 
+          {
+            taskId: task._id.toString(),
+            type: 'TASK_SYNC',
+            title: task.title,
             dueDate: task.dueDate.toISOString(),
             alarmTime: task.alarm_reminder_time ? task.alarm_reminder_time.toISOString() : task.dueDate.toISOString()
           }
@@ -95,9 +101,8 @@ router.get('/', verifyToken, async (req, res) => {
     const userId = req.userId;
     const { pageNumber, pageSize, created_at } = req.query;
 
-    let query = { userId };
+    const query = { userId };
 
-    // Filter by timestamp if provided (tasks created after this time)
     if (created_at) {
       const filterDate = new Date(created_at);
       if (!isNaN(filterDate.getTime())) {
@@ -105,31 +110,41 @@ router.get('/', verifyToken, async (req, res) => {
       }
     }
 
-    let tasksQuery = Task.find(query).sort({ created_at: -1 });
+    // Helper to apply default timeSlot without saving to DB
+    const withDefaultTimeSlots = (tasks) =>
+      tasks.map((task) => {
+        const plain = task.toObject ? task.toObject() : { ...task };
+        if (!plain.timeSlots || plain.timeSlots.length === 0) {
+          plain.timeSlots = [{ hours: 0, minutes: 30 }];
+        }
+        return plain;
+      });
 
-    // Handle Pagination
+    // Paginated response
     if (pageNumber && pageSize) {
-      const pageNum = parseInt(pageNumber);
-      const sizeLimit = parseInt(pageSize);
+      const pageNum = parseInt(pageNumber, 10);
+      const sizeLimit = parseInt(pageSize, 10);
       const skip = (pageNum - 1) * sizeLimit;
-      
-      const tasks = await tasksQuery.skip(skip).limit(sizeLimit);
-      const totalTasks = await Task.countDocuments(query);
+
+      const [tasks, totalTasks] = await Promise.all([
+        Task.find(query).sort({ created_at: -1 }).skip(skip).limit(sizeLimit),
+        Task.countDocuments(query),
+      ]);
 
       return res.json({
-        tasks,
+        tasks: withDefaultTimeSlots(tasks),
         pagination: {
           totalTasks,
           currentPage: pageNum,
           pageSize: sizeLimit,
-          totalPages: Math.ceil(totalTasks / sizeLimit)
-        }
+          totalPages: Math.ceil(totalTasks / sizeLimit),
+        },
       });
     }
 
-    // Default: return all tasks for the query
-    const tasks = await tasksQuery;
-    res.json(tasks);
+    // Default: return all tasks
+    const tasks = await Task.find(query).sort({ created_at: -1 });
+    res.json(withDefaultTimeSlots(tasks));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -140,7 +155,7 @@ router.put('/:id', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const updateData = { ...req.body };
-    
+
     // If dueDate or alarm_reminder_time is updated, reset notificationSent and syncSent
     if (updateData.dueDate || updateData.alarm_reminder_time) {
       updateData.notificationSent = false;
@@ -153,7 +168,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       { new: true }
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
-    
+
     // Trigger immediate silent sync on update
     try {
       const user = await User.findById(userId);
@@ -162,10 +177,10 @@ router.put('/:id', verifyToken, async (req, res) => {
           user.pushTokens,
           null, // No title = Silent
           null, // No body = Silent
-          { 
-            taskId: task._id.toString(), 
-            type: 'TASK_SYNC', 
-            title: task.title, 
+          {
+            taskId: task._id.toString(),
+            type: 'TASK_SYNC',
+            title: task.title,
             dueDate: task.dueDate.toISOString(),
             alarmTime: task.alarm_reminder_time ? task.alarm_reminder_time.toISOString() : task.dueDate.toISOString()
           }
@@ -197,7 +212,7 @@ router.patch('/:id/complete', verifyToken, async (req, res) => {
     // If it's a recurring task, create the next occurrence
     if (task.recurrence && task.recurrence.frequency !== 'none') {
       const nextDueDate = calculateNextDueDate(task.dueDate, task.recurrence);
-      
+
       if (nextDueDate) {
         // Prepare next task
         // We reset subtasks but keep their titles
@@ -233,10 +248,10 @@ router.patch('/:id/complete', verifyToken, async (req, res) => {
               user.pushTokens,
               null,
               null,
-              { 
-                taskId: nextTask._id.toString(), 
-                type: 'TASK_SYNC', 
-                title: nextTask.title, 
+              {
+                taskId: nextTask._id.toString(),
+                type: 'TASK_SYNC',
+                title: nextTask.title,
                 dueDate: nextTask.dueDate.toISOString(),
                 alarmTime: nextTask.alarm_reminder_time ? nextTask.alarm_reminder_time.toISOString() : nextTask.dueDate.toISOString()
               }
@@ -318,16 +333,16 @@ router.delete('/:taskId/subtasks/:subtaskId', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const task = await Task.findOne({ _id: req.params.taskId, userId });
-    
+
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
-    
+
     // Use .pull() to remove the subtask by its ID from the array
     const subtask = task.subtasks.id(req.params.subtaskId);
     if (!subtask) return res.status(404).json({ error: 'Subtask not found' });
-    
+
     task.subtasks.pull(req.params.subtaskId);
     task.updated_at = new Date();
-    
+
     await task.save();
     console.log("Subtask deleted successfully");
     res.json(task);
