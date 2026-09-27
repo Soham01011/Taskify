@@ -47,6 +47,7 @@ export const groupApi = {
         username: string;
         task: string;
         duedate: string;
+        timeSlots?: { hours: number; minutes: number }[];
         subtasks?: { title: string; completed: boolean }[];
         recurrence?: {
             frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';

@@ -37,6 +37,10 @@ export interface TaskFormState {
     dayOfMonth: number | null;
     lastWeekend: boolean;
     timeOfDay: Date | null;
+    // Time slot stored as separate hours/minutes to match API format: timeSlots: [{ hours, minutes }]
+    timeSlotHours: number;
+    timeSlotMinutes: number;
+    showTimeSlotPicker: boolean;
 }
 
 type FormAction =
@@ -46,8 +50,7 @@ type FormAction =
     | { type: 'TOGGLE_ALARM_TYPE' }
     | { type: 'SUBMIT_START' }
     | { type: 'SUBMIT_SUCCESS' }
-    | { type: 'SUBMIT_ERROR'; error: string }
-    | { type: 'RESET_PICKERS' };
+    | { type: 'SUBMIT_ERROR'; error: string };
 
 const initialState: TaskFormState = {
     title: '',
@@ -73,6 +76,9 @@ const initialState: TaskFormState = {
     dayOfMonth: null,
     lastWeekend: false,
     timeOfDay: null,
+    timeSlotHours: 0,
+    timeSlotMinutes: 30,
+    showTimeSlotPicker: false,
 };
 
 function formReducer(state: TaskFormState, action: FormAction): TaskFormState {
@@ -133,6 +139,9 @@ export function useCreateTask(onSuccess: () => void) {
             timeOfDay: `${String(effectiveDate.getUTCHours()).padStart(2, '0')}:${String(effectiveDate.getUTCMinutes()).padStart(2, '0')}`
         } : undefined;
 
+        // Build timeSlots payload: [{ hours, minutes }]
+        const timeSlotsPayload = [{ hours: state.timeSlotHours, minutes: state.timeSlotMinutes }];
+
         localDispatch({ type: 'SUBMIT_START' });
         try {
             if (state.selectedGroupId) {
@@ -141,6 +150,7 @@ export function useCreateTask(onSuccess: () => void) {
                     username: state.assignee?.username || '',
                     task: state.title.trim(),
                     duedate: effectiveDate.toISOString(),
+                    timeSlots: timeSlotsPayload,
                     subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
                     recurrence: recurrenceData
                 });
@@ -152,6 +162,7 @@ export function useCreateTask(onSuccess: () => void) {
                     title: state.title.trim(),
                     description: state.description.trim(),
                     dueDate: effectiveDate.toISOString(),
+                    timeSlots: timeSlotsPayload,
                     subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
                     alarm_type: state.alarmType,
                     alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDate.toISOString(),
@@ -162,7 +173,7 @@ export function useCreateTask(onSuccess: () => void) {
             localDispatch({ type: 'SUBMIT_SUCCESS' });
             onSuccess();
         } catch (err: any) {
-            const errorMsg = err?.response?.data?.message || 'Failed to create task';
+            const errorMsg = err?.response?.data?.error || err?.response?.data?.message || 'Failed to create task';
             localDispatch({ type: 'SUBMIT_ERROR', error: errorMsg });
         }
     }, [state, dispatch, currentUserId, onSuccess]);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Calendar, Bell, Clock, MoreHorizontal, X, Repeat } from 'lucide-react-native';
+import { formatDurationLabel } from './TimeSlotPicker';
 
 interface TaskActionPillsProps {
     colors: any;
@@ -12,15 +13,22 @@ interface TaskActionPillsProps {
     alarmReminderTime: Date | null;
     showDatePicker: () => void;
     showReminderPicker: () => void;
-    recurrence: string; // The frequency label
+    recurrence: string;
     onRecurrencePress: () => void;
+    timeSlotHours?: number;
+    timeSlotMinutes?: number;
+    onTimeSlotPress?: () => void;
+    isTimeSlotActive?: boolean;
 }
 
 export const TaskActionPills: React.FC<TaskActionPillsProps> = ({
     colors, styles, dueDate, setDueDate, alarmType, toggleAlarmType,
     alarmReminderTime, showDatePicker, showReminderPicker,
-    recurrence, onRecurrencePress
+    recurrence, onRecurrencePress,
+    timeSlotHours = 0, timeSlotMinutes = 30, onTimeSlotPress, isTimeSlotActive,
 }) => {
+    const durationLabel = formatDurationLabel(timeSlotHours, timeSlotMinutes);
+
     return (
         <View style={styles.actionsRow}>
             {recurrence === 'none' && (
@@ -46,6 +54,17 @@ export const TaskActionPills: React.FC<TaskActionPillsProps> = ({
                 <Repeat size={14} color={recurrence !== 'none' ? colors.primary : colors.textSecondary} />
                 <Text style={[styles.pillText, recurrence !== 'none' && { color: colors.primary }]}>
                     {recurrence.charAt(0).toUpperCase() + recurrence.slice(1)}
+                </Text>
+            </TouchableOpacity>
+
+            {/* Duration / Time Slot pill */}
+            <TouchableOpacity
+                style={[styles.pill, isTimeSlotActive && { borderColor: colors.primary, backgroundColor: colors.primary + '10' }]}
+                onPress={onTimeSlotPress}
+            >
+                <Clock size={14} color={isTimeSlotActive ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.pillText, isTimeSlotActive && { color: colors.primary }]}>
+                    {durationLabel}
                 </Text>
             </TouchableOpacity>
 

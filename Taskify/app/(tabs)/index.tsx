@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     KeyboardAvoidingView,
     Platform,
@@ -11,7 +11,7 @@ import {
 
 import { RootState } from '@/src/store';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, Plus, Zap } from 'lucide-react-native';
+import { AlertTriangle, Plus } from 'lucide-react-native';
 import Animated, {
     FadeInUp,
     FadeOut,
@@ -24,11 +24,13 @@ import { useSelector } from 'react-redux';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { AppHeader } from '@/src/components/AppHeader';
+import { ActiveSchedule } from '@/src/components/Schedule/ActiveSchedule';
 import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
 import { SPACING } from '@/src/constants/theme';
 import { useTasks } from '@/src/hooks/useTasks';
 import { useWorkflows } from '@/src/hooks/useWorkflows';
+import { getTasksForDate } from '@/src/utils/calendar';
 import { Network } from 'lucide-react-native';
 
 export default function TaskDashboard() {
@@ -36,9 +38,10 @@ export default function TaskDashboard() {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
 
+    const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+
     const {
         tasks,
-        groups,
         refreshing,
         isCreating,
         setIsCreating,
@@ -47,102 +50,78 @@ export default function TaskDashboard() {
         loadTasks
     } = useTasks();
 
-    const { workflows, isLoading: isLoadingWorkflows } = useWorkflows('PERSONAL');
+    const effectiveTasks = tasks;
+
+    const { workflows } = useWorkflows('PERSONAL');
 
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
-    const currentUser = users.find(u => u.id === currentUserId);
 
-    // Filter Tasks for Overdue, Today & Tomorrow
+    // Filter tasks based on selected date (with recurrence) or today/tomorrow
     const displaySections = useMemo(() => {
         const now = new Date();
-        const getLocalDateStr = (d: Date) => {
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        };
-        const todayStr = getLocalDateStr(now);
-        const tomorrow = new Date(now);
-        tomorrow.setDate(now.getDate() + 1);
-        const tomorrowStr = getLocalDateStr(tomorrow);
 
-        const overdueTasks = tasks.filter(t => {
-            if (!t.dueDate) return false;
-            const taskDateStr = getLocalDateStr(new Date(t.dueDate));
-            return taskDateStr < todayStr && !t.completed;
-        });
-        const todayTasks = tasks.filter(t => {
-            if (!t.dueDate) return false;
-            return getLocalDateStr(new Date(t.dueDate)) === todayStr;
-        });
-        const tomorrowTasks = tasks.filter(t => {
-            if (!t.dueDate) return false;
-            return getLocalDateStr(new Date(t.dueDate)) === tomorrowStr;
+        const isSameCalendarDay = (d1: Date, d2: Date) =>
+            d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate();
+
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const endOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59);
+
+        const overdueTasks = effectiveTasks.filter((t: any) => {
+            if (!t.dueDate || t.completed) return false;
+            return new Date(t.dueDate) < startOfToday;
         });
 
-        const sections = [];
+        const isTodaySelected = isSameCalendarDay(selectedDate, now);
+
+        if (!isTodaySelected) {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dateTasks = getTasksForDate(selectedDate, effectiveTasks);
+            const title = `${selectedDate.getDate()} ${monthNames[selectedDate.getMonth()]} Tasks`;
+            const sections: any[] = [];
+            if (overdueTasks.length > 0) sections.push({ title: 'Overdue', data: overdueTasks });
+            sections.push({ title, data: dateTasks });
+            return sections;
+        }
+
+        const todayTasks = getTasksForDate(now, effectiveTasks);
+        const tomorrowTasks = getTasksForDate(tomorrow, effectiveTasks);
+        const upcomingTasks = effectiveTasks.filter((t: any) => {
+            if (!t.dueDate || t.completed) return false;
+            return new Date(t.dueDate) > endOfTomorrow;
+        });
+
+        const sections: any[] = [];
         if (overdueTasks.length > 0) sections.push({ title: 'Overdue', data: overdueTasks });
         if (todayTasks.length > 0) sections.push({ title: 'Today', data: todayTasks });
         if (tomorrowTasks.length > 0) sections.push({ title: 'Tomorrow', data: tomorrowTasks });
+        if (upcomingTasks.length > 0) sections.push({ title: 'Upcoming', data: upcomingTasks });
+
+        if (sections.length === 0 && effectiveTasks.length > 0) {
+            sections.push({ title: 'All Tasks', data: effectiveTasks });
+        }
 
         return sections;
-    }, [tasks]);
+    }, [effectiveTasks, selectedDate]);
 
-    const todayCount = useMemo(() => {
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        return tasks.filter(t => {
-            if (!t.dueDate) return false;
-            return `${new Date(t.dueDate).getFullYear()}-${String(new Date(t.dueDate).getMonth() + 1).padStart(2, '0')}-${String(new Date(t.dueDate).getDate()).padStart(2, '0')}` === todayStr && !t.completed;
-        }).length;
-    }, [tasks]);
 
-    const activeGroups = useMemo(() => {
-        return groups.slice(0, 2).map(group => {
-            const total = group.tasks?.length || 0;
-            const completed = group.tasks?.filter(t => t.completed).length || 0;
-            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-            return { ...group, progress };
-        });
-    }, [groups]);
 
     const renderHeader = () => (
         <View>
             <AppHeader />
 
-            {/* Active Groups Section */}
-            {activeGroups.length > 0 && (
-                <View style={styles.activeSection}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Active</Text>
-                        <TouchableOpacity onPress={() => router.push('/(tabs)/groups' as any)}>
-                            <Text style={styles.seeAll}>SEE ALL</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {activeGroups.map((group, index) => (
-                        <Animated.View
-                            key={group._id}
-                            entering={FadeInUp.delay(index * 100).duration(500)}
-                            style={styles.groupCard}
-                        >
-                            <View style={styles.groupCardHeader}>
-                                <Text style={styles.groupTitle} numberOfLines={1}>{group.name}</Text>
-                                <Zap size={20} color={colors.primary} fill={colors.primary} />
-                            </View>
-                            <Text style={styles.groupDescription} numberOfLines={2}>
-                                {group.description || 'No description provided for this group.'}
-                            </Text>
+            {/* Active Schedule */}
+            <ActiveSchedule
+                tasks={effectiveTasks}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+            />
 
-                            <View style={styles.progressLabelRow}>
-                                <Text style={styles.progressLabel}>Progress</Text>
-                                <Text style={styles.progressValue}>{group.progress}%</Text>
-                            </View>
-                            <View style={styles.progressBarBg}>
-                                <View style={[styles.progressBarFill, { width: `${group.progress}%` }]} />
-                            </View>
-                        </Animated.View>
-                    ))}
-                </View>
-            )}
 
-            {/* Active Workflows Section */}
+
+            {/* Active Workflows */}
             {workflows && workflows.length > 0 && (
                 <View style={styles.activeSection}>
                     <View style={styles.sectionHeader}>
@@ -177,7 +156,6 @@ export default function TaskDashboard() {
                     ))}
                 </View>
             )}
-
         </View>
     );
 
@@ -224,7 +202,7 @@ export default function TaskDashboard() {
                 }
             />
 
-            {/* Fluid FAB to Modal Morph */}
+            {/* FAB → Create Task Modal */}
             {!isCreating ? (
                 <Animated.View
                     key="fab-container"
@@ -263,7 +241,7 @@ export default function TaskDashboard() {
                 </Animated.View>
             )}
 
-            {/* Background Overlay when creating */}
+            {/* Overlay */}
             {isCreating && (
                 <View style={styles.overlay}>
                     <TouchableOpacity

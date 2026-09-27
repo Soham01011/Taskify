@@ -24,6 +24,10 @@ export interface Task {
         lastWeekend?: boolean;
         timeOfDay?: string;
     };
+    timeSlots?: {
+        hours: number;
+        minutes: number;
+    }[];
     created_at: string;
     updated_at: string;
     groupId?: string;
@@ -94,6 +98,7 @@ export const taskApi = {
         alarm_reminder_time?: string;
         created_at?: Date;
         updated_at?: Date;
+        timeSlots?: { hours: number; minutes: number }[];
         recurrence?: {
             frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
             daysOfWeek?: number[];

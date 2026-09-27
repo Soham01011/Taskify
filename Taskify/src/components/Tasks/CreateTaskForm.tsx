@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     ScrollView,
-    Platform,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import {
@@ -23,6 +22,7 @@ import { TaskSubtasks } from './TaskSubtasks';
 import { TaskActionPills } from './TaskActionPills';
 import { TaskPickers } from './TaskPickers';
 import { RecurrencePicker } from './RecurrencePicker';
+import { TimeSlotPicker } from './TimeSlotPicker';
 import { useCreateTask } from '@/src/hooks/useCreateTask';
 
 interface CreateTaskFormProps {
@@ -41,7 +41,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
     return (
         <View style={styles.container}>
             <GenieAnimation>
-                <View style={[styles.card, state.showRecurrencePicker && { maxHeight: 600 }]}>
+                <View style={[styles.card, (state.showRecurrencePicker || state.showTimeSlotPicker) && { maxHeight: 600 }]}>
                     <ScrollView
                         keyboardShouldPersistTaps="handled"
                         showsVerticalScrollIndicator={false}
@@ -56,6 +56,17 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             setDescription={(val) => setField('description', val)}
                         />
 
+                        {state.showTimeSlotPicker && (
+                            <TimeSlotPicker
+                                colors={colors}
+                                hours={state.timeSlotHours}
+                                setHours={(val) => setField('timeSlotHours', val)}
+                                minutes={state.timeSlotMinutes}
+                                setMinutes={(val) => setField('timeSlotMinutes', val)}
+                                dueDate={state.dueDate}
+                            />
+                        )}
+
                         {state.showRecurrencePicker && (
                             <RecurrencePicker
                                 colors={colors}
@@ -68,7 +79,7 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                                 lastWeekend={state.lastWeekend}
                                 setLastWeekend={(val) => setField('lastWeekend', val)}
                                 timeOfDay={state.timeOfDay}
-                                setTimeOfDay={() => { }} 
+                                setTimeOfDay={() => { }}
                                 showTimePicker={() => setField('isTimePickerVisible', true)}
                             />
                         )}
@@ -98,7 +109,17 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                         showDatePicker={() => setField('isDatePickerVisible', true)}
                         showReminderPicker={() => setField('isReminderPickerVisible', true)}
                         recurrence={state.frequency}
-                        onRecurrencePress={() => setField('showRecurrencePicker', !state.showRecurrencePicker)}
+                        onRecurrencePress={() => {
+                            setField('showRecurrencePicker', !state.showRecurrencePicker);
+                            if (!state.showRecurrencePicker) setField('showTimeSlotPicker', false);
+                        }}
+                        timeSlotHours={state.timeSlotHours}
+                        timeSlotMinutes={state.timeSlotMinutes}
+                        onTimeSlotPress={() => {
+                            setField('showTimeSlotPicker', !state.showTimeSlotPicker);
+                            if (!state.showTimeSlotPicker) setField('showRecurrencePicker', false);
+                        }}
+                        isTimeSlotActive={state.showTimeSlotPicker}
                     />
 
                     <View style={styles.divider} />
