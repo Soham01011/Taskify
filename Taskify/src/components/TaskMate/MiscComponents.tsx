@@ -2,17 +2,24 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Bot, CircleDashed, Sparkles, RefreshCw } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Markdown from 'react-native-markdown-display';
 import { styles } from '@/assets/styles/mateScreen.styles';
+import { ChatMessage as ChatMessageType } from '@/src/hooks/TaskMate/types';
 
 // ─── Welcome Section ──────────────────────────────────────────────────────────
-interface WelcomeSectionProps {
+export interface WelcomeSectionProps {
     colors: any;
-    routerReady: boolean;
-    hasMainModel: boolean;
-    onSetup: () => void;
+    routerReady?: boolean;
+    hasMainModel?: boolean;
+    onSetup?: () => void;
 }
 
-export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerReady, hasMainModel, onSetup }) => (
+export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
+    colors,
+    routerReady = false,
+    hasMainModel = true,
+    onSetup,
+}) => (
     <View style={styles.introContainer}>
         <View style={[styles.welcomeIcon, { backgroundColor: colors.primary15 }]}>
             <Bot size={40} color={colors.primary} />
@@ -22,18 +29,19 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
             Your local AI assistant. Powered by Hammer (tool routing) + Qwen3 (reasoning) — all on-device, no cloud needed.
         </Text>
 
-        {routerReady && !hasMainModel && (
+        {routerReady && hasMainModel && (
             <View style={{ alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <Text style={[styles.welcomeSubtitle, { color: colors.primary, fontWeight: '600', marginBottom: 0 }]}>
-                    ✅ Ready — tap the mic or type to begin!
+                    ✅ Ready — type to begin!
                 </Text>
             </View>
         )}
 
         {!routerReady && hasMainModel && (
             <TouchableOpacity
-                style={[styles.setupBtn, { backgroundColor: colors.primary }]}
+                style={[styles.setupBtn, { backgroundColor: colors.primary, opacity: onSetup ? 1 : 0.8 }]}
                 onPress={onSetup}
+                disabled={!onSetup}
             >
                 <CircleDashed size={20} color={colors.white} />
                 <Text style={styles.setupBtnText}>Initializing AI…</Text>
@@ -42,8 +50,9 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
 
         {!hasMainModel && (
             <TouchableOpacity
-                style={[styles.setupBtn, { backgroundColor: colors.primary }]}
+                style={[styles.setupBtn, { backgroundColor: colors.primary, opacity: onSetup ? 1 : 0.8 }]}
                 onPress={onSetup}
+                disabled={!onSetup}
             >
                 <Sparkles size={16} color={colors.white} />
                 <Text style={styles.setupBtnText}>Download AI models to begin</Text>
@@ -53,7 +62,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ colors, routerRe
 );
 
 // ─── Download Overlay ─────────────────────────────────────────────────────────
-interface DownloadOverlayProps {
+export interface DownloadOverlayProps {
     colors: any;
     progress: number;
     label: string;
@@ -80,14 +89,14 @@ export const DownloadOverlay: React.FC<DownloadOverlayProps> = ({ colors, progre
 );
 
 // ─── Status Indicator ─────────────────────────────────────────────────────────
-interface StatusIndicatorProps {
+export interface StatusIndicatorProps {
     colors: any;
-    routerReady: boolean;
-    mainLlmReady: boolean;
-    hasMainModel: boolean;
-    error: any;
-    status: string;
-    onRetry: () => void;
+    routerReady?: boolean;
+    mainLlmReady?: boolean;
+    hasMainModel?: boolean;
+    error?: any;
+    status?: string;
+    onRetry?: () => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -100,7 +109,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
-    colors, routerReady, mainLlmReady, hasMainModel, error, status, onRetry
+    colors,
+    routerReady = false,
+    mainLlmReady = false,
+    hasMainModel = true,
+    error,
+    status = 'ready',
+    onRetry,
 }) => {
     const isActuallyReady = status === 'ready' && routerReady;
 
@@ -109,10 +124,14 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
             {error ? (
                 <View style={styles.statusRow}>
                     <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-                    <Text style={[styles.statusText, { color: colors.danger }]}>Model Error</Text>
-                    <TouchableOpacity onPress={onRetry}>
-                        <RefreshCw size={14} color={colors.primary} style={{ marginLeft: 8 }} />
-                    </TouchableOpacity>
+                    <Text style={[styles.statusText, { color: colors.danger }]}>
+                        {typeof error === 'string' ? error : error?.message || 'Model Error'}
+                    </Text>
+                    {onRetry && (
+                        <TouchableOpacity onPress={onRetry}>
+                            <RefreshCw size={14} color={colors.primary} style={{ marginLeft: 8 }} />
+                        </TouchableOpacity>
+                    )}
                 </View>
             ) : isActuallyReady ? (
                 <View style={styles.statusRow}>
@@ -130,10 +149,58 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
                 <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.statusRow}>
                     <ActivityIndicator size="small" color={colors.primary} />
                     <Text style={[styles.statusText, { color: colors.primary, fontWeight: '700' }]}>
-                        {status.includes('Downloading') || status.includes('Loading') ? status : (STATUS_LABELS[status] || status)}
+                        {typeof status === 'string' && (status.includes('Downloading') || status.includes('Loading'))
+                            ? status
+                            : (STATUS_LABELS[status] || status || 'Loading…')}
                     </Text>
                 </Animated.View>
             )}
         </View>
     );
 };
+
+// ─── Chat Message Item ────────────────────────────────────────────────────────
+export interface ChatMessageItemProps {
+    item: ChatMessageType;
+    colors: any;
+}
+
+export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(({ item, colors }) => (
+    <View style={[
+        styles.messageWrapper,
+        item.role === 'user' ? styles.userMessageWrapper : styles.aiMessageWrapper,
+    ]}>
+        <View style={[
+            styles.messageBubble,
+            item.role === 'user'
+                ? { backgroundColor: colors.primary }
+                : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+        ]}>
+            {item.role === 'user' ? (
+                <Text style={[styles.messageText, { color: colors.white }]}>{item.content}</Text>
+            ) : (
+                <Markdown style={{
+                    body: { color: colors.text, fontSize: 14, lineHeight: 21 },
+                    strong: { color: colors.text, fontWeight: '700' },
+                    em: { color: colors.textSecondary, fontStyle: 'italic' },
+                    bullet_list: { marginVertical: 4 },
+                    ordered_list: { marginVertical: 4 },
+                    list_item: { marginVertical: 2 },
+                    code_inline: { backgroundColor: colors.primary10, color: colors.primary, borderRadius: 4, paddingHorizontal: 4, fontFamily: 'monospace', fontSize: 12 },
+                    fence: { backgroundColor: colors.primary10, borderRadius: 8, padding: 10, marginVertical: 6 },
+                    code_block: { backgroundColor: colors.primary10, borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 12 },
+                    heading1: { color: colors.text, fontWeight: '700', fontSize: 18, marginVertical: 6 },
+                    heading2: { color: colors.text, fontWeight: '700', fontSize: 16, marginVertical: 4 },
+                    heading3: { color: colors.text, fontWeight: '600', fontSize: 15, marginVertical: 3 },
+                    hr: { borderColor: colors.border },
+                    blockquote: { borderLeftColor: colors.primary, borderLeftWidth: 3, paddingLeft: 10, color: colors.textSecondary },
+                }}>
+                    {item.content}
+                </Markdown>
+            )}
+        </View>
+    </View>
+));
+
+export const ChatMessage = ChatMessageItem;
+

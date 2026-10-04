@@ -38,7 +38,7 @@ export const styles = StyleSheet.create({
         fontWeight: '600',
     },
     dropdownOverlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         zIndex: 1000,
         justifyContent: 'flex-end',
     },

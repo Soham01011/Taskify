@@ -48,3 +48,4 @@ app-example
 ./.agents
 ./.expo
 workflow_plan.md
+logFile.json

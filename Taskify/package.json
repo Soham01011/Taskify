@@ -63,7 +63,7 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-device-info": "^15.0.2",
-    "react-native-executorch": "^0.7.1",
+    "react-native-executorch": "0.8.5",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-gifted-charts": "^1.4.76",
     "react-native-markdown-display": "^7.0.2",

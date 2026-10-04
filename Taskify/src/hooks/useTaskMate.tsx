@@ -15,6 +15,8 @@ import { useDeviceCapability } from '../utils/usedevicecapability';
 import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
 import { AgentStatus, ChatMessage } from './TaskMate/types';
 
+export type { AgentStatus, ChatMessage } from './TaskMate/types';
+
 
 export const useTaskMate = () => {
     const dispatch = useDispatch<AppDispatch>();
