@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Updates from "expo-updates";
 import { AlertTriangle, Bell, CheckCircle2, ChevronRight, Copy, Info, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -337,15 +337,7 @@ export default function ProfileScreen() {
                     style={styles.logoutBtn}
                 />
 
-                {/* <Button
-                    title="Test Sentry Error"
-                    variant="outline"
-                    onPress={() => {
-                        Sentry.captureException(new Error('Sentry Test Error from Profile'));
-                        Alert.alert('Sentry Event Sent', 'Check your Sentry dashboard for the "Sentry Test Error from Profile" exception.');
-                    }}
-                    style={{ marginTop: 12, marginHorizontal: 20, marginBottom: 20 }}
-                /> */}
+
             </ScrollView>
 
             {/* Custom Logout Modal */}

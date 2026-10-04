@@ -10,7 +10,7 @@ import { ModelDropdown } from '@/src/components/TaskMate/ModelDropdown';
 import { ChatInput } from '@/src/components/TaskMate/ChatInput';
 import { WelcomeSection, DownloadOverlay, StatusIndicator } from '@/src/components/TaskMate/MiscComponents';
 import { ControlCenter } from '@/src/components/TaskMate/ControlCenter';
-import * as Sentry from "@sentry/react-native";
+
 import { useSelector } from 'react-redux';
 import { RootState } from '@/src/store';
 
@@ -18,9 +18,7 @@ export default function TaskMateScreen() {
     const { colors } = useAppTheme();
     const flatListRef = useRef<FlatList>(null);
 
-    useEffect(() => {
-        Sentry.metrics.count('taskmate_screen_view', 1);
-    }, []);
+
 
     const {
         llm,

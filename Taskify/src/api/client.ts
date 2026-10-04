@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/react-native';
+
 import axios from 'axios';
 import { User, logout, updateTokens } from '../store/slices/authSlice';
 
@@ -30,17 +30,17 @@ client.interceptors.request.use(
         const currentUserId = state.auth.currentUserId;
         const currentUser = state.auth.users.find((u: User) => u.id === currentUserId);
 
-            if (currentUser) {
-                if (currentUser.apiEndpoint) {
-                    config.baseURL = currentUser.apiEndpoint;
-                }
-                if (currentUser.accessToken) {
-                    config.headers.Authorization = `Bearer ${currentUser.accessToken}`;
-                }
+        if (currentUser) {
+            if (currentUser.apiEndpoint) {
+                config.baseURL = currentUser.apiEndpoint;
             }
-            console.log(`[API:REQ] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-            return config;
-        },
+            if (currentUser.accessToken) {
+                config.headers.Authorization = `Bearer ${currentUser.accessToken}`;
+            }
+        }
+        console.log(`[API:REQ] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+        return config;
+    },
     (error) => Promise.reject(error)
 );
 
@@ -51,29 +51,9 @@ client.interceptors.response.use(
         const errorData = error.response?.data;
         const status = error.response?.status;
 
-        // Log 400-level errors to Sentry before handling auth errors
+        // Log 400-level errors to observe before handling auth errors
         if (status && status >= 400 && status < 500) {
-            Sentry.withScope((scope) => {
-                scope.setLevel('warning');
-                scope.setTag('api_url', originalRequest?.url);
-                scope.setTag('status_code', status);
-
-                scope.setContext('API Request', {
-                    method: originalRequest?.method?.toUpperCase(),
-                    url: originalRequest?.url,
-                    baseURL: originalRequest?.baseURL,
-                    headers: originalRequest?.headers,
-                    data: typeof originalRequest?.data === 'string' ? JSON.parse(originalRequest.data) : originalRequest?.data,
-                });
-
-                scope.setContext('API Response', {
-                    status: status,
-                    data: errorData,
-                    headers: error.response?.headers,
-                });
-
-                Sentry.captureMessage(`API Error ${status}: ${originalRequest?.url || 'unknown endpoint'}`, 'warning');
-            });
+            // use expo observe in fututre implimentation 
         }
 
         // Check if it's an authentication error (401)

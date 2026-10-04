@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/react-native";
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { Message, ToolCall, useLLM } from 'react-native-executorch';
@@ -15,9 +15,6 @@ import { useDeviceCapability } from '../utils/usedevicecapability';
 import { buildSystemPrompt, isoDate } from './TaskMate/matePrompts';
 import { AgentStatus, ChatMessage } from './TaskMate/types';
 
-Sentry.init({
-    dsn: "https://81f07fb811891ce2d74da64451cccba5@o4510952845344768.ingest.de.sentry.io/4510952849342544",
-});
 
 export const useTaskMate = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -201,12 +198,6 @@ export const useTaskMate = () => {
                         const response = await mateApi.runReasoning(originalPrompt);
                         const duration = Date.now() - startTime;
 
-                        Sentry.metrics.count('cloud_chat_invocation', 1);
-                        Sentry.metrics.distribution('agentic_ai_time', duration, {
-                            unit: 'millisecond',
-                            attributes: { type: 'cloud_chat' }
-                        });
-
                         const text = response.data;
                         const answerMatch = text.match(/Answer:\s*([\s\S]*?)(?:\[DONE\]|$)/);
                         const finalAnswer = answerMatch ? answerMatch[1].trim() : text;
@@ -291,10 +282,10 @@ export const useTaskMate = () => {
         try {
             const lowText = text.toLowerCase();
             const words = lowText.split(/\s+/);
-            
+
             const justKeyword = text.trim().startsWith('@') && words.length === 1;
             let additionalContext = '';
-            
+
             // --- Keyword Shortcuts & Context Injection ---
             if (words.includes('@task') || words.includes('@tasks')) {
                 if (justKeyword) {
@@ -315,7 +306,7 @@ export const useTaskMate = () => {
                     return str;
                 }).join('\n')}\n`;
             }
-            
+
             if (words.includes('@idea') || words.includes('@ideas')) {
                 if (justKeyword) {
                     await executeTool({ toolName: 'listIdeas', arguments: {} });
@@ -327,7 +318,7 @@ export const useTaskMate = () => {
                 const ideas = (Array.isArray(data) ? data : (data as any)?.ideas) || [];
                 additionalContext += `\n[SYSTEM INJECTED USER IDEAS]:\n${ideas.map((i: any) => `- ${i.title}`).join('\n')}\n`;
             }
-            
+
             if (words.includes('@group') || words.includes('@groups')) {
                 if (justKeyword) {
                     await executeTool({ toolName: 'listGroups', arguments: {} });
@@ -368,12 +359,6 @@ export const useTaskMate = () => {
             const startTime = Date.now();
             const response = await (llm as any).generate(chat);
             const duration = Date.now() - startTime;
-
-            Sentry.metrics.count('hammer_llm_invocation', 1);
-            Sentry.metrics.distribution('agentic_ai_time', duration, {
-                unit: 'millisecond',
-                attributes: { type: 'hammer_llm' }
-            });
 
             console.log("[MATE:RAW_HAMMER]", response);
 

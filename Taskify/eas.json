@@ -32,7 +32,6 @@
         "buildType": "apk"
       },
       "env": {
-        "SENTRY_AUTH_TOKEN": "will-be-injected-from-eas-secrets",
         "GOOGLE_SERVICES_BASE64": "will-be-injected-from-eas-secrets"
       },
       "channel": "production-apk"
@@ -43,7 +42,6 @@
         "simulator": false
       },
       "env": {
-        "SENTRY_AUTH_TOKEN": "will-be-injected-from-eas-secrets",
         "GOOGLE_SERVICES_BASE64": "will-be-injected-from-eas-secrets"
       },
       "channel": "production-ios"
