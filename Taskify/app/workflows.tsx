@@ -1,28 +1,27 @@
-import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { BarChart2, Network, Plus } from 'lucide-react-native';
+import { useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    KeyboardAvoidingView,
+    Platform,
     RefreshControl,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
-    KeyboardAvoidingView,
-    Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Network, BarChart2 } from 'lucide-react-native';
 import Animated, { ZoomIn, ZoomOut } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '@/hooks/use-theme';
-import { AppHeader } from '@/src/components/AppHeader';
-import { useWorkflows } from '@/src/hooks/useWorkflows';
-import { SPACING } from '@/src/constants/theme';
-import { Workflow } from '@/src/api/workflows';
-import { CreateWorkflowForm } from '@/src/components/Workflows/CreateWorkflowForm';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
 import { localStyles } from '@/assets/styles/workflow.styles';
+import { useAppTheme } from '@/hooks/use-theme';
+import { Workflow } from '@/src/api/workflows';
+import { AppHeader } from '@/src/components/AppHeader';
+import { CreateWorkflowForm } from '@/src/components/Workflows/CreateWorkflowForm';
+import { useWorkflows } from '@/src/hooks/useWorkflows';
 
 export default function WorkflowsScreen() {
     const { colors } = useAppTheme();
@@ -161,7 +160,7 @@ export default function WorkflowsScreen() {
             ) : (
                 <Animated.View
                     exiting={ZoomOut.duration(300).springify()}
-                    style={[StyleSheet.absoluteFillObject, { justifyContent: 'flex-end', zIndex: 100 }]}
+                    style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', zIndex: 100 }]}
                     pointerEvents="box-none"
                 >
                     <KeyboardAvoidingView
@@ -181,7 +180,7 @@ export default function WorkflowsScreen() {
             )}
 
             {isCreating && (
-                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 98 }]}>
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 98 }]}>
                     <TouchableOpacity
                         style={{ flex: 1 }}
                         onPress={() => setIsCreating(false)}

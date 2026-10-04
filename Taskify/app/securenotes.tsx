@@ -8,7 +8,7 @@ import { ChevronLeft, Lock, Plus, Trash2, Unlock, X } from 'lucide-react-native'
 import React, { useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInUp, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 interface NoteCardProps {
@@ -52,6 +52,8 @@ export default function NotesScreen() {
     const [viewingNote, setViewingNote] = useState<NoteMeta | null>(null);
     const [viewingBody, setViewingBody] = useState<string>('');
     const [isUnlocking, setIsUnlocking] = useState(false);
+    const insets = useSafeAreaInsets();
+    const bottomOffset = insets.bottom;
 
     const handleCreate = async (title: string, body: string, isSecure: boolean) => {
         await saveNote(title, body, isSecure);
