@@ -1,10 +1,10 @@
+import { styles } from '@/assets/styles/aboutScreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
-import { RADIUS, SHADOWS, SPACING } from '@/src/constants/theme';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Code, Database, Github, Heart } from 'lucide-react-native';
 import React from 'react';
-import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AboutScreen() {
@@ -97,78 +97,4 @@ const CheckCircle = ({ size, color, strokeWidth }: any) => (
     </View>
 );
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: SPACING.lg,
-    },
-    header: {
-        alignItems: 'center',
-        marginVertical: SPACING.xl,
-    },
-    logoContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-        ...SHADOWS.sm,
-    },
-    appName: {
-        fontSize: 28,
-        fontWeight: '800',
-        letterSpacing: -0.5,
-    },
-    version: {
-        fontSize: 14,
-        fontWeight: '500',
-        marginTop: 4,
-    },
-    card: {
-        borderRadius: RADIUS.xl,
-        padding: SPACING.lg,
-        ...SHADOWS.sm,
-    },
-    section: {
-        marginBottom: SPACING.xl,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: SPACING.sm,
-        gap: SPACING.sm,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    sectionText: {
-        fontSize: 15,
-        lineHeight: 22,
-    },
-    githubBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        borderRadius: RADIUS.lg,
-        marginTop: SPACING.lg,
-        gap: SPACING.sm,
-    },
-    githubBtnText: {
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    footer: {
-        alignItems: 'center',
-        marginTop: SPACING.xl,
-        marginBottom: SPACING.xl,
-    },
-    footerText: {
-        fontSize: 13,
-        fontWeight: '500',
-    },
-});
+

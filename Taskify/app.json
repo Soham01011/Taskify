@@ -56,7 +56,12 @@
         }
       ],
       "expo-widgets",
-      "expo-asset"
+      "expo-asset",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,
