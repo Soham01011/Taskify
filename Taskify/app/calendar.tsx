@@ -22,7 +22,9 @@ export default function CalendarScreen() {
     const overdueTasks = useMemo(() => {
         const now = new Date();
         now.setHours(0, 0, 0, 0); // start of today
-        return tasks.filter(t => !t.completed && new Date(t.dueDate) < now);
+        return tasks.filter(
+            t => !t.completed && (!t.recurrence || t.recurrence.frequency === 'none') && new Date(t.dueDate) < now
+        );
     }, [tasks]);
 
     const renderHeader = () => (
@@ -79,7 +81,7 @@ export default function CalendarScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
             <FlatList
                 data={selectedTasks}
-                keyExtractor={item => item._id}
+                keyExtractor={(item, index) => `${item._id}-${item.dueDate || index}`}
                 ListHeaderComponent={renderHeader}
                 contentContainerStyle={styles.listContent}
                 renderItem={({ item }) => (

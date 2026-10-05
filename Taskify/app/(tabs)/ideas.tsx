@@ -6,17 +6,20 @@ import {
     Platform,
     RefreshControl,
     ScrollView,
+    StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import Animated, {
     FadeIn,
+    FadeInUp,
     FadeOut,
     ZoomIn,
     ZoomOut,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 import { getStyles } from '@/assets/styles/ideasscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
@@ -42,7 +45,7 @@ const EmptyState = ({ colors, styles }: { colors: any, styles: any }) => (
 );
 
 export default function IdeasScreen() {
-    const { colors } = useAppTheme();
+    const { colors, isDark } = useAppTheme();
     const styles = getStyles(colors);
     const {
         ideas,
@@ -117,6 +120,31 @@ export default function IdeasScreen() {
                 {renderContent()}
             </ScrollView>
 
+            {/* Background Blur Overlay when creating */}
+            {isCreating && (
+                <Animated.View
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(200)}
+                    style={[StyleSheet.absoluteFill, { zIndex: 98 }]}
+                >
+                    <BlurView
+                        intensity={50}
+                        tint={isDark ? 'dark' : 'default'}
+                        experimentalBlurMethod="dimezisBlurView"
+                        style={StyleSheet.absoluteFill}
+                    >
+                        <TouchableOpacity
+                            style={{
+                                flex: 1,
+                                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.25)',
+                            }}
+                            onPress={() => setIsCreating(false)}
+                            activeOpacity={1}
+                        />
+                    </BlurView>
+                </Animated.View>
+            )}
+
             {/* FAB */}
             {!isCreating && (
                 <Animated.View
@@ -127,7 +155,7 @@ export default function IdeasScreen() {
                 >
                     <TouchableOpacity
                         style={styles.fabTouch}
-                        onPress={() => setTimeout(() => setIsCreating(true), 100)}
+                        onPress={() => setIsCreating(true)}
                         activeOpacity={0.6}
                     >
                         <Plus size={28} color={colors.white} />
@@ -139,35 +167,22 @@ export default function IdeasScreen() {
             {isCreating && (
                 <Animated.View
                     key="ideas-modal"
-                    exiting={FadeOut.duration(400)}
+                    entering={FadeInUp.duration(300).springify()}
+                    exiting={FadeOut.duration(200)}
                     style={[styles.compactModalContainer, { zIndex: 100 }]}
                     pointerEvents="box-none"
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
+                        pointerEvents="box-none"
                     >
                         <CreateIdeaForm
                             onSuccess={() => setIsCreating(false)}
                             onCancel={() => setIsCreating(false)}
                         />
                     </KeyboardAvoidingView>
-                </Animated.View>
-            )}
-
-            {/* Overlay behind create modal */}
-            {isCreating && (
-                <Animated.View
-                    entering={FadeIn}
-                    exiting={FadeOut}
-                    style={styles.overlay}
-                >
-                    <TouchableOpacity
-                        style={{ flex: 1 }}
-                        onPress={() => setIsCreating(false)}
-                        activeOpacity={1}
-                    />
                 </Animated.View>
             )}
 

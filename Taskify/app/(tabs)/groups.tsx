@@ -6,16 +6,20 @@ import {
     KeyboardAvoidingView,
     Platform,
     RefreshControl,
+    StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
 import Animated, {
+    FadeIn,
+    FadeInUp,
     FadeOut,
     ZoomIn,
     ZoomOut,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 import { getStyles } from '@/assets/styles/groupsscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
@@ -26,7 +30,7 @@ import { GroupCard } from '@/src/components/Groups/GroupCard';
 import { useGroups } from '@/src/hooks/useGroups';
 
 export default function GroupsScreen() {
-    const { colors } = useAppTheme();
+    const { colors, isDark } = useAppTheme();
     const styles = getStyles(colors);
     const [isCreating, setIsCreating] = useState(false);
 
@@ -83,6 +87,31 @@ export default function GroupsScreen() {
                 }
             />
 
+            {/* Background Blur Overlay when creating */}
+            {isCreating && (
+                <Animated.View
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(200)}
+                    style={[StyleSheet.absoluteFill, { zIndex: 98 }]}
+                >
+                    <BlurView
+                        intensity={50}
+                        tint={isDark ? 'dark' : 'default'}
+                        experimentalBlurMethod="dimezisBlurView"
+                        style={StyleSheet.absoluteFill}
+                    >
+                        <TouchableOpacity
+                            style={{
+                                flex: 1,
+                                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.25)',
+                            }}
+                            onPress={() => setIsCreating(false)}
+                            activeOpacity={1}
+                        />
+                    </BlurView>
+                </Animated.View>
+            )}
+
             {/* FAB to Modal Morph */}
             {!isCreating ? (
                 <Animated.View
@@ -93,7 +122,7 @@ export default function GroupsScreen() {
                 >
                     <TouchableOpacity
                         style={styles.fabTouch}
-                        onPress={() => setTimeout(() => setIsCreating(true), 100)}
+                        onPress={() => setIsCreating(true)}
                         activeOpacity={0.6}
                     >
                         <Plus size={28} color={colors.white} />
@@ -102,14 +131,16 @@ export default function GroupsScreen() {
             ) : (
                 <Animated.View
                     key="modal-container"
-                    exiting={FadeOut.duration(400)}
+                    entering={FadeInUp.duration(300).springify()}
+                    exiting={FadeOut.duration(200)}
                     style={[styles.compactModalContainer, { zIndex: 100 }]}
                     pointerEvents="box-none"
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
+                        pointerEvents="box-none"
                     >
                         <CreateGroupForm
                             onSuccess={() => {
@@ -120,17 +151,6 @@ export default function GroupsScreen() {
                         />
                     </KeyboardAvoidingView>
                 </Animated.View>
-            )}
-
-            {/* Background Overlay when creating */}
-            {isCreating && (
-                <View style={styles.overlay}>
-                    <TouchableOpacity
-                        style={{ flex: 1 }}
-                        onPress={() => setIsCreating(false)}
-                        activeOpacity={1}
-                    />
-                </View>
             )}
         </SafeAreaView>
     );

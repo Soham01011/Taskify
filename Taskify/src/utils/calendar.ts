@@ -18,78 +18,118 @@ export const getTasksForDate = (date: Date, tasks: Task[]): Task[] => {
     const targetDateOnly = getLocalMidnight(date);
     const targetDayOfWeek = date.getDay(); // 0 = Sunday … 6 = Saturday
 
-    return tasks.filter(task => {
-        if (!task.dueDate) return false;
+    const result: Task[] = [];
+
+    for (const task of tasks) {
+        if (!task.dueDate) continue;
 
         const taskDate = new Date(task.dueDate);
         const taskDateStr = getLocalDateString(taskDate);
+        const isRecurring = !!(task.recurrence && task.recurrence.frequency && task.recurrence.frequency !== 'none');
 
-        // 1. Exact date match (includes non-recurring tasks)
-        if (taskDateStr === targetDateStr) return true;
+        // 1. Exact date match (non-recurring task)
+        if (taskDateStr === targetDateStr && !isRecurring) {
+            result.push(task);
+            continue;
+        }
 
-        // 2. Check recurrence
-        if (task.recurrence && task.recurrence.frequency !== 'none') {
+        // 2. Check recurrence (or exact match for recurring task)
+        if (isRecurring) {
             const startDateOnly = getLocalMidnight(new Date(task.dueDate));
 
             // Ignore if target date is before the start date
-            if (targetDateOnly < startDateOnly) return false;
+            if (targetDateOnly < startDateOnly) continue;
 
             // Check end date if exists
             if ((task.recurrence as any).endDate) {
                 const endDateOnly = getLocalMidnight(new Date((task.recurrence as any).endDate));
-                if (targetDateOnly > endDateOnly) return false;
+                if (targetDateOnly > endDateOnly) continue;
             }
 
-            const interval = (task.recurrence as any).interval || 1;
-            const diffMs = targetDateOnly.getTime() - startDateOnly.getTime();
-            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            let matches = false;
 
-            switch (task.recurrence.frequency) {
-                case 'daily':
-                    return diffDays % interval === 0;
+            if (taskDateStr === targetDateStr) {
+                matches = true;
+            } else {
+                const interval = (task.recurrence as any).interval || 1;
+                const diffMs = targetDateOnly.getTime() - startDateOnly.getTime();
+                const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-                case 'weekly': {
-                    const daysOfWeek: number[] = task.recurrence.daysOfWeek || [];
-                    if (daysOfWeek.length > 0) {
-                        // Show on every specified day of the week
-                        return daysOfWeek.includes(targetDayOfWeek);
+                switch (task.recurrence!.frequency) {
+                    case 'daily':
+                        matches = diffDays % interval === 0;
+                        break;
+
+                    case 'weekly': {
+                        const daysOfWeek: number[] = task.recurrence!.daysOfWeek || [];
+                        if (daysOfWeek.length > 0) {
+                            // Show on every specified day of the week
+                            matches = daysOfWeek.includes(targetDayOfWeek);
+                        } else {
+                            // No daysOfWeek specified: show every N weeks from start
+                            const diffWeeks = diffDays / 7;
+                            matches = diffDays % 7 === 0 && diffWeeks % interval === 0;
+                        }
+                        break;
                     }
-                    // No daysOfWeek specified: show every N weeks from start
-                    const diffWeeks = diffDays / 7;
-                    return diffDays % 7 === 0 && diffWeeks % interval === 0;
-                }
 
-                case 'monthly': {
-                    const startDay = startDateOnly.getDate();
-                    if (targetDateOnly.getDate() !== startDay) return false;
-                    const diffMonths =
-                        (targetDateOnly.getFullYear() - startDateOnly.getFullYear()) * 12 +
-                        (targetDateOnly.getMonth() - startDateOnly.getMonth());
-                    return diffMonths % interval === 0 && diffMonths >= 0;
-                }
+                    case 'monthly': {
+                        const startDay = startDateOnly.getDate();
+                        if (targetDateOnly.getDate() === startDay) {
+                            const diffMonths =
+                                (targetDateOnly.getFullYear() - startDateOnly.getFullYear()) * 12 +
+                                (targetDateOnly.getMonth() - startDateOnly.getMonth());
+                            matches = diffMonths % interval === 0 && diffMonths >= 0;
+                        }
+                        break;
+                    }
 
-                case 'six-months': {
-                    if (targetDateOnly.getDate() !== startDateOnly.getDate()) return false;
-                    const diffMonths =
-                        (targetDateOnly.getFullYear() - startDateOnly.getFullYear()) * 12 +
-                        (targetDateOnly.getMonth() - startDateOnly.getMonth());
-                    return diffMonths % 6 === 0 && diffMonths >= 0;
-                }
+                    case 'six-months': {
+                        if (targetDateOnly.getDate() === startDateOnly.getDate()) {
+                            const diffMonths =
+                                (targetDateOnly.getFullYear() - startDateOnly.getFullYear()) * 12 +
+                                (targetDateOnly.getMonth() - startDateOnly.getMonth());
+                            matches = diffMonths % 6 === 0 && diffMonths >= 0;
+                        }
+                        break;
+                    }
 
-                case 'annually': {
-                    return (
-                        targetDateOnly.getMonth() === startDateOnly.getMonth() &&
-                        targetDateOnly.getDate() === startDateOnly.getDate()
-                    );
-                }
+                    case 'annually': {
+                        matches = (
+                            targetDateOnly.getMonth() === startDateOnly.getMonth() &&
+                            targetDateOnly.getDate() === startDateOnly.getDate()
+                        );
+                        break;
+                    }
 
-                default:
-                    return false;
+                    default:
+                        matches = false;
+                }
+            }
+
+            if (matches) {
+                // Adjust dueDate for this specific date occurrence so downstream components (like TaskCard)
+                // evaluate overdue status against the target occurrence date rather than the original creation timestamp.
+                const originalDueDate = new Date(task.dueDate);
+                const instanceDueDate = new Date(
+                    date.getFullYear(),
+                    date.getMonth(),
+                    date.getDate(),
+                    originalDueDate.getHours(),
+                    originalDueDate.getMinutes(),
+                    originalDueDate.getSeconds(),
+                    originalDueDate.getMilliseconds()
+                );
+
+                result.push({
+                    ...task,
+                    dueDate: instanceDueDate.toISOString(),
+                });
             }
         }
+    }
 
-        return false;
-    });
+    return result;
 };
 
 export const getDaysInMonth = (year: number, month: number) => {

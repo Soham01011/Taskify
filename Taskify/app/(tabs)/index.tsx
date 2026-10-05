@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
     KeyboardAvoidingView,
+    Modal,
     Platform,
     RefreshControl,
     SectionList,
@@ -14,7 +15,6 @@ import { useRouter } from 'expo-router';
 import { AlertTriangle, Plus } from 'lucide-react-native';
 import Animated, {
     FadeInUp,
-    FadeOut,
     ZoomIn,
     ZoomOut
 } from 'react-native-reanimated';
@@ -69,8 +69,11 @@ export default function TaskDashboard() {
         const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
         const endOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59);
 
+        const isRecurring = (t: any) =>
+            !!(t.recurrence && t.recurrence.frequency && t.recurrence.frequency !== 'none');
+
         const overdueTasks = effectiveTasks.filter((t: any) => {
-            if (!t.dueDate || t.completed) return false;
+            if (!t.dueDate || t.completed || isRecurring(t)) return false;
             return new Date(t.dueDate) < startOfToday;
         });
 
@@ -89,7 +92,7 @@ export default function TaskDashboard() {
         const todayTasks = getTasksForDate(now, effectiveTasks);
         const tomorrowTasks = getTasksForDate(tomorrow, effectiveTasks);
         const upcomingTasks = effectiveTasks.filter((t: any) => {
-            if (!t.dueDate || t.completed) return false;
+            if (!t.dueDate || t.completed || isRecurring(t)) return false;
             return new Date(t.dueDate) > endOfTomorrow;
         });
 
@@ -183,7 +186,7 @@ export default function TaskDashboard() {
                     </View>
                 )}
                 stickySectionHeadersEnabled={false}
-                keyExtractor={(item) => item._id}
+                keyExtractor={(item, index) => `${item._id}-${item.dueDate || index}`}
                 ListHeaderComponent={renderHeader}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
@@ -197,13 +200,15 @@ export default function TaskDashboard() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <AlertTriangle size={48} color={colors.textSecondary} opacity={0.5} />
-                        <Text style={styles.emptyText}>No tasks for today or tomorrow.{"\n"}If you have free time then check on your ideas</Text>
+                        <Text style={styles.emptyText}>
+                            No tasks for today or tomorrow.{"\n"}
+                            If you have free time then check on your ideas
+                        </Text>
                     </View>
                 }
             />
 
-            {/* FAB → Create Task Modal */}
-            {!isCreating ? (
+            {!isCreating && (
                 <Animated.View
                     key="fab-container"
                     entering={ZoomIn.duration(400).springify()}
@@ -218,17 +223,25 @@ export default function TaskDashboard() {
                         <Plus size={32} color={colors.white} />
                     </TouchableOpacity>
                 </Animated.View>
-            ) : (
-                <Animated.View
-                    key="modal-container"
-                    exiting={FadeOut.duration(400)}
-                    style={[styles.compactModalContainer, { zIndex: 100 }]}
-                    pointerEvents="box-none"
-                >
+            )}
+
+            <Modal
+                visible={isCreating}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsCreating(false)}
+            >
+                <View style={{ flex: 1 }}>
+                    <TouchableOpacity
+                        style={styles.overlay}
+                        onPress={() => setIsCreating(false)}
+                        activeOpacity={1}
+                    />
                     <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
+                        pointerEvents="box-none"
                     >
                         <CreateTaskForm
                             onSuccess={() => {
@@ -238,19 +251,8 @@ export default function TaskDashboard() {
                             onCancel={() => setIsCreating(false)}
                         />
                     </KeyboardAvoidingView>
-                </Animated.View>
-            )}
-
-            {/* Overlay */}
-            {isCreating && (
-                <View style={styles.overlay}>
-                    <TouchableOpacity
-                        style={{ flex: 1 }}
-                        onPress={() => setIsCreating(false)}
-                        activeOpacity={1}
-                    />
                 </View>
-            )}
+            </Modal>
         </SafeAreaView>
     );
 }

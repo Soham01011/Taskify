@@ -1,6 +1,5 @@
+import { RADIUS, SPACING } from '@/src/constants/theme';
 import { StyleSheet } from 'react-native';
-import { SPACING, RADIUS } from '@/src/constants/theme';
-import { Platform } from 'react-native';
 
 export const getStyles = (colors: any) => StyleSheet.create({
     container: {
@@ -159,11 +158,5 @@ export const getStyles = (colors: any) => StyleSheet.create({
     overlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(0,0,0,0.7)',
-        zIndex: 98,
-    },
-    compactModalContainer: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'flex-end',
-        backgroundColor: 'transparent',
-    },
+    }
 });
