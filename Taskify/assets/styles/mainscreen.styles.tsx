@@ -158,5 +158,6 @@ export const getStyles = (colors: any) => StyleSheet.create({
     overlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(0,0,0,0.7)',
-    }
+        zIndex: 98,
+    },
 });

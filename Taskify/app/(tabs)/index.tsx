@@ -1,18 +1,19 @@
-import { useMemo, useState } from 'react';
+import { RootState } from '@/src/store';
+import { BlurTargetView } from 'expo-blur';
+import { useRouter } from 'expo-router';
+import { AlertTriangle, Plus } from 'lucide-react-native';
+import { useMemo, useRef, useState } from 'react';
 import {
     KeyboardAvoidingView,
     Modal,
     Platform,
     RefreshControl,
     SectionList,
+    StyleSheet,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
-
-import { RootState } from '@/src/store';
-import { useRouter } from 'expo-router';
-import { AlertTriangle, Plus } from 'lucide-react-native';
 import Animated, {
     FadeInUp,
     ZoomIn,
@@ -24,6 +25,8 @@ import { useSelector } from 'react-redux';
 import { getStyles } from '@/assets/styles/mainscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { AppHeader } from '@/src/components/AppHeader';
+import { BlurBackdrop } from '@/src/components/BlurBackdrop';
+import { GenieAnimation } from '@/src/components/GenieAnimation';
 import { ActiveSchedule } from '@/src/components/Schedule/ActiveSchedule';
 import { CreateTaskForm } from '@/src/components/Tasks/CreateTaskForm';
 import { TaskCard } from '@/src/components/Tasks/TaskCard';
@@ -35,7 +38,7 @@ import { Network } from 'lucide-react-native';
 
 export default function TaskDashboard() {
     const router = useRouter();
-    const { colors } = useAppTheme();
+    const { colors, isDark } = useAppTheme();
     const styles = getStyles(colors);
 
     const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -53,8 +56,23 @@ export default function TaskDashboard() {
     const effectiveTasks = tasks;
 
     const { workflows } = useWorkflows('PERSONAL');
+    const blurTargetRef = useRef<View | null>(null);
 
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
+
+    const [modalVisible, setModalVisible] = useState(false);
+
+    // when opening:
+    const openCreate = () => {
+        setModalVisible(true);
+        setIsCreating(true);
+    };
+
+    // when closing:
+    const closeCreate = () => {
+        setIsCreating(false);   // triggers exiting=true below
+        // modalVisible stays true until onExited fires
+    };
 
     // Filter tasks based on selected date (with recurrence) or today/tomorrow
     const displaySections = useMemo(() => {
@@ -162,53 +180,52 @@ export default function TaskDashboard() {
         </View>
     );
 
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <SectionList
-                sections={displaySections}
-                renderItem={({ item }) => (
-                    <View style={{ paddingHorizontal: SPACING.lg }}>
-                        <TaskCard
-                            task={item}
-                            onPress={() => { }}
-                            onComplete={handleComplete}
-                        />
-                    </View>
-                )}
-                renderSectionHeader={({ section: { title, data } }) => (
-                    <View style={[styles.tasksSection, { paddingBottom: SPACING.sm, backgroundColor: colors.background }]}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>{title}</Text>
-                            <View style={styles.badge}>
-                                <Text style={styles.badgeText}>{data.length} TASKS</Text>
+            <BlurTargetView ref={blurTargetRef} style={{ flex: 1 }}>
+                <SectionList
+                    sections={displaySections}
+                    renderItem={({ item }) => (
+                        <View style={{ paddingHorizontal: SPACING.lg }}>
+                            <TaskCard task={item} onPress={() => { }} onComplete={handleComplete} />
+                        </View>
+                    )}
+                    renderSectionHeader={({ section: { title, data } }) => (
+                        <View style={[styles.tasksSection, { paddingBottom: SPACING.sm, backgroundColor: colors.background }]}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>{title}</Text>
+                                <View style={styles.badge}>
+                                    <Text style={styles.badgeText}>{data.length} TASKS</Text>
+                                </View>
                             </View>
                         </View>
-                    </View>
-                )}
-                stickySectionHeadersEnabled={false}
-                keyExtractor={(item, index) => `${item._id}-${item.dueDate || index}`}
-                ListHeaderComponent={renderHeader}
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
-                    />
-                }
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <AlertTriangle size={48} color={colors.textSecondary} opacity={0.5} />
-                        <Text style={styles.emptyText}>
-                            No tasks for today or tomorrow.{"\n"}
-                            If you have free time then check on your ideas
-                        </Text>
-                    </View>
-                }
-            />
+                    )}
+                    stickySectionHeadersEnabled={false}
+                    keyExtractor={(item, index) => `${item._id}-${item.dueDate || index}`}
+                    ListHeaderComponent={renderHeader}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor={colors.primary}
+                            colors={[colors.primary]}
+                        />
+                    }
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <AlertTriangle size={48} color={colors.textSecondary} opacity={0.5} />
+                            <Text style={styles.emptyText}>
+                                No tasks for today or tomorrow.{'\n'}
+                                If you have free time then check on your ideas
+                            </Text>
+                        </View>
+                    }
+                />
+            </BlurTargetView>
 
-            {!isCreating && (
+            {!modalVisible && (
                 <Animated.View
                     key="fab-container"
                     entering={ZoomIn.duration(400).springify()}
@@ -217,7 +234,7 @@ export default function TaskDashboard() {
                 >
                     <TouchableOpacity
                         style={styles.fabTouch}
-                        onPress={() => setIsCreating(true)}
+                        onPress={openCreate}
                         activeOpacity={0.6}
                     >
                         <Plus size={32} color={colors.white} />
@@ -226,30 +243,42 @@ export default function TaskDashboard() {
             )}
 
             <Modal
-                visible={isCreating}
+                visible={modalVisible}
                 transparent
-                animationType="fade"
-                onRequestClose={() => setIsCreating(false)}
+                animationType="none"
+                onRequestClose={closeCreate}
+                statusBarTranslucent
             >
                 <View style={{ flex: 1 }}>
+                    {/* Animated blur backdrop */}
+                    <BlurBackdrop
+                        visible={isCreating}          // <- drives the animation
+                        target={blurTargetRef}
+                        tint={isDark ? 'dark' : 'default'}
+                        maxIntensity={50}
+                        duration={250}
+                    />
+
+                    {/* Tap-to-close layer */}
                     <TouchableOpacity
-                        style={styles.overlay}
-                        onPress={() => setIsCreating(false)}
+                        style={StyleSheet.absoluteFill}
+                        onPress={closeCreate}
                         activeOpacity={1}
                     />
+
+                    {/* Form */}
                     <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
                         pointerEvents="box-none"
                     >
-                        <CreateTaskForm
-                            onSuccess={() => {
-                                setIsCreating(false);
-                                loadTasks();
-                            }}
-                            onCancel={() => setIsCreating(false)}
-                        />
+                        <GenieAnimation
+                            exiting={!isCreating}
+                            onExited={() => setModalVisible(false)}
+                        >
+                            <CreateTaskForm onSuccess={closeCreate} onCancel={closeCreate} />
+                        </GenieAnimation>
                     </KeyboardAvoidingView>
                 </View>
             </Modal>

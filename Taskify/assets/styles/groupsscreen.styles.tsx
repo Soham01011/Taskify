@@ -1,4 +1,4 @@
-import { SPACING, RADIUS, SHADOWS } from '@/src/constants/theme';
+import { RADIUS, SHADOWS, SPACING } from '@/src/constants/theme';
 import { StyleSheet } from 'react-native';
 
 export const getStyles = (colors: any) => StyleSheet.create({
@@ -221,16 +221,6 @@ export const getStyles = (colors: any) => StyleSheet.create({
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        zIndex: 98,
-    },
-    compactModalContainer: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'flex-end',
-        backgroundColor: 'transparent',
     },
     toolbar: {
         flexDirection: 'row',

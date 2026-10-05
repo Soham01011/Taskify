@@ -1,8 +1,11 @@
+import { BlurBackdrop } from '@/src/components/BlurBackdrop';
+import { BlurTargetView } from 'expo-blur';
 import { Lightbulb, Plus } from 'lucide-react-native';
-import React from 'react';
+import { useRef, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     RefreshControl,
     ScrollView,
@@ -11,28 +14,20 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import Animated, {
-    FadeIn,
-    FadeInUp,
-    FadeOut,
-    ZoomIn,
-    ZoomOut,
-} from 'react-native-reanimated';
+import Animated, { ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 
 import { getStyles } from '@/assets/styles/ideasscreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
-import { Idea } from '@/src/api/ideas';
 import { AppHeader } from '@/src/components/AppHeader';
 import { CreateIdeaForm } from '@/src/components/CreateIdeaForm';
+import { GenieAnimation } from '@/src/components/GenieAnimation';
 import { IdeaCard } from '@/src/components/Ideas/IdeaCard';
 import { ThreadModal } from '@/src/components/Ideas/ThreadModal';
-import { SPACING } from '@/src/constants/theme';
 import { useIdeas } from '@/src/hooks/useIdeas';
 import { formatRelativeDate } from '@/src/utils/date';
 
-const EmptyState = ({ colors, styles }: { colors: any, styles: any }) => (
+const EmptyState = ({ colors, styles }: { colors: any; styles: any }) => (
     <View style={styles.emptyContainer}>
         <View style={styles.emptyIcon}>
             <Lightbulb size={32} color={colors.primary} />
@@ -62,6 +57,19 @@ export default function IdeasScreen() {
         handleAddThread,
         handleDeleteThread,
     } = useIdeas();
+
+    const blurTargetRef = useRef<View | null>(null);
+    const [modalVisible, setModalVisible] = useState(false);
+
+    const openCreate = () => {
+        setModalVisible(true);
+        setIsCreating(true);
+    };
+
+    const closeCreate = () => {
+        setIsCreating(false);
+        // modalVisible stays true until onExited fires
+    };
 
     const renderContent = () => (
         <View style={{ paddingBottom: 100 }}>
@@ -104,87 +112,86 @@ export default function IdeasScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <AppHeader />
+            <BlurTargetView ref={blurTargetRef} style={{ flex: 1 }}>
+                <AppHeader />
 
-            <ScrollView
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
-                    />
-                }
-            >
-                {renderContent()}
-            </ScrollView>
-
-            {/* Background Blur Overlay when creating */}
-            {isCreating && (
-                <Animated.View
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(200)}
-                    style={[StyleSheet.absoluteFill, { zIndex: 98 }]}
+                <ScrollView
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            tintColor={colors.primary}
+                            colors={[colors.primary]}
+                        />
+                    }
                 >
-                    <BlurView
-                        intensity={50}
-                        tint={isDark ? 'dark' : 'default'}
-                        experimentalBlurMethod="dimezisBlurView"
-                        style={StyleSheet.absoluteFill}
+                    {renderContent()}
+                </ScrollView>
+
+                {/* FAB */}
+                {!modalVisible && (
+                    <Animated.View
+                        key="ideas-fab"
+                        entering={ZoomIn.duration(400).springify()}
+                        exiting={ZoomOut.duration(300).springify()}
+                        style={[styles.fab, { zIndex: 99 }]}
                     >
                         <TouchableOpacity
-                            style={{
-                                flex: 1,
-                                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.25)',
-                            }}
-                            onPress={() => setIsCreating(false)}
-                            activeOpacity={1}
-                        />
-                    </BlurView>
-                </Animated.View>
-            )}
+                            style={styles.fabTouch}
+                            onPress={openCreate}
+                            activeOpacity={0.6}
+                        >
+                            <Plus size={28} color={colors.white} />
+                        </TouchableOpacity>
+                    </Animated.View>
+                )}
+            </BlurTargetView>
 
-            {/* FAB */}
-            {!isCreating && (
-                <Animated.View
-                    key="ideas-fab"
-                    entering={ZoomIn.duration(400).springify()}
-                    exiting={ZoomOut.duration(300).springify()}
-                    style={[styles.fab, { zIndex: 99 }]}
-                >
+            {/* Create Idea Modal */}
+            <Modal
+                visible={modalVisible}
+                transparent
+                animationType="none"
+                onRequestClose={closeCreate}
+                statusBarTranslucent
+            >
+                <View style={{ flex: 1 }}>
+                    {/* Blurred background */}
+                    <BlurBackdrop
+                        visible={isCreating}
+                        target={blurTargetRef}
+                        tint={isDark ? 'dark' : 'default'}
+                        maxIntensity={50}
+                        duration={250}
+                    />
+
+                    {/* Tap-to-close layer */}
                     <TouchableOpacity
-                        style={styles.fabTouch}
-                        onPress={() => setIsCreating(true)}
-                        activeOpacity={0.6}
-                    >
-                        <Plus size={28} color={colors.white} />
-                    </TouchableOpacity>
-                </Animated.View>
-            )}
+                        style={StyleSheet.absoluteFill}
+                        onPress={closeCreate}
+                        activeOpacity={1}
+                    />
 
-            {/* Create Idea Modal (Genie) */}
-            {isCreating && (
-                <Animated.View
-                    key="ideas-modal"
-                    entering={FadeInUp.duration(300).springify()}
-                    exiting={FadeOut.duration(200)}
-                    style={[styles.compactModalContainer, { zIndex: 100 }]}
-                    pointerEvents="box-none"
-                >
+                    {/* Form */}
                     <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
                         pointerEvents="box-none"
                     >
-                        <CreateIdeaForm
-                            onSuccess={() => setIsCreating(false)}
-                            onCancel={() => setIsCreating(false)}
-                        />
+                        <GenieAnimation
+                            exiting={!isCreating}
+                            onExited={() => setModalVisible(false)}
+                        >
+                            <CreateIdeaForm
+                                onSuccess={closeCreate}
+                                onCancel={closeCreate}
+                            />
+                        </GenieAnimation>
                     </KeyboardAvoidingView>
-                </Animated.View>
-            )}
+                </View>
+            </Modal>
 
             {/* Thread Detail Modal */}
             {selectedIdea && (

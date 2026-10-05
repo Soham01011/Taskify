@@ -1,5 +1,5 @@
-import { StyleSheet, Platform } from 'react-native';
-import { SPACING, RADIUS } from '@/src/constants/theme';
+import { RADIUS, SPACING } from '@/src/constants/theme';
+import { Platform, StyleSheet } from 'react-native';
 
 export const getStyles = (colors: any) => StyleSheet.create({
     container: {
@@ -216,16 +216,6 @@ export const getStyles = (colors: any) => StyleSheet.create({
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: colors.overlay,
-        zIndex: 98,
-    },
-    compactModalContainer: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'flex-end',
-        backgroundColor: 'transparent',
     },
     // Thread modal styles
     threadModalOverlay: {

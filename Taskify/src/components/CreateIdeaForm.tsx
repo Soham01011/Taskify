@@ -1,21 +1,20 @@
+import { useAppTheme } from '@/hooks/use-theme';
+import { Lightbulb } from 'lucide-react-native';
 import React, { useReducer } from 'react';
 import {
-    View,
+    Platform,
+    ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    ScrollView,
-    StyleSheet,
-    Platform,
+    View,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { Lightbulb } from 'lucide-react-native';
-import { GenieAnimation } from './GenieAnimation';
 import { ideaApi } from '../api/ideas';
-import { addIdea } from '../store/slices/ideaSlice';
-import { AppDispatch } from '../store';
-import { useAppTheme } from '@/hooks/use-theme';
 import { RADIUS, SPACING } from '../constants/theme';
+import { AppDispatch } from '../store';
+import { addIdea } from '../store/slices/ideaSlice';
 
 interface CreateIdeaFormProps {
     onSuccess: () => void;
@@ -89,65 +88,64 @@ export const CreateIdeaForm: React.FC<CreateIdeaFormProps> = ({ onSuccess, onCan
 
     return (
         <View style={styles.container}>
-            <GenieAnimation>
-                <View style={styles.card}>
-                    {/* Header accent bar */}
-                    <View style={styles.accentBar}>
-                        <Lightbulb size={14} color={colors.primary} />
-                        <Text style={styles.accentLabel}>New Idea</Text>
-                    </View>
 
-                    <ScrollView
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={false}
-                        style={styles.scrollArea}
-                    >
-                        <TextInput
-                            style={styles.titleInput}
-                            placeholder="What's the idea?"
-                            placeholderTextColor={colors.textSecondary}
-                            value={state.title}
-                            onChangeText={(val) => dispatch({ type: 'SET_TITLE', value: val })}
-                            multiline
-                        />
-                        <TextInput
-                            style={styles.descriptionInput}
-                            placeholder="Add a description or notes (optional)"
-                            placeholderTextColor={colors.textSecondary}
-                            value={state.description}
-                            onChangeText={(val) => dispatch({ type: 'SET_DESCRIPTION', value: val })}
-                            multiline
-                        />
-                    </ScrollView>
+            <View style={styles.card}>
+                {/* Header accent bar */}
+                <View style={styles.accentBar}>
+                    <Lightbulb size={14} color={colors.primary} />
+                    <Text style={styles.accentLabel}>New Idea</Text>
+                </View>
 
-                    <View style={styles.divider} />
+                <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    style={styles.scrollArea}
+                >
+                    <TextInput
+                        style={styles.titleInput}
+                        placeholder="What's the idea?"
+                        placeholderTextColor={colors.textSecondary}
+                        value={state.title}
+                        onChangeText={(val) => dispatch({ type: 'SET_TITLE', value: val })}
+                        multiline
+                    />
+                    <TextInput
+                        style={styles.descriptionInput}
+                        placeholder="Add a description or notes (optional)"
+                        placeholderTextColor={colors.textSecondary}
+                        value={state.description}
+                        onChangeText={(val) => dispatch({ type: 'SET_DESCRIPTION', value: val })}
+                        multiline
+                    />
+                </ScrollView>
 
-                    <View style={styles.bottomBar}>
-                        <Text style={styles.hintText}>💡 No deadlines, just possibilities</Text>
+                <View style={styles.divider} />
 
-                        <View style={styles.buttonGroup}>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={onCancel || onSuccess}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[
-                                    styles.addButton,
-                                    (!state.title.trim() || state.loading) && styles.addButtonDisabled
-                                ]}
-                                onPress={handleCreate}
-                                disabled={!state.title.trim() || state.loading}
-                            >
-                                <Text style={styles.addButtonText}>
-                                    {state.loading ? 'Saving...' : 'Capture'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                <View style={styles.bottomBar}>
+                    <Text style={styles.hintText}>💡 No deadlines, just possibilities</Text>
+
+                    <View style={styles.buttonGroup}>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={onCancel || onSuccess}
+                        >
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.addButton,
+                                (!state.title.trim() || state.loading) && styles.addButtonDisabled
+                            ]}
+                            onPress={handleCreate}
+                            disabled={!state.title.trim() || state.loading}
+                        >
+                            <Text style={styles.addButtonText}>
+                                {state.loading ? 'Saving...' : 'Capture'}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </GenieAnimation>
+            </View>
 
             {state.error ? <Text style={styles.errorText}>{state.error}</Text> : null}
         </View>
