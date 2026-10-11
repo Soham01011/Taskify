@@ -11,6 +11,7 @@ interface ChatInputProps {
     onInterrupt: () => void;
     isReady: boolean;
     isGenerating: boolean;
+    placeholder?: string;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ 
@@ -20,7 +21,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     onSend, 
     onInterrupt,
     isReady, 
-    isGenerating 
+    isGenerating,
+    placeholder
 }) => {
     return (
         <View style={{ backgroundColor: colors.card, borderTopColor: colors.border, borderTopWidth: 1 }}>
@@ -36,8 +38,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                                 backgroundColor: colors.background,
                                 borderWidth: 1,
                                 borderColor: colors.border,
+                                opacity: isReady ? 1 : 0.5,
                             }}
+                            disabled={!isReady}
                             onPress={() => {
+                                if (!isReady) return;
                                 if (!input.includes(kw)) {
                                     setInput(input ? `${input} ${kw} ` : `${kw} `);
                                 }
@@ -50,8 +55,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </View>
             <View style={[styles.inputContainer, { borderTopWidth: 0, backgroundColor: 'transparent' }]}>
             <TextInput
-                style={[styles.input, { color: colors.text, backgroundColor: colors.background }]}
-                placeholder="Ask TaskMate anything..."
+                style={[styles.input, { color: colors.text, backgroundColor: colors.background, opacity: isReady ? 1 : 0.6 }]}
+                placeholder={placeholder || (isReady ? "Ask TaskMate anything..." : "Download AI model to begin")}
                 placeholderTextColor={colors.textSecondary}
                 value={input}
                 onChangeText={setInput}

@@ -18,7 +18,7 @@ import { AgentStatus, ChatMessage } from './TaskMate/types';
 export type { AgentStatus, ChatMessage } from './TaskMate/types';
 
 
-export const useTaskMate = () => {
+export const useTaskMate = (enabled: boolean = true) => {
     const dispatch = useDispatch<AppDispatch>();
     const capability = useDeviceCapability();
     const { currentUserId } = useSelector((s: RootState) => s.auth);
@@ -34,6 +34,12 @@ export const useTaskMate = () => {
     const [shouldLoad, setShouldLoad] = useState(false);
 
     useEffect(() => {
+        if (!enabled) {
+            setShouldLoad(false);
+            setAgentStatus('Model download required');
+            return;
+        }
+
         const task = InteractionManager.runAfterInteractions(() => {
             // Allow UI to mount and render completely before starting heavy native load
             setTimeout(() => {
@@ -41,7 +47,7 @@ export const useTaskMate = () => {
             }, 100);
         });
         return () => task.cancel();
-    }, []);
+    }, [enabled]);
 
     const llm = useLLM({
         model: MATE_MODELS.ACTIVE.config,
@@ -253,21 +259,23 @@ export const useTaskMate = () => {
 
     // ─── Status Engine ──────────────────────────────────────────────────────
     useEffect(() => {
-        if (llm.isGenerating) {
+        if (!shouldLoad) {
+            setAgentStatus('Model download required');
+        } else if (llm.isGenerating) {
             setAgentStatus('🤖 Thinking...');
-        } else if (!llm.isReady && llm.downloadProgress < 1) {
+        } else if (!llm.isReady && llm.downloadProgress < 1 && llm.downloadProgress > 0) {
             setAgentStatus(`Downloading Intelligence... ${Math.round(llm.downloadProgress * 100)}%`);
         } else if (!llm.isReady) {
             setAgentStatus('Waking up...');
         } else {
             setAgentStatus('ready');
         }
-    }, [llm.isReady, llm.downloadProgress, llm.isGenerating]);
+    }, [shouldLoad, llm.isReady, llm.downloadProgress, llm.isGenerating]);
 
     // ─── Interaction Handlers ────────────────────────────────────────────────
     const handleSend = async () => {
         const text = input.trim();
-        if (!text || !llm.isReady) return;
+        if (!text || !llm.isReady || !shouldLoad) return;
 
         console.log(`[MATE:USER_PROMPT] "${text}"`);
         currentPromptRef.current = text;
@@ -461,8 +469,8 @@ export const useTaskMate = () => {
         handleInterrupt,
         agentStatus,
         capability,
-        isReady: llm.isReady,
-        isDownloading: !llm.isReady && llm.downloadProgress < 1 && llm.downloadProgress > 0,
+        isReady: shouldLoad && llm.isReady,
+        isDownloading: shouldLoad && !llm.isReady && llm.downloadProgress < 1 && llm.downloadProgress > 0,
         downloadProgress: llm.downloadProgress
     };
 };
