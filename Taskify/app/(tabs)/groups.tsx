@@ -146,9 +146,9 @@ export default function GroupsScreen() {
 
                     {/* Form */}
                     <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
-                        style={{ flex: 1, justifyContent: 'flex-end' }}
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                        keyboardVerticalOffset={0}
+                        style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: Platform.OS === 'ios' ? 16 : 8 }}
                         pointerEvents="box-none"
                     >
                         <GenieAnimation

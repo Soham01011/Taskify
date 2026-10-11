@@ -25,7 +25,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         }),
     },
     scrollArea: {
-        maxHeight: 400,
+        maxHeight: 300,
     },
     titleInput: {
         fontSize: 18,

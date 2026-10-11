@@ -48,7 +48,7 @@ export const BlurBackdrop: React.FC<BlurBackdropProps> = ({
     });
 
     const androidProps = Platform.OS === 'android'
-        ? { blurTarget: target, blurMethod: 'dimezisBlurView' as const }
+        ? (target?.current ? { blurTarget: target, blurMethod: 'dimezisBlurView' as const } : { blurMethod: 'none' as const })
         : {};
 
     return (
