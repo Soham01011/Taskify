@@ -85,7 +85,8 @@ router.put('/:id', verifyToken, async (req, res) => {
     const idea = await Idea.findOneAndUpdate(
       { _id: req.params.id, userId },
       { title, description },
-      { new: true, runValidators: true }
+      { runValidators: true },
+      { returnDocument: 'after' }
     );
     if (!idea) return res.status(404).json({ error: 'Idea not found or not owned by user' });
     res.json(idea);

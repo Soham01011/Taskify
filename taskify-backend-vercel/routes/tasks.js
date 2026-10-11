@@ -165,7 +165,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, userId },
       updateData,
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
 
@@ -205,7 +205,7 @@ router.patch('/:id/complete', verifyToken, async (req, res) => {
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, userId },
       { completed: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
 
