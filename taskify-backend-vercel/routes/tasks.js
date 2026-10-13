@@ -3,15 +3,149 @@ const router = express.Router();
 const Task = require('../models/Task');
 const User = require('../models/User');
 const { sendMultiplePushNotifications } = require('../utils/notificationService');
-const { calculateNextDueDate, calculateInitialDueDate } = require('../utils/taskRecurrence');
+const { calculateNextDueDate, calculateInitialDueDate, generateScheduleDates } = require('../utils/taskRecurrence');
 const verifyToken = require('../middleware/auth');
 
-// Create a new task (with optional subtasks)
+// Create a new task (with optional subtasks and recurrence)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, description, dueDate, subtasks, timeSlots, alarm_type, alarm_reminder_time, recurrence } = req.body;
+    const { title, description, dueDate, subtasks, timeSlots, timeSlot, alarm_type, alarm_reminder_time, recurrence } = req.body;
     const userId = req.userId;
-    console.log("user : ", userId, "Created Task :", title, description, "Due Date :", dueDate, "Subtasks :", subtasks, "Time Slots :", timeSlots, "Alarm Type :", alarm_type, "Alarm Reminder Time :", alarm_reminder_time, "Recurrence :", recurrence)
+    console.log("user : ", userId, "Created Task :", title, description, "Due Date :", dueDate, "Subtasks :", subtasks, "Time Slots :", timeSlots || timeSlot, "Alarm Type :", alarm_type, "Alarm Reminder Time :", alarm_reminder_time, "Recurrence :", recurrence);
+
+    // Resolve timeSlots (defaults to 0 hrs 30 mins)
+    let resolvedTimeSlots = timeSlots;
+    if (!resolvedTimeSlots && timeSlot) {
+      resolvedTimeSlots = timeSlot;
+    }
+    if (!resolvedTimeSlots && recurrence && (recurrence.timeSlots || recurrence.timeSlot)) {
+      resolvedTimeSlots = recurrence.timeSlots || recurrence.timeSlot;
+    }
+
+    if (!resolvedTimeSlots || (Array.isArray(resolvedTimeSlots) && resolvedTimeSlots.length === 0)) {
+      resolvedTimeSlots = [{ hours: 0, minutes: 30 }];
+    } else if (!Array.isArray(resolvedTimeSlots)) {
+      if (typeof resolvedTimeSlots === 'number') {
+        resolvedTimeSlots = [{ hours: Math.floor(resolvedTimeSlots / 60), minutes: resolvedTimeSlots % 60 }];
+      } else if (typeof resolvedTimeSlots === 'object') {
+        resolvedTimeSlots = [{ 
+          hours: resolvedTimeSlots.hours || 0, 
+          minutes: resolvedTimeSlots.minutes !== undefined ? resolvedTimeSlots.minutes : 30 
+        }];
+      } else {
+        resolvedTimeSlots = [{ hours: 0, minutes: 30 }];
+      }
+    }
+
+    let processedSubtasks = [];
+    if (Array.isArray(subtasks)) {
+      processedSubtasks = subtasks.map(sub => {
+        let subDueDate = sub.dueDate ? new Date(sub.dueDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+        if (subDueDate < new Date()) {
+          throw new Error('Subtask dueDate cannot be in the past');
+        }
+        return { ...sub, dueDate: subDueDate };
+      });
+    }
+
+    // Handle 'schedule' / 'scheduled' recurrence type: creates individual tasks for each day
+    if (recurrence && (recurrence.frequency === 'schedule' || recurrence.frequency === 'scheduled')) {
+      const scheduleStartDate = recurrence.startDate || req.body.startDate || dueDate;
+      const scheduleEndDate = recurrence.endDate || req.body.endDate;
+      const scheduleTime = recurrence.time || recurrence.timeOfDay || req.body.time || req.body.timeOfDay;
+
+      if (!scheduleStartDate || !scheduleEndDate) {
+        return res.status(400).json({ error: 'startDate and endDate are required for schedule recurrence' });
+      }
+
+      let dates;
+      try {
+        dates = generateScheduleDates(scheduleStartDate, scheduleEndDate, scheduleTime);
+      } catch (dateErr) {
+        return res.status(400).json({ error: dateErr.message });
+      }
+
+      if (!dates || dates.length === 0) {
+        return res.status(400).json({ error: 'No valid dates generated for the schedule' });
+      }
+
+      if (dates[0] < new Date()) {
+        return res.status(400).json({ error: 'startDate/time cannot be in the past' });
+      }
+
+      const createdTasks = [];
+      let originTaskId = null;
+
+      for (let i = 0; i < dates.length; i++) {
+        const currentDueDate = dates[i];
+        const taskSubtasks = processedSubtasks.map(sub => ({
+          title: sub.title,
+          completed: false,
+          dueDate: currentDueDate
+        }));
+
+        const taskData = {
+          userId,
+          title,
+          description,
+          dueDate: currentDueDate,
+          subtasks: taskSubtasks,
+          alarm_type,
+          alarm_reminder_time: alarm_reminder_time ? new Date(alarm_reminder_time) : currentDueDate,
+          created_at: new Date(),
+          updated_at: new Date(),
+          recurrence: {
+            ...recurrence,
+            frequency: 'schedule',
+            startDate: new Date(scheduleStartDate),
+            endDate: new Date(scheduleEndDate),
+            time: scheduleTime,
+            originTaskId: originTaskId
+          },
+          timeSlots: resolvedTimeSlots
+        };
+
+        const scheduledTask = new Task(taskData);
+        if (i === 0) {
+          scheduledTask.recurrence.originTaskId = scheduledTask._id;
+          originTaskId = scheduledTask._id;
+        } else {
+          scheduledTask.recurrence.originTaskId = originTaskId;
+        }
+
+        await scheduledTask.save();
+        createdTasks.push(scheduledTask);
+      }
+
+      // Trigger immediate silent sync for created schedule tasks
+      try {
+        const user = await User.findById(userId);
+        if (user && user.pushTokens && user.pushTokens.length > 0) {
+          for (const st of createdTasks) {
+            await sendMultiplePushNotifications(
+              user.pushTokens,
+              null, // No title = Silent
+              null, // No body = Silent
+              {
+                taskId: st._id.toString(),
+                type: 'TASK_SYNC',
+                title: st.title,
+                dueDate: st.dueDate.toISOString(),
+                alarmTime: st.alarm_reminder_time ? st.alarm_reminder_time.toISOString() : st.dueDate.toISOString()
+              }
+            );
+            st.syncSent = true;
+            await st.save();
+          }
+        }
+      } catch (notifyError) {
+        console.error('Failed to send task sync notification for schedule:', notifyError);
+      }
+
+      return res.status(201).json(createdTasks.length === 1 ? createdTasks[0] : createdTasks);
+    }
+
+    // For standard / other recurring tasks
     let taskDueDate;
 
     if (recurrence && recurrence.frequency !== 'none') {
@@ -26,22 +160,6 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'dueDate cannot be in the past' });
     }
 
-    let processedSubtasks = [];
-    if (Array.isArray(subtasks)) {
-      processedSubtasks = subtasks.map(sub => {
-        let subDueDate = sub.dueDate ? new Date(sub.dueDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-        if (subDueDate < new Date()) {
-          throw new Error('Subtask dueDate cannot be in the past');
-        }
-        return { ...sub, dueDate: subDueDate };
-      });
-    }
-
-    if (!timeSlots || timeSlots.length === 0) {
-      //set defult time to 0 hrs 30 minutes
-      timeSlots = [{ hours: 0, minutes: 30 }];
-    }
-
     const taskData = {
       userId,
       title,
@@ -53,7 +171,7 @@ router.post('/', verifyToken, async (req, res) => {
       created_at: new Date(),
       updated_at: new Date(),
       recurrence,
-      timeSlots: timeSlots
+      timeSlots: resolvedTimeSlots
     };
 
     const task = new Task(taskData);
@@ -209,8 +327,8 @@ router.patch('/:id/complete', verifyToken, async (req, res) => {
     );
     if (!task) return res.status(404).json({ error: 'Task not found or not owned by user' });
 
-    // If it's a recurring task, create the next occurrence
-    if (task.recurrence && task.recurrence.frequency !== 'none') {
+    // If it's a recurring task, create the next occurrence (skip 'schedule' since all occurrences are created upfront)
+    if (task.recurrence && task.recurrence.frequency !== 'none' && task.recurrence.frequency !== 'schedule' && task.recurrence.frequency !== 'scheduled') {
       const nextDueDate = calculateNextDueDate(task.dueDate, task.recurrence);
 
       if (nextDueDate) {
@@ -228,6 +346,7 @@ router.patch('/:id/complete', verifyToken, async (req, res) => {
           description: task.description,
           dueDate: nextDueDate,
           subtasks: nextSubtasks,
+          timeSlots: task.timeSlots,
           alarm_type: task.alarm_type,
           alarm_reminder_time: nextDueDate, // Default to nextDueDate
           recurrence: {

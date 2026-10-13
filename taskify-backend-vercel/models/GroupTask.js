@@ -22,9 +22,12 @@ const GroupTaskSchema = new mongoose.Schema({
   recurrence: {
     frequency: { 
       type: String, 
-      enum: ['none', 'daily', 'weekly', 'monthly', 'six-months', 'annually'], 
+      enum: ['none', 'daily', 'weekly', 'monthly', 'six-months', 'annually', 'schedule', 'scheduled'], 
       default: 'none' 
     },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    time: { type: String },
     daysOfWeek: [Number],
     dayOfMonth: Number,
     lastWeekend: { type: Boolean, default: false },

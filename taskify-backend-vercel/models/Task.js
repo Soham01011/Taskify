@@ -27,9 +27,12 @@ const TaskSchema = new mongoose.Schema({
   recurrence: {
     frequency: {
       type: String,
-      enum: ['none', 'daily', 'weekly', 'monthly', 'six-months', 'annually'],
+      enum: ['none', 'daily', 'weekly', 'monthly', 'six-months', 'annually', 'schedule', 'scheduled'],
       default: 'none'
     },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    time: { type: String }, // e.g., '17:00' or '5 PM'
     daysOfWeek: [Number], // 0-6 (Sunday-Saturday) for weekly
     dayOfMonth: Number,   // 1-31 for monthly
     lastWeekend: { type: Boolean, default: false }, // Special case for monthly: last weekend of the month
