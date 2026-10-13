@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Calendar, Repeat, Clock, Check } from 'lucide-react-native';
 
-export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
 
 interface RecurrencePickerProps {
     colors: any;
@@ -17,6 +17,12 @@ interface RecurrencePickerProps {
     timeOfDay: Date | null;
     setTimeOfDay: (time: Date | null) => void;
     showTimePicker: () => void;
+    startDate?: Date | null;
+    setStartDate?: (date: Date | null) => void;
+    endDate?: Date | null;
+    setEndDate?: (date: Date | null) => void;
+    showStartDatePicker?: () => void;
+    showEndDatePicker?: () => void;
 }
 
 const DAYS = [
@@ -41,7 +47,13 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
     setLastWeekend,
     timeOfDay,
     setTimeOfDay,
-    showTimePicker
+    showTimePicker,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    showStartDatePicker,
+    showEndDatePicker
 }) => {
     const toggleDay = (index: number) => {
         if (daysOfWeek.includes(index)) {
@@ -53,6 +65,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
 
     const frequencies: { label: string; value: RecurrenceFrequency }[] = [
         { label: 'None', value: 'none' },
+        { label: 'Schedule', value: 'schedule' },
         { label: 'Daily', value: 'daily' },
         { label: 'Weekly', value: 'weekly' },
         { label: 'Monthly', value: 'monthly' },
@@ -175,6 +188,78 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                 </View>
             )}
 
+            {frequency === 'schedule' && (
+                <View style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                            onPress={showStartDatePicker}
+                            style={{
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: 10,
+                                borderRadius: 8,
+                                backgroundColor: colors.border + '30',
+                                borderWidth: 1,
+                                borderColor: colors.border
+                            }}
+                        >
+                            <Calendar size={16} color={colors.primary} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 10, color: colors.textSecondary, fontWeight: '600' }}>START DATE</Text>
+                                <Text style={{ fontSize: 12, color: colors.text, fontWeight: '500' }} numberOfLines={1}>
+                                    {startDate ? startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select Start Date'}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={showEndDatePicker}
+                            style={{
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: 10,
+                                borderRadius: 8,
+                                backgroundColor: colors.border + '30',
+                                borderWidth: 1,
+                                borderColor: colors.border
+                            }}
+                        >
+                            <Calendar size={16} color={colors.primary} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 10, color: colors.textSecondary, fontWeight: '600' }}>END DATE</Text>
+                                <Text style={{ fontSize: 12, color: colors.text, fontWeight: '500' }} numberOfLines={1}>
+                                    {endDate ? endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select End Date'}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    {startDate && endDate && (
+                        <View style={{ paddingHorizontal: 4 }}>
+                            {new Date(new Date(endDate).getFullYear(), new Date(endDate).getMonth(), new Date(endDate).getDate()) <
+                             new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth(), new Date(startDate).getDate()) ? (
+                                <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '500' }}>
+                                    End date cannot be before start date
+                                </Text>
+                            ) : (
+                                <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                                    {(() => {
+                                        const startMid = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth(), new Date(startDate).getDate()).getTime();
+                                        const endMid = new Date(new Date(endDate).getFullYear(), new Date(endDate).getMonth(), new Date(endDate).getDate()).getTime();
+                                        const days = Math.round((endMid - startMid) / (1000 * 60 * 60 * 24)) + 1;
+                                        return `📅 Spans ${days} day${days > 1 ? 's' : ''} (generates daily tasks)`;
+                                    })()}
+                                </Text>
+                            )}
+                        </View>
+                    )}
+                </View>
+            )}
+
             {frequency !== 'none' && (
                 <TouchableOpacity
                     onPress={showTimePicker}
@@ -182,7 +267,7 @@ export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({
                 >
                     <Clock size={16} color={colors.primary} />
                     <Text style={{ fontSize: 13, color: colors.text }}>
-                        {timeOfDay ? `Occurs at ${timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Select time'}
+                        {timeOfDay ? `Occurs at ${timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : frequency === 'schedule' ? 'Select daily time (e.g. 5:00 PM)' : 'Select time'}
                     </Text>
                 </TouchableOpacity>
             )}

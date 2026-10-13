@@ -3,10 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import { taskApi } from '../api/tasks';
 import { groupApi } from '../api/groups';
-import { fetchTasks } from '../store/slices/taskSlice';
+import { fetchTasks, addTasks } from '../store/slices/taskSlice';
 import { fetchGroups } from '../store/slices/groupSlice';
 
-export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
 
 export interface SubtaskItem {
     id: string;
@@ -25,6 +25,8 @@ export interface TaskFormState {
     isDatePickerVisible: boolean;
     isReminderPickerVisible: boolean;
     isTimePickerVisible: boolean;
+    isStartDatePickerVisible: boolean;
+    isEndDatePickerVisible: boolean;
     loading: boolean;
     error: string;
     selectedGroupId: string | null;
@@ -37,6 +39,8 @@ export interface TaskFormState {
     dayOfMonth: number | null;
     lastWeekend: boolean;
     timeOfDay: Date | null;
+    startDate: Date | null;
+    endDate: Date | null;
     // Time slot stored as separate hours/minutes to match API format: timeSlots: [{ hours, minutes }]
     timeSlotHours: number;
     timeSlotMinutes: number;
@@ -64,6 +68,8 @@ const initialState: TaskFormState = {
     isDatePickerVisible: false,
     isReminderPickerVisible: false,
     isTimePickerVisible: false,
+    isStartDatePickerVisible: false,
+    isEndDatePickerVisible: false,
     loading: false,
     error: '',
     selectedGroupId: null,
@@ -76,6 +82,8 @@ const initialState: TaskFormState = {
     dayOfMonth: null,
     lastWeekend: false,
     timeOfDay: null,
+    startDate: new Date(),
+    endDate: null,
     timeSlotHours: 0,
     timeSlotMinutes: 30,
     showTimeSlotPicker: false,
@@ -121,23 +129,88 @@ export function useCreateTask(onSuccess: () => void) {
             return;
         }
 
-        const hasRecurrence = state.frequency !== 'none';
-        let effectiveDate = state.dueDate ? new Date(state.dueDate) : new Date();
+        if (state.frequency === 'schedule') {
+            if (!state.startDate || !state.endDate) {
+                localDispatch({ type: 'SET_FIELD', field: 'error', value: 'startDate and endDate are required for schedule recurrence' });
+                return;
+            }
 
-        if (hasRecurrence && state.timeOfDay) {
-            effectiveDate.setHours(state.timeOfDay.getHours());
-            effectiveDate.setMinutes(state.timeOfDay.getMinutes());
-            effectiveDate.setSeconds(0);
-            effectiveDate.setMilliseconds(0);
+            const startMid = new Date(state.startDate.getFullYear(), state.startDate.getMonth(), state.startDate.getDate()).getTime();
+            const endMid = new Date(state.endDate.getFullYear(), state.endDate.getMonth(), state.endDate.getDate()).getTime();
+            const todayMid = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+
+            if (endMid < startMid) {
+                localDispatch({ type: 'SET_FIELD', field: 'error', value: 'endDate cannot be before startDate' });
+                return;
+            }
+
+            if (startMid < todayMid) {
+                localDispatch({ type: 'SET_FIELD', field: 'error', value: 'startDate cannot be in the past' });
+                return;
+            }
         }
 
-        const recurrenceData = hasRecurrence ? {
-            frequency: state.frequency,
-            daysOfWeek: state.daysOfWeek,
-            dayOfMonth: state.dayOfMonth ?? undefined,
-            lastWeekend: state.lastWeekend,
-            timeOfDay: `${String(effectiveDate.getUTCHours()).padStart(2, '0')}:${String(effectiveDate.getUTCMinutes()).padStart(2, '0')}`
-        } : undefined;
+        const hasRecurrence = state.frequency !== 'none';
+
+        // 1. Calculate effective start date in local time
+        const effectiveStartDate = state.startDate
+            ? new Date(state.startDate)
+            : (state.dueDate ? new Date(state.dueDate) : new Date());
+
+        if (state.timeOfDay) {
+            effectiveStartDate.setHours(state.timeOfDay.getHours());
+            effectiveStartDate.setMinutes(state.timeOfDay.getMinutes());
+            effectiveStartDate.setSeconds(0);
+            effectiveStartDate.setMilliseconds(0);
+        } else if (state.dueDate) {
+            effectiveStartDate.setHours(state.dueDate.getHours());
+            effectiveStartDate.setMinutes(state.dueDate.getMinutes());
+            effectiveStartDate.setSeconds(0);
+            effectiveStartDate.setMilliseconds(0);
+        }
+
+        // 2. Calculate effective end date in local time (for schedule recurrence)
+        const effectiveEndDate = state.endDate
+            ? new Date(state.endDate)
+            : new Date(effectiveStartDate);
+
+        if (state.timeOfDay) {
+            effectiveEndDate.setHours(state.timeOfDay.getHours());
+            effectiveEndDate.setMinutes(state.timeOfDay.getMinutes());
+            effectiveEndDate.setSeconds(0);
+            effectiveEndDate.setMilliseconds(0);
+        } else {
+            effectiveEndDate.setHours(effectiveStartDate.getHours());
+            effectiveEndDate.setMinutes(effectiveStartDate.getMinutes());
+            effectiveEndDate.setSeconds(0);
+            effectiveEndDate.setMilliseconds(0);
+        }
+
+        // 3. Global scale UTC conversions
+        // Serialise to UTC ISO 8601 strings (e.g. "2026-10-20T11:30:00.000Z")
+        const utcStartDate = effectiveStartDate.toISOString();
+        const utcEndDate = effectiveEndDate.toISOString();
+        // Time formatted as UTC "HH:mm" (e.g. "11:30")
+        const utcTimeStr = `${String(effectiveStartDate.getUTCHours()).padStart(2, '0')}:${String(effectiveStartDate.getUTCMinutes()).padStart(2, '0')}`;
+
+        let recurrenceData: any = undefined;
+        if (state.frequency === 'schedule') {
+            recurrenceData = {
+                frequency: 'schedule',
+                startDate: utcStartDate,
+                endDate: utcEndDate,
+                time: utcTimeStr,
+                timeOfDay: utcTimeStr,
+            };
+        } else if (hasRecurrence) {
+            recurrenceData = {
+                frequency: state.frequency,
+                daysOfWeek: state.daysOfWeek,
+                dayOfMonth: state.dayOfMonth ?? undefined,
+                lastWeekend: state.lastWeekend,
+                timeOfDay: utcTimeStr,
+            };
+        }
 
         // Build timeSlots payload: [{ hours, minutes }]
         const timeSlotsPayload = [{ hours: state.timeSlotHours, minutes: state.timeSlotMinutes }];
@@ -149,7 +222,7 @@ export function useCreateTask(onSuccess: () => void) {
                     userId: state.assignee?.id || '',
                     username: state.assignee?.username || '',
                     task: state.title.trim(),
-                    duedate: effectiveDate.toISOString(),
+                    duedate: utcStartDate,
                     timeSlots: timeSlotsPayload,
                     subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
                     recurrence: recurrenceData
@@ -158,16 +231,20 @@ export function useCreateTask(onSuccess: () => void) {
                     dispatch(fetchGroups({ userId: currentUserId }));
                 }
             } else {
-                await taskApi.create({
+                const response = await taskApi.create({
                     title: state.title.trim(),
                     description: state.description.trim(),
-                    dueDate: effectiveDate.toISOString(),
+                    dueDate: utcStartDate,
                     timeSlots: timeSlotsPayload,
+                    timeSlot: { hours: state.timeSlotHours, minutes: state.timeSlotMinutes },
                     subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
                     alarm_type: state.alarmType,
-                    alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDate.toISOString(),
+                    alarm_reminder_time: state.alarmReminderTime?.toISOString() || utcStartDate,
                     recurrence: recurrenceData,
                 });
+                if (response?.data) {
+                    dispatch(addTasks(response.data));
+                }
                 dispatch(fetchTasks());
             }
             localDispatch({ type: 'SUBMIT_SUCCESS' });

@@ -102,6 +102,13 @@ export const getTasksForDate = (date: Date, tasks: Task[]): Task[] => {
                         break;
                     }
 
+                    case 'schedule': {
+                        // Multi-day schedule creates distinct individual task documents per day in DB.
+                        // Each document matches only its own exact dueDate (handled by taskDateStr === targetDateStr).
+                        matches = false;
+                        break;
+                    }
+
                     default:
                         matches = false;
                 }

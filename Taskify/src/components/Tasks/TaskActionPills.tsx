@@ -19,6 +19,8 @@ interface TaskActionPillsProps {
     timeSlotMinutes?: number;
     onTimeSlotPress?: () => void;
     isTimeSlotActive?: boolean;
+    startDate?: Date | null;
+    endDate?: Date | null;
 }
 
 export const TaskActionPills: React.FC<TaskActionPillsProps> = ({
@@ -26,6 +28,7 @@ export const TaskActionPills: React.FC<TaskActionPillsProps> = ({
     alarmReminderTime, showDatePicker, showReminderPicker,
     recurrence, onRecurrencePress,
     timeSlotHours = 0, timeSlotMinutes = 30, onTimeSlotPress, isTimeSlotActive,
+    startDate, endDate,
 }) => {
     const durationLabel = formatDurationLabel(timeSlotHours, timeSlotMinutes);
 
@@ -53,7 +56,9 @@ export const TaskActionPills: React.FC<TaskActionPillsProps> = ({
             >
                 <Repeat size={14} color={recurrence !== 'none' ? colors.primary : colors.textSecondary} />
                 <Text style={[styles.pillText, recurrence !== 'none' && { color: colors.primary }]}>
-                    {recurrence.charAt(0).toUpperCase() + recurrence.slice(1)}
+                    {recurrence === 'schedule' && startDate && endDate
+                        ? `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                        : recurrence.charAt(0).toUpperCase() + recurrence.slice(1)}
                 </Text>
             </TouchableOpacity>
 

@@ -78,8 +78,8 @@ export function useTasks() {
         }
 
         result.sort((a, b) => {
-            const dateA = new Date(a.dueDate).getTime();
-            const dateB = new Date(b.dueDate).getTime();
+            const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+            const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
             return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
         });
 

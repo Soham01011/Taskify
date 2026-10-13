@@ -70,7 +70,18 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                         <RecurrencePicker
                             colors={colors}
                             frequency={state.frequency}
-                            setFrequency={(val) => setField('frequency', val)}
+                            setFrequency={(val) => {
+                                setField('frequency', val);
+                                if (val === 'schedule') {
+                                    const start = state.startDate || state.dueDate || new Date();
+                                    setField('startDate', start);
+                                    if (!state.endDate) {
+                                        const defaultEnd = new Date(start);
+                                        defaultEnd.setDate(defaultEnd.getDate() + 4);
+                                        setField('endDate', defaultEnd);
+                                    }
+                                }
+                            }}
                             daysOfWeek={state.daysOfWeek}
                             setDaysOfWeek={(val) => setField('daysOfWeek', val)}
                             dayOfMonth={state.dayOfMonth}
@@ -78,8 +89,14 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             lastWeekend={state.lastWeekend}
                             setLastWeekend={(val) => setField('lastWeekend', val)}
                             timeOfDay={state.timeOfDay}
-                            setTimeOfDay={() => { }}
+                            setTimeOfDay={(val) => setField('timeOfDay', val)}
                             showTimePicker={() => setField('isTimePickerVisible', true)}
+                            startDate={state.startDate}
+                            setStartDate={(val) => setField('startDate', val)}
+                            endDate={state.endDate}
+                            setEndDate={(val) => setField('endDate', val)}
+                            showStartDatePicker={() => setField('isStartDatePickerVisible', true)}
+                            showEndDatePicker={() => setField('isEndDatePickerVisible', true)}
                         />
                     )}
 
@@ -108,6 +125,8 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     showDatePicker={() => setField('isDatePickerVisible', true)}
                     showReminderPicker={() => setField('isReminderPickerVisible', true)}
                     recurrence={state.frequency}
+                    startDate={state.startDate}
+                    endDate={state.endDate}
                     onRecurrencePress={() => {
                         setField('showRecurrencePicker', !state.showRecurrencePicker);
                         if (!state.showRecurrencePicker) setField('showTimeSlotPicker', false);
@@ -214,6 +233,33 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                     setField('isTimePickerVisible', false);
                 }}
                 onCancel={() => setField('isTimePickerVisible', false)}
+            />
+
+            <DateTimePickerModal
+                isVisible={state.isStartDatePickerVisible}
+                mode="date"
+                date={state.startDate || new Date()}
+                onConfirm={(date) => {
+                    setField('startDate', date);
+                    setField('isStartDatePickerVisible', false);
+                    if (state.endDate && state.endDate < date) {
+                        const next = new Date(date);
+                        next.setDate(next.getDate() + 1);
+                        setField('endDate', next);
+                    }
+                }}
+                onCancel={() => setField('isStartDatePickerVisible', false)}
+            />
+
+            <DateTimePickerModal
+                isVisible={state.isEndDatePickerVisible}
+                mode="date"
+                date={state.endDate || state.startDate || new Date()}
+                onConfirm={(date) => {
+                    setField('endDate', date);
+                    setField('isEndDatePickerVisible', false);
+                }}
+                onCancel={() => setField('isEndDatePickerVisible', false)}
             />
         </View>
     );

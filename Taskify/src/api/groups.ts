@@ -14,7 +14,11 @@ export interface GroupTask {
     completed: boolean;
     subtasks?: { _id?: string; title: string; completed: boolean }[];
     recurrence?: {
-        frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+        frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
+        startDate?: string;
+        endDate?: string;
+        time?: string;
+        originTaskId?: string;
         daysOfWeek?: number[];
         dayOfMonth?: number;
         lastWeekend?: boolean;
@@ -50,7 +54,11 @@ export const groupApi = {
         timeSlots?: { hours: number; minutes: number }[];
         subtasks?: { title: string; completed: boolean }[];
         recurrence?: {
-            frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+            frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
+            startDate?: string;
+            endDate?: string;
+            time?: string;
+            originTaskId?: string;
             daysOfWeek?: number[];
             dayOfMonth?: number;
             lastWeekend?: boolean;

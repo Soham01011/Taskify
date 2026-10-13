@@ -18,7 +18,11 @@ export interface Task {
     alarm_type?: 'push' | 'alarm';
     alarm_reminder_time?: string;
     recurrence?: {
-        frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+        frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
+        startDate?: string;
+        endDate?: string;
+        time?: string;
+        originTaskId?: string;
         daysOfWeek?: number[];
         dayOfMonth?: number;
         lastWeekend?: boolean;
@@ -99,15 +103,20 @@ export const taskApi = {
         created_at?: Date;
         updated_at?: Date;
         timeSlots?: { hours: number; minutes: number }[];
+        timeSlot?: { hours: number; minutes: number } | number;
         recurrence?: {
-            frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually';
+            frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
+            startDate?: string;
+            endDate?: string;
+            time?: string;
+            originTaskId?: string;
             daysOfWeek?: number[];
             dayOfMonth?: number;
             lastWeekend?: boolean;
             timeOfDay?: string;
         };
     }) =>
-        client.post<Task>('/tasks/', data),
+        client.post<Task | Task[]>('/tasks/', data),
 
     update: (id: string, data: Partial<Task>) =>
         client.put<Task>(`/tasks/${id}/`, data),

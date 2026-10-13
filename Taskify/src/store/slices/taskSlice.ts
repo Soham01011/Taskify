@@ -44,6 +44,12 @@ const taskSlice = createSlice({
             if (index !== -1) {
                 state.tasks[index] = action.payload;
             }
+        },
+        addTasks: (state, action: PayloadAction<Task | Task[]>) => {
+            const incoming = Array.isArray(action.payload) ? action.payload : [action.payload];
+            const currentIds = new Set(state.tasks.map(t => t._id));
+            const newTasks = incoming.filter(t => !currentIds.has(t._id));
+            state.tasks = [...newTasks, ...state.tasks];
         }
     },
 
@@ -103,7 +109,7 @@ const taskSlice = createSlice({
 });
 
 
-export const { clearTasks, removeTask, updateTask } = taskSlice.actions;
+export const { clearTasks, removeTask, updateTask, addTasks } = taskSlice.actions;
 
 export const selectUnifiedTasks = createSelector(
     [(state: RootState) => state.tasks.tasks, (state: RootState) => state.auth.currentUserId, (state: RootState) => state.groups.groups],
