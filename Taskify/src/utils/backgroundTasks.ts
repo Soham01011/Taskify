@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as TaskManager from 'expo-task-manager';
+import { authApi } from '../api/auth';
 import { groupApi } from '../api/groups';
 import { ideaApi } from '../api/ideas';
 import { Task, taskApi } from '../api/tasks';
+import { CalendarService } from './calendarService';
 import { NotificationService } from './notificationService';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -25,26 +27,60 @@ if (!isExpoGo) {
         try {
             console.log('Background fetch execution started');
 
-            const currentUserId = await AsyncStorage.getItem('currentUserId');
-            const accessToken = await AsyncStorage.getItem('accessToken');
+            let currentUserId = await AsyncStorage.getItem('currentUserId');
+            let accessToken = await AsyncStorage.getItem('accessToken');
+            const refreshToken = await AsyncStorage.getItem('refreshToken');
+
+            // 1. Refresh auth tokens if refreshToken is available
+            if (refreshToken) {
+                try {
+                    const refreshRes = await authApi.refresh(refreshToken);
+                    if (refreshRes.data?.accessToken) {
+                        accessToken = refreshRes.data.accessToken;
+                        await AsyncStorage.setItem('accessToken', accessToken);
+                        if (refreshRes.data.refreshToken) {
+                            await AsyncStorage.setItem('refreshToken', refreshRes.data.refreshToken);
+                        }
+                        console.log('Background token refresh successful');
+                    }
+                } catch (refreshErr) {
+                    console.log('Background token refresh failed, continuing with current access token');
+                }
+            }
 
             if (!currentUserId || !accessToken) {
                 console.log('Missing auth info, skipping background sync');
-                return BackgroundFetch.BackgroundFetchResult.NoData;
+                return BackgroundFetch?.BackgroundFetchResult?.NoData || 1;
             }
 
+            // 2. Check for OTA app updates
+            if (!__DEV__) {
+                try {
+                    const Updates = require('expo-updates');
+                    const update = await Updates.checkForUpdateAsync();
+                    if (update.isAvailable) {
+                        await Updates.fetchUpdateAsync();
+                        console.log('Background OTA update downloaded successfully');
+                    }
+                } catch (updateErr) {
+                    console.log('Background update check error:', updateErr);
+                }
+            }
+
+            // 3. Fetch tasks
             const response = await taskApi.getAll({
                 headers: { Authorization: `Bearer ${accessToken}` }
             } as any);
             let tasks = Array.isArray(response.data) ? response.data : response.data.tasks;
 
+            let groups: any[] = [];
             try {
                 const groupRes = await groupApi.getGroups(currentUserId);
-                const groups = groupRes.data || [];
+                groups = groupRes.data || [];
 
                 // Convert group tasks to the standard Task format so notifications can be scheduled automatically
                 const groupTasks: Task[] = groups.flatMap(group =>
-                    group.tasks.map(t => ({
+                    group.tasks.map((t: any) => ({
                         _id: t._id,
                         userId: typeof t.userId === 'string' ? t.userId : (t.userId as any)?._id,
                         title: `[${group.name}] ${t.task}`,
@@ -52,9 +88,9 @@ if (!isExpoGo) {
                         completed: t.completed,
                         dueDate: t.duedate,
                         subtasks: [],
-                        // automatically set alarm for group tasks
                         alarm_type: 'push',
                         alarm_reminder_time: t.duedate,
+                        groupName: group.name,
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                     }))
@@ -67,46 +103,70 @@ if (!isExpoGo) {
                 console.error('Failed to fetch group background tasks', e);
             }
 
-            if (tasks && tasks.length > 0) {
-                await NotificationService.syncTasksWithNotifications(tasks);
-                console.log('Synchronized notifications from background task');
+            // 4. Delegate to Calendar App if sync is enabled; otherwise manage via notificationService
+            const calendarSyncEnabled = (await AsyncStorage.getItem('calendarSyncEnabled')) === 'true';
+
+            if (calendarSyncEnabled) {
+                // Native calendar app handles alarms and alerts
+                await CalendarService.syncTasksToCalendar(tasks, groups);
+                console.log('Synchronized tasks to native calendar app');
+                await NotificationService.syncTasksWithNotifications(tasks, groups, {
+                    notificationsEnabled: true,
+                    taskNotificationsEnabled: true,
+                    groupNotificationsEnabled: true,
+                    calendarSyncEnabled: true,
+                });
+            } else {
+                if (tasks && tasks.length > 0) {
+                    await NotificationService.syncTasksWithNotifications(tasks, groups);
+                    console.log('Synchronized notifications from background task');
+                }
             }
 
-            // Free time logic: check if there are no incomplete tasks due within the next 2 hours
+            // 5. If no tasks for today, suggest the user to work on their ideas (interval 5-6 hours)
             const now = new Date();
-            const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+            const isToday = (dateStr?: string) => {
+                if (!dateStr) return false;
+                const d = new Date(dateStr);
+                return (
+                    d.getFullYear() === now.getFullYear() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getDate() === now.getDate()
+                );
+            };
 
-            const hasUpcomingTasks = tasks.some(t => {
-                if (t.completed || !t.dueDate) return false;
-                const dueDate = new Date(t.dueDate);
-                return dueDate > now && dueDate <= twoHoursFromNow;
-            });
+            const incompleteTasksToday = (tasks || []).filter(
+                (t: any) => !t.completed && isToday(t.dueDate || t.duedate)
+            );
 
-            if (!hasUpcomingTasks) {
-                try {
-                    const ideaRes = await ideaApi.getAll({
-                        headers: { Authorization: `Bearer ${accessToken}` }
-                    } as any);
+            if (incompleteTasksToday.length === 0) {
+                const LAST_IDEA_SUGGESTION_KEY = 'LAST_IDEA_SUGGESTION_TIMESTAMP';
+                const lastTimeStr = await AsyncStorage.getItem(LAST_IDEA_SUGGESTION_KEY);
+                const lastTime = lastTimeStr ? parseInt(lastTimeStr, 10) : 0;
+                const FIVE_HOURS_MS = 5 * 60 * 60 * 1000; // 5 hours throttle interval
 
-                    const ideas = Array.isArray(ideaRes.data) ? ideaRes.data : ideaRes.data.ideas;
+                if (now.getTime() - lastTime >= FIVE_HOURS_MS) {
+                    try {
+                        const ideaRes = await ideaApi.getAll({
+                            headers: { Authorization: `Bearer ${accessToken}` }
+                        } as any);
 
-                    if (ideas && ideas.length > 0) {
-                        const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
-                        await NotificationService.scheduleFreeTimeSuggestion(randomIdea, 'IDEA');
-                    } else {
-                        const nonRecurringTasks = tasks.filter(t => !t.completed && (!t.recurrence || t.recurrence.frequency === 'none'));
-                        if (nonRecurringTasks.length > 0) {
-                            const randomTask = nonRecurringTasks[Math.floor(Math.random() * nonRecurringTasks.length)];
-                            await NotificationService.scheduleFreeTimeSuggestion(randomTask, 'TASK');
+                        const ideas = Array.isArray(ideaRes.data) ? ideaRes.data : ideaRes.data.ideas;
+
+                        if (ideas && ideas.length > 0) {
+                            const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
+                            await NotificationService.scheduleFreeTimeSuggestion(randomIdea, 'IDEA');
+                            await AsyncStorage.setItem(LAST_IDEA_SUGGESTION_KEY, now.getTime().toString());
+                            console.log('Suggested random idea to user with 5-6h interval:', randomIdea.title);
                         }
+                    } catch (e) {
+                        console.error('Failed to handle free time idea suggestion', e);
                     }
-                } catch (e) {
-                    console.error('Failed to handle free time logic', e);
                 }
             }
 
             if (tasks && tasks.length > 0) {
-                return BackgroundFetch.BackgroundFetchResult.NewData;
+                return BackgroundFetch?.BackgroundFetchResult?.NewData || 2;
             }
 
             return BackgroundFetch?.BackgroundFetchResult?.NoData || 1;

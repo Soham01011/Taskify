@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { updateGroupTask } from '../store/slices/groupSlice';
 import { NotificationService } from '../utils/notificationService';
+import { CalendarService } from '../utils/calendarService';
 import { registerBackgroundFetch } from '../utils/backgroundTasks';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -55,7 +56,7 @@ export const NotificationManager: React.FC = () => {
 
         // Handle notification selection (tapping on notification or action buttons)
         const responseSubscription = Notifications.addNotificationResponseReceivedListener(async response => {
-            const data = response.notification.request.content.data;
+            const data = (response.notification.request.content.data || {}) as any;
             const actionIdentifier = response.actionIdentifier;
             const taskId = data.taskId;
 
@@ -101,7 +102,7 @@ export const NotificationManager: React.FC = () => {
 
         // Handle notification received while app is in foreground
         const notificationSubscription = Notifications.addNotificationReceivedListener(async notification => {
-            const data = notification.request.content.data;
+            const data = (notification.request.content.data || {}) as any;
 
             // Check if this is a sync request from backend
             const needsSync = await NotificationService.handleSilentSync(data, tasksRef.current);
@@ -134,7 +135,7 @@ export const NotificationManager: React.FC = () => {
                     });
 
                     // Schedule reminder for due date
-                    await NotificationService.scheduleTaskNotification(data, true);
+                    await NotificationService.scheduleTaskNotification(data, true, [], prefs?.calendarSyncEnabled);
                 }
             }
 
@@ -151,6 +152,10 @@ export const NotificationManager: React.FC = () => {
     useEffect(() => {
         // Sync both personal and group tasks whenever they change or preferences change
         const sync = async () => {
+            const calendarSyncEnabled = currentUser?.preferences?.calendarSyncEnabled ?? false;
+            if (calendarSyncEnabled) {
+                await CalendarService.syncTasksToCalendar(tasks, groups);
+            }
             await NotificationService.syncTasksWithNotifications(
                 tasks,
                 groups,
@@ -162,15 +167,21 @@ export const NotificationManager: React.FC = () => {
 
 
     useEffect(() => {
-        // Persist currentUserId and accessToken for background task access
+        // Persist currentUserId, accessToken, refreshToken, and calendarSyncEnabled for background task access
         if (currentUserId && currentUser?.accessToken) {
             AsyncStorage.setItem('currentUserId', currentUserId);
             AsyncStorage.setItem('accessToken', currentUser.accessToken);
+            if (currentUser.refreshToken) {
+                AsyncStorage.setItem('refreshToken', currentUser.refreshToken);
+            }
+            AsyncStorage.setItem('calendarSyncEnabled', currentUser.preferences?.calendarSyncEnabled ? 'true' : 'false');
         } else {
             AsyncStorage.removeItem('currentUserId');
             AsyncStorage.removeItem('accessToken');
+            AsyncStorage.removeItem('refreshToken');
+            AsyncStorage.removeItem('calendarSyncEnabled');
         }
-    }, [currentUserId, currentUser?.accessToken]);
+    }, [currentUserId, currentUser?.accessToken, currentUser?.refreshToken, currentUser?.preferences?.calendarSyncEnabled]);
 
     return null;
 };

@@ -76,7 +76,12 @@ export class NotificationService {
         return await this.registerForPushNotificationsAsync();
     }
 
-    static async scheduleTaskNotification(task: any, isGroupTask: boolean = false, presentedIds: string[] = []) {
+    static async scheduleTaskNotification(
+        task: any, 
+        isGroupTask: boolean = false, 
+        presentedIds: string[] = [],
+        calendarSyncEnabled: boolean = false
+    ) {
         // Handle field differences between Task and GroupTask
         const title = task.title || task.task; // GroupTask uses 'task' for title
         const description = task.description || (isGroupTask ? `Group Task: ${task.username}` : '');
@@ -84,6 +89,15 @@ export class NotificationService {
         const taskId = task._id || task.taskId || task.id;
 
         if (!dueDate || !taskId) return;
+
+        const isAlarm = task.alarm_type === 'alarm';
+
+        // If calendar sync is enabled, let the native calendar app handle alarm alerts directly
+        if (calendarSyncEnabled && isAlarm) {
+            // Cancel any previously scheduled notification for this task so calendar exclusively fires
+            await Notifications.cancelScheduledNotificationAsync(taskId);
+            return;
+        }
 
         const triggerTime = new Date(dueDate);
         const now = new Date();
@@ -96,8 +110,6 @@ export class NotificationService {
 
         // If it's in the future, we'll schedule it (this replaces any existing schedule for this ID)
         // If it's in the past and NOT presented, we'll show it immediately (re-notify)
-        
-        const isAlarm = task.alarm_type === 'alarm';
         
         // Define category for actions
         const categoryId = 'TASK_REMINDER';
@@ -122,12 +134,14 @@ export class NotificationService {
                 categoryIdentifier: categoryId,
                 sound: isAlarm ? 'default' : 'default',
                 priority: isAlarm ? Notifications.AndroidNotificationPriority.MAX : Notifications.AndroidNotificationPriority.HIGH,
-                channelId: isAlarm ? 'alarm' : 'default',
             },
-            trigger: isPast ? null : {
-                type: Notifications.SchedulableTriggerInputTypes.DATE,
-                date: triggerTime,
-            },
+            trigger: (isPast
+                ? { channelId: isAlarm ? 'alarm' : 'default' }
+                : {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: triggerTime,
+                    channelId: isAlarm ? 'alarm' : 'default',
+                }) as any,
             identifier: taskId,
         });
 
@@ -149,6 +163,7 @@ export class NotificationService {
             notificationsEnabled: boolean; 
             taskNotificationsEnabled: boolean; 
             groupNotificationsEnabled: boolean; 
+            calendarSyncEnabled?: boolean;
         }
     ) {
         // If master switch is off, cancel all and return
@@ -157,6 +172,8 @@ export class NotificationService {
             await Notifications.dismissAllNotificationsAsync();
             return;
         }
+
+        const calendarSyncEnabled = preferences?.calendarSyncEnabled ?? false;
 
         // Get currently presented notifications to avoid duplicates/unnecessary re-notifying
         const presented = await Notifications.getPresentedNotificationsAsync();
@@ -172,12 +189,12 @@ export class NotificationService {
         // Sync personal tasks if enabled
         if (!preferences || preferences.taskNotificationsEnabled !== false) {
             for (const task of tasks) {
-                const taskId = task._id || task.taskId || task.id;
+                const taskId = (task as any)._id || (task as any).taskId || (task as any).id;
                 if (!taskId) continue;
 
                 if (!task.completed) {
                     activeTaskIds.add(taskId);
-                    await this.scheduleTaskNotification(task, false, presentedIds);
+                    await this.scheduleTaskNotification(task, false, presentedIds, calendarSyncEnabled);
                 } else if (presentedIds.includes(taskId)) {
                     // If completed, make sure any presented notification is cleared
                     await Notifications.dismissNotificationAsync(taskId);
@@ -190,12 +207,12 @@ export class NotificationService {
             for (const group of groups) {
                 if (group.tasks) {
                     for (const gTask of group.tasks) {
-                        const taskId = gTask._id || gTask.taskId || gTask.id;
+                        const taskId = (gTask as any)._id || (gTask as any).taskId || (gTask as any).id;
                         if (!taskId) continue;
 
                         if (!gTask.completed) {
                             activeTaskIds.add(taskId);
-                            await this.scheduleTaskNotification(gTask, true, presentedIds);
+                            await this.scheduleTaskNotification(gTask, true, presentedIds, calendarSyncEnabled);
                         } else if (presentedIds.includes(taskId)) {
                             await Notifications.dismissNotificationAsync(taskId);
                         }

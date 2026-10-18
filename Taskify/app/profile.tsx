@@ -3,7 +3,8 @@ import * as Clipboard from 'expo-clipboard';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from "expo-updates";
-import { AlertTriangle, Bell, CheckCircle2, ChevronRight, Copy, Info, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AlertTriangle, Bell, Calendar as CalendarIcon, CheckCircle2, ChevronRight, Copy, Info, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -15,6 +16,7 @@ import { useAppTheme } from '@/hooks/use-theme';
 import { Button } from '@/src/components/ui/Button';
 import { RootState } from '@/src/store';
 import { logout, switchUser, updateUserPreferences } from '@/src/store/slices/authSlice';
+import { CalendarService } from '@/src/utils/calendarService';
 
 const MenuItem = ({
     icon,
@@ -97,8 +99,33 @@ export default function ProfileScreen() {
     const styles = getStyles(colors);
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
+    const tasks = useSelector((state: RootState) => state.tasks.tasks);
+    const groups = useSelector((state: RootState) => state.groups.groups);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+
+    const handleToggleCalendarSync = async (val: boolean) => {
+        if (!currentUserId) return;
+        if (val) {
+            const granted = await CalendarService.requestPermissions();
+            if (granted) {
+                dispatch(updateUserPreferences({ userId: currentUserId, preferences: { calendarSyncEnabled: true } }));
+                await AsyncStorage.setItem('calendarSyncEnabled', 'true');
+                await CalendarService.syncTasksToCalendar(tasks, groups);
+                Alert.alert('Calendar Sync Enabled', 'Tasks with alarms will now be added directly to your native device calendar app.');
+            } else {
+                dispatch(updateUserPreferences({ userId: currentUserId, preferences: { calendarSyncEnabled: false } }));
+                await AsyncStorage.setItem('calendarSyncEnabled', 'false');
+                Alert.alert(
+                    'Permission Required',
+                    'Calendar permission is required to sync tasks with your native calendar app. Please grant permission in your device settings.'
+                );
+            }
+        } else {
+            dispatch(updateUserPreferences({ userId: currentUserId, preferences: { calendarSyncEnabled: false } }));
+            await AsyncStorage.setItem('calendarSyncEnabled', 'false');
+        }
+    };
 
     const handleSwitchUser = (userId: string) => {
         if (userId === currentUserId) return;
@@ -295,6 +322,15 @@ export default function ProfileScreen() {
                                 />
                             </Animated.View>
                         )}
+                        <MenuSwitch
+                            icon={<CalendarIcon size={20} color="#0ea5e9" />}
+                            title="Calendar App Sync"
+                            subtitle="Sync tasks & alarms to native calendar app"
+                            value={currentUser?.preferences?.calendarSyncEnabled ?? false}
+                            onValueChange={handleToggleCalendarSync}
+                            colors={colors}
+                            styles={styles}
+                        />
                         <MenuItem
                             icon={<Shield size={20} color="#10b981" />}
                             title="Privacy & Security"

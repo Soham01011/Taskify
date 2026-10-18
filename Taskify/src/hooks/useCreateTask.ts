@@ -1,10 +1,12 @@
 import { useReducer, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import { taskApi } from '../api/tasks';
 import { groupApi } from '../api/groups';
 import { fetchTasks, addTasks } from '../store/slices/taskSlice';
 import { fetchGroups } from '../store/slices/groupSlice';
+import { CalendarService } from '../utils/calendarService';
 
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'six-months' | 'annually' | 'schedule';
 
@@ -82,7 +84,7 @@ const initialState: TaskFormState = {
     dayOfMonth: null,
     lastWeekend: false,
     timeOfDay: null,
-    startDate: new Date(),
+    startDate: null,
     endDate: null,
     timeSlotHours: 0,
     timeSlotMinutes: 30,
@@ -121,7 +123,28 @@ function formReducer(state: TaskFormState, action: FormAction): TaskFormState {
 export function useCreateTask(onSuccess: () => void) {
     const dispatch = useDispatch<AppDispatch>();
     const [state, localDispatch] = useReducer(formReducer, initialState);
-    const { currentUserId } = useSelector((state: RootState) => state.auth);
+    const { currentUserId, users } = useSelector((state: RootState) => state.auth);
+    const currentUser = users.find(u => u.id === currentUserId);
+    const { groups } = useSelector((state: RootState) => state.groups);
+
+    const toggleAlarmType = useCallback(async () => {
+        if (state.alarmType === 'push') {
+            const hasPermission = await CalendarService.checkPermission();
+            if (!hasPermission) {
+                const granted = await CalendarService.requestPermissions();
+                if (!granted) {
+                    Alert.alert(
+                        'Calendar Permission Required',
+                        'Creating native alarms requires calendar permission to add alerts to your local calendar app.'
+                    );
+                    return;
+                }
+            }
+            localDispatch({ type: 'SET_FIELD', field: 'alarmType', value: 'alarm' });
+        } else {
+            localDispatch({ type: 'SET_FIELD', field: 'alarmType', value: 'push' });
+        }
+    }, [state.alarmType]);
 
     const handleCreate = useCallback(async () => {
         if (!state.title.trim()) {
@@ -150,51 +173,32 @@ export function useCreateTask(onSuccess: () => void) {
             }
         }
 
+        const isSchedule = state.frequency === 'schedule';
         const hasRecurrence = state.frequency !== 'none';
 
-        // 1. Calculate effective start date in local time
-        const effectiveStartDate = state.startDate
-            ? new Date(state.startDate)
-            : (state.dueDate ? new Date(state.dueDate) : new Date());
-
-        if (state.timeOfDay) {
-            effectiveStartDate.setHours(state.timeOfDay.getHours());
-            effectiveStartDate.setMinutes(state.timeOfDay.getMinutes());
-            effectiveStartDate.setSeconds(0);
-            effectiveStartDate.setMilliseconds(0);
-        } else if (state.dueDate) {
-            effectiveStartDate.setHours(state.dueDate.getHours());
-            effectiveStartDate.setMinutes(state.dueDate.getMinutes());
-            effectiveStartDate.setSeconds(0);
-            effectiveStartDate.setMilliseconds(0);
-        }
-
-        // 2. Calculate effective end date in local time (for schedule recurrence)
-        const effectiveEndDate = state.endDate
-            ? new Date(state.endDate)
-            : new Date(effectiveStartDate);
-
-        if (state.timeOfDay) {
-            effectiveEndDate.setHours(state.timeOfDay.getHours());
-            effectiveEndDate.setMinutes(state.timeOfDay.getMinutes());
-            effectiveEndDate.setSeconds(0);
-            effectiveEndDate.setMilliseconds(0);
-        } else {
-            effectiveEndDate.setHours(effectiveStartDate.getHours());
-            effectiveEndDate.setMinutes(effectiveStartDate.getMinutes());
-            effectiveEndDate.setSeconds(0);
-            effectiveEndDate.setMilliseconds(0);
-        }
-
-        // 3. Global scale UTC conversions
-        // Serialise to UTC ISO 8601 strings (e.g. "2026-10-20T11:30:00.000Z")
-        const utcStartDate = effectiveStartDate.toISOString();
-        const utcEndDate = effectiveEndDate.toISOString();
-        // Time formatted as UTC "HH:mm" (e.g. "11:30")
-        const utcTimeStr = `${String(effectiveStartDate.getUTCHours()).padStart(2, '0')}:${String(effectiveStartDate.getUTCMinutes()).padStart(2, '0')}`;
-
+        let effectiveDueDate: string;
         let recurrenceData: any = undefined;
-        if (state.frequency === 'schedule') {
+
+        if (isSchedule) {
+            // Schedule recurrence: Multi-day event spanning startDate to endDate
+            const effectiveStartDate = state.startDate
+                ? new Date(state.startDate)
+                : (state.dueDate ? new Date(state.dueDate) : new Date());
+
+            const effectiveEndDate = state.endDate
+                ? new Date(state.endDate)
+                : new Date(effectiveStartDate);
+
+            if (state.timeOfDay) {
+                effectiveStartDate.setHours(state.timeOfDay.getHours(), state.timeOfDay.getMinutes(), 0, 0);
+                effectiveEndDate.setHours(state.timeOfDay.getHours(), state.timeOfDay.getMinutes(), 0, 0);
+            }
+
+            const utcStartDate = effectiveStartDate.toISOString();
+            const utcEndDate = effectiveEndDate.toISOString();
+            const utcTimeStr = `${String(effectiveStartDate.getUTCHours()).padStart(2, '0')}:${String(effectiveStartDate.getUTCMinutes()).padStart(2, '0')}`;
+
+            effectiveDueDate = utcStartDate;
             recurrenceData = {
                 frequency: 'schedule',
                 startDate: utcStartDate,
@@ -202,14 +206,26 @@ export function useCreateTask(onSuccess: () => void) {
                 time: utcTimeStr,
                 timeOfDay: utcTimeStr,
             };
-        } else if (hasRecurrence) {
-            recurrenceData = {
-                frequency: state.frequency,
-                daysOfWeek: state.daysOfWeek,
-                dayOfMonth: state.dayOfMonth ?? undefined,
-                lastWeekend: state.lastWeekend,
-                timeOfDay: utcTimeStr,
-            };
+        } else {
+            // Regular task or standard recurring task: Always use state.dueDate
+            const effectiveDate = state.dueDate ? new Date(state.dueDate) : new Date();
+
+            if (hasRecurrence && state.timeOfDay) {
+                effectiveDate.setHours(state.timeOfDay.getHours(), state.timeOfDay.getMinutes(), 0, 0);
+            }
+
+            effectiveDueDate = effectiveDate.toISOString();
+
+            if (hasRecurrence) {
+                const utcTimeStr = `${String(effectiveDate.getUTCHours()).padStart(2, '0')}:${String(effectiveDate.getUTCMinutes()).padStart(2, '0')}`;
+                recurrenceData = {
+                    frequency: state.frequency,
+                    daysOfWeek: state.daysOfWeek,
+                    dayOfMonth: state.dayOfMonth ?? undefined,
+                    lastWeekend: state.lastWeekend,
+                    timeOfDay: utcTimeStr,
+                };
+            }
         }
 
         // Build timeSlots payload: [{ hours, minutes }]
@@ -218,11 +234,12 @@ export function useCreateTask(onSuccess: () => void) {
         localDispatch({ type: 'SUBMIT_START' });
         try {
             if (state.selectedGroupId) {
+                const activeGroup = groups.find(g => g._id === state.selectedGroupId);
                 await groupApi.assignTask(state.selectedGroupId, {
                     userId: state.assignee?.id || '',
                     username: state.assignee?.username || '',
                     task: state.title.trim(),
-                    duedate: utcStartDate,
+                    duedate: effectiveDueDate,
                     timeSlots: timeSlotsPayload,
                     subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
                     recurrence: recurrenceData
@@ -230,22 +247,49 @@ export function useCreateTask(onSuccess: () => void) {
                 if (currentUserId) {
                     dispatch(fetchGroups({ userId: currentUserId }));
                 }
+
+                // If alarm or calendar sync is enabled, sync to local calendar
+                if (state.alarmType === 'alarm' || currentUser?.preferences?.calendarSyncEnabled) {
+                    await CalendarService.createOrUpdateTaskEvent({
+                        title: state.title.trim(),
+                        description: state.description.trim(),
+                        dueDate: effectiveDueDate,
+                        timeSlots: timeSlotsPayload,
+                        alarm_type: state.alarmType,
+                        alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDueDate,
+                        groupName: activeGroup?.name,
+                    });
+                }
             } else {
                 const response = await taskApi.create({
                     title: state.title.trim(),
                     description: state.description.trim(),
-                    dueDate: utcStartDate,
+                    dueDate: effectiveDueDate,
                     timeSlots: timeSlotsPayload,
                     timeSlot: { hours: state.timeSlotHours, minutes: state.timeSlotMinutes },
                     subtasks: state.subtasks.map(s => ({ title: s.title, completed: false })),
                     alarm_type: state.alarmType,
-                    alarm_reminder_time: state.alarmReminderTime?.toISOString() || utcStartDate,
+                    alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDueDate,
                     recurrence: recurrenceData,
                 });
                 if (response?.data) {
                     dispatch(addTasks(response.data));
                 }
                 dispatch(fetchTasks());
+
+                // If alarm or calendar sync is enabled, sync to local calendar
+                if (state.alarmType === 'alarm' || currentUser?.preferences?.calendarSyncEnabled) {
+                    const createdTask = response?.data;
+                    const taskPayload = Array.isArray(createdTask) ? createdTask[0] : (createdTask || {
+                        title: state.title.trim(),
+                        description: state.description.trim(),
+                        dueDate: effectiveDueDate,
+                        timeSlots: timeSlotsPayload,
+                        alarm_type: state.alarmType,
+                        alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDueDate,
+                    });
+                    await CalendarService.createOrUpdateTaskEvent(taskPayload);
+                }
             }
             localDispatch({ type: 'SUBMIT_SUCCESS' });
             onSuccess();
@@ -253,14 +297,14 @@ export function useCreateTask(onSuccess: () => void) {
             const errorMsg = err?.response?.data?.error || err?.response?.data?.message || 'Failed to create task';
             localDispatch({ type: 'SUBMIT_ERROR', error: errorMsg });
         }
-    }, [state, dispatch, currentUserId, onSuccess]);
+    }, [state, dispatch, currentUserId, currentUser, groups, onSuccess]);
 
     return {
         state,
         setField: (field: keyof TaskFormState, value: any) => localDispatch({ type: 'SET_FIELD', field, value }),
         addSubtask: () => localDispatch({ type: 'ADD_SUBTASK' }),
         removeSubtask: (id: string) => localDispatch({ type: 'REMOVE_SUBTASK', id }),
-        toggleAlarmType: () => localDispatch({ type: 'TOGGLE_ALARM_TYPE' }),
+        toggleAlarmType,
         handleCreate
     };
 }

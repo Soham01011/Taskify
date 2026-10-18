@@ -6,6 +6,7 @@ export interface UserPreferences {
     notificationsEnabled: boolean;
     taskNotificationsEnabled: boolean;
     groupNotificationsEnabled: boolean;
+    calendarSyncEnabled?: boolean;
     selectedModelId: string | null;
 }
 
@@ -35,6 +36,7 @@ const initialState: AuthState = {
         notificationsEnabled: true,
         taskNotificationsEnabled: true,
         groupNotificationsEnabled: true,
+        calendarSyncEnabled: false,
         selectedModelId: null,
     },
     isLoading: false,
