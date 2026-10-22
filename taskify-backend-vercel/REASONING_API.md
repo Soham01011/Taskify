@@ -79,14 +79,16 @@ while (true) {
 
 ## Available Tools (LLM-only)
 The client does not need to specify these; the server manages them internally:
-1. `getTasks`: Retrieves schedule for date ranges.
-2. `createTask`: Schedules a new task entry.
+1. `getTasks`: Retrieves schedule for date ranges (`date`, `fromDate`, `toDate`).
+2. `createTask`: Schedules a new task entry. Supports single-date tasks (`datetime`) or multi-day schedules (`recurrence: "schedule"`, `startDate`, `endDate`, `time`) which bulk-creates normal tasks for each day.
 
 ---
 
 # Task API: Schedule Recurrence (`POST /api/tasks`)
 
-The `schedule` recurrence type is designed for multi-day events or scheduled programs (e.g. an event next week spanning 5 days at 5 PM every day). Creating a task with this recurrence generates distinct task documents for every day in the range.
+The `schedule` recurrence type is designed for multi-day events or scheduled programs (e.g. an event next week spanning 5 days at 5 PM every day). 
+
+When requested, the backend calculates all dates between `startDate` and `endDate` and **bulk creates normal simple tasks** (`recurrence: { frequency: "none" }`) with the same title, description, time slots, and subtasks using MongoDB `insertMany()` in a single operation, rather than creating them one by one.
 
 ## Request Information
 
@@ -129,45 +131,48 @@ The `schedule` recurrence type is designed for multi-day events or scheduled pro
 ```
 
 ### Response (`201 Created`)
-Returns an array of all 5 created task documents (linked via `originTaskId`):
+Returns an array of all 5 created **normal tasks** (`recurrence: { frequency: "none" }`) created in bulk:
 ```json
 [
   {
     "_id": "670c2a8f8e1234567890abcd",
     "userId": "user_123",
     "title": "Annual Tech Conference",
+    "description": "5-day daily sessions and keynote presentations",
     "dueDate": "2026-10-20T17:00:00.000Z",
     "timeSlots": [{ "hours": 1, "minutes": 30 }],
+    "subtasks": [{ "title": "Review session agenda", "completed": false }],
     "recurrence": {
-      "frequency": "schedule",
-      "startDate": "2026-10-20T00:00:00.000Z",
-      "endDate": "2026-10-24T00:00:00.000Z",
-      "time": "5 PM",
-      "originTaskId": "670c2a8f8e1234567890abcd"
+      "frequency": "none"
     },
-    "completed": false
+    "completed": false,
+    "syncSent": true,
+    "created_at": "2026-10-22T20:00:00.000Z",
+    "updated_at": "2026-10-22T20:00:00.000Z"
   },
   {
     "_id": "670c2a8f8e1234567890abce",
     "userId": "user_123",
     "title": "Annual Tech Conference",
+    "description": "5-day daily sessions and keynote presentations",
     "dueDate": "2026-10-21T17:00:00.000Z",
     "timeSlots": [{ "hours": 1, "minutes": 30 }],
+    "subtasks": [{ "title": "Review session agenda", "completed": false }],
     "recurrence": {
-      "frequency": "schedule",
-      "startDate": "2026-10-20T00:00:00.000Z",
-      "endDate": "2026-10-24T00:00:00.000Z",
-      "time": "5 PM",
-      "originTaskId": "670c2a8f8e1234567890abcd"
+      "frequency": "none"
     },
-    "completed": false
+    "completed": false,
+    "syncSent": true,
+    "created_at": "2026-10-22T20:00:00.000Z",
+    "updated_at": "2026-10-22T20:00:00.000Z"
   }
-  // ... remaining 3 tasks for Oct 22, Oct 23, and Oct 24
+  // ... remaining 3 normal tasks for Oct 22, Oct 23, and Oct 24
 ]
 ```
 
 ### Error Responses (`400 Bad Request`)
 - Missing parameters: `{"error": "startDate and endDate are required for schedule recurrence"}`
 - Invalid date ordering: `{"error": "endDate cannot be before startDate"}`
-- Start in past: `{"error": "startDate cannot be in the past"}`
+- Start in past: `{"error": "startDate/time cannot be in the past"}`
+
 

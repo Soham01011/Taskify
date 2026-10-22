@@ -73,18 +73,15 @@ router.post('/', verifyToken, async (req, res) => {
         return res.status(400).json({ error: 'startDate/time cannot be in the past' });
       }
 
-      const createdTasks = [];
-      let originTaskId = null;
-
-      for (let i = 0; i < dates.length; i++) {
-        const currentDueDate = dates[i];
+      // Prepare bulk normal simple tasks for each calculated date in the schedule
+      const tasksToCreate = dates.map(currentDueDate => {
         const taskSubtasks = processedSubtasks.map(sub => ({
           title: sub.title,
           completed: false,
           dueDate: currentDueDate
         }));
 
-        const taskData = {
+        return {
           userId,
           title,
           description,
@@ -94,28 +91,12 @@ router.post('/', verifyToken, async (req, res) => {
           alarm_reminder_time: alarm_reminder_time ? new Date(alarm_reminder_time) : currentDueDate,
           created_at: new Date(),
           updated_at: new Date(),
-          recurrence: {
-            ...recurrence,
-            frequency: 'schedule',
-            startDate: new Date(scheduleStartDate),
-            endDate: new Date(scheduleEndDate),
-            time: scheduleTime,
-            originTaskId: originTaskId
-          },
+          recurrence: { frequency: 'none' }, // Simple normal task
           timeSlots: resolvedTimeSlots
         };
+      });
 
-        const scheduledTask = new Task(taskData);
-        if (i === 0) {
-          scheduledTask.recurrence.originTaskId = scheduledTask._id;
-          originTaskId = scheduledTask._id;
-        } else {
-          scheduledTask.recurrence.originTaskId = originTaskId;
-        }
-
-        await scheduledTask.save();
-        createdTasks.push(scheduledTask);
-      }
+      const createdTasks = await Task.insertMany(tasksToCreate);
 
       // Trigger immediate silent sync for created schedule tasks
       try {
@@ -134,15 +115,17 @@ router.post('/', verifyToken, async (req, res) => {
                 alarmTime: st.alarm_reminder_time ? st.alarm_reminder_time.toISOString() : st.dueDate.toISOString()
               }
             );
-            st.syncSent = true;
-            await st.save();
           }
+          await Task.updateMany(
+            { _id: { $in: createdTasks.map(t => t._id) } },
+            { $set: { syncSent: true } }
+          );
         }
       } catch (notifyError) {
         console.error('Failed to send task sync notification for schedule:', notifyError);
       }
 
-      return res.status(201).json(createdTasks.length === 1 ? createdTasks[0] : createdTasks);
+      return res.status(201).json(createdTasks);
     }
 
     // For standard / other recurring tasks
