@@ -77,7 +77,7 @@ export default function TaskDashboard() {
         const endOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59);
 
         const isRecurring = (t: any) =>
-            !!(t.recurrence && t.recurrence.frequency && t.recurrence.frequency !== 'none');
+            !!(t.recurrence && t.recurrence.frequency && t.recurrence.frequency !== 'none' && t.recurrence.frequency !== 'schedule');
 
         const overdueTasks = effectiveTasks.filter((t: any) => {
             if (!t.dueDate || t.completed || isRecurring(t)) return false;

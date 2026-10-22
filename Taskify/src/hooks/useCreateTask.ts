@@ -277,18 +277,24 @@ export function useCreateTask(onSuccess: () => void) {
                 }
                 dispatch(fetchTasks());
 
-                // If alarm or calendar sync is enabled, sync to local calendar
+                // If alarm or calendar sync is enabled, sync each created task to local calendar
                 if (state.alarmType === 'alarm' || currentUser?.preferences?.calendarSyncEnabled) {
                     const createdTask = response?.data;
-                    const taskPayload = Array.isArray(createdTask) ? createdTask[0] : (createdTask || {
-                        title: state.title.trim(),
-                        description: state.description.trim(),
-                        dueDate: effectiveDueDate,
-                        timeSlots: timeSlotsPayload,
-                        alarm_type: state.alarmType,
-                        alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDueDate,
-                    });
-                    await CalendarService.createOrUpdateTaskEvent(taskPayload);
+                    if (Array.isArray(createdTask)) {
+                        for (const taskItem of createdTask) {
+                            await CalendarService.createOrUpdateTaskEvent(taskItem);
+                        }
+                    } else {
+                        const taskPayload = createdTask || {
+                            title: state.title.trim(),
+                            description: state.description.trim(),
+                            dueDate: effectiveDueDate,
+                            timeSlots: timeSlotsPayload,
+                            alarm_type: state.alarmType,
+                            alarm_reminder_time: state.alarmReminderTime?.toISOString() || effectiveDueDate,
+                        };
+                        await CalendarService.createOrUpdateTaskEvent(taskPayload);
+                    }
                 }
             }
             localDispatch({ type: 'SUBMIT_SUCCESS' });
