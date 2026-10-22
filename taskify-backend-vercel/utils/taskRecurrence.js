@@ -1,70 +1,26 @@
 /**
- * Parses time string (e.g., '17:00', '5 PM', '5:00 PM', '5:30 PM', '9 AM') into hours and minutes.
- * @param {string} timeStr 
- * @returns {{ hours: number, minutes: number }}
- */
-function parseTime(timeStr) {
-    if (!timeStr || typeof timeStr !== 'string') {
-        return { hours: 0, minutes: 0 };
-    }
-    const str = timeStr.trim().toUpperCase();
-    const ampmMatch = str.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
-    if (ampmMatch) {
-        let hours = parseInt(ampmMatch[1], 10);
-        const minutes = ampmMatch[2] ? parseInt(ampmMatch[2], 10) : 0;
-        const ampm = ampmMatch[3];
-        if (ampm === 'PM' && hours < 12) hours += 12;
-        if (ampm === 'AM' && hours === 12) hours = 0;
-        return { hours, minutes };
-    }
-    const parts = str.split(':').map(Number);
-    if (!isNaN(parts[0])) {
-        return { hours: parts[0], minutes: parts[1] || 0 };
-    }
-    return { hours: 0, minutes: 0 };
-}
-
-/**
- * Generates an array of Date objects for each day between startDate and endDate (inclusive)
- * with the specified time applied.
+ * Generates an array of Date objects for each day between startDate and endDate (inclusive).
+ * Expects ISO 8601 UTC date-time strings (e.g. '2026-10-20T17:00:00.000Z').
  * @param {Date|string} startDate 
  * @param {Date|string} endDate 
- * @param {string} [timeStr] 
  * @returns {Date[]}
  */
-function generateScheduleDates(startDate, endDate, timeStr) {
+function generateScheduleDates(startDate, endDate) {
     if (!startDate || !endDate) return [];
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new Error('Invalid startDate or endDate');
+        throw new Error('Invalid startDate or endDate. Must be valid ISO date-time strings.');
     }
-
-    const startMidnight = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
-    const endMidnight = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
-
-    if (endMidnight < startMidnight) {
+    if (end < start) {
         throw new Error('endDate cannot be before startDate');
     }
 
-    let hours = 0;
-    let minutes = 0;
-    if (timeStr) {
-        const parsed = parseTime(timeStr);
-        hours = parsed.hours;
-        minutes = parsed.minutes;
-    } else {
-        hours = start.getUTCHours();
-        minutes = start.getUTCMinutes();
-    }
-
     const dates = [];
-    let current = startMidnight;
-    while (current <= endMidnight) {
-        const d = new Date(current);
-        d.setUTCHours(hours, minutes, 0, 0);
-        dates.push(d);
-        current += 86400000; // Next calendar day
+    const current = new Date(start);
+    while (current <= end) {
+        dates.push(new Date(current));
+        current.setUTCDate(current.getUTCDate() + 1);
     }
 
     return dates;
@@ -73,7 +29,7 @@ function generateScheduleDates(startDate, endDate, timeStr) {
 /**
  * Calculates the next due date based on recurrence rules.
  * @param {Date} currentDueDate - The current due date of the task.
- * @param {Object} recurrence - Recurrence settings { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, startDate, endDate, time }.
+ * @param {Object} recurrence - Recurrence settings { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, startDate, endDate }.
  * @returns {Date} The next due date.
  */
 function calculateNextDueDate(currentDueDate, recurrence) {
@@ -82,7 +38,7 @@ function calculateNextDueDate(currentDueDate, recurrence) {
     }
 
     let nextDate = new Date(currentDueDate);
-    const { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, time } = recurrence;
+    const { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay } = recurrence;
 
     switch (frequency) {
         case 'daily':
@@ -129,15 +85,16 @@ function calculateNextDueDate(currentDueDate, recurrence) {
             break;
         case 'schedule':
         case 'scheduled':
-            // Schedule tasks are all created upfront; completing an occurrence does not create extras.
+            // Schedule tasks are all created upfront as normal tasks
             return null;
     }
 
-    // Apply time of day if specified (HH:mm or 12h format)
-    const activeTime = time || timeOfDay;
-    if (activeTime) {
-        const { hours, minutes } = parseTime(activeTime);
-        nextDate.setUTCHours(hours, minutes, 0, 0);
+    // Apply time of day if specified (HH:mm)
+    if (timeOfDay && timeOfDay.includes(':')) {
+        const [hours, minutes] = timeOfDay.split(':').map(Number);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+            nextDate.setUTCHours(hours, minutes, 0, 0);
+        }
     }
 
     return nextDate;
@@ -145,7 +102,7 @@ function calculateNextDueDate(currentDueDate, recurrence) {
 
 /**
  * Calculates the initial due date based on recurrence rules.
- * @param {Object} recurrence - Recurrence settings { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, startDate, endDate, time }.
+ * @param {Object} recurrence - Recurrence settings { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, startDate, endDate }.
  * @returns {Date} The initial due date.
  */
 function calculateInitialDueDate(recurrence) {
@@ -155,13 +112,14 @@ function calculateInitialDueDate(recurrence) {
 
     let now = new Date();
     let initialDate = new Date(now);
-    const { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, startDate, time } = recurrence;
+    const { frequency, daysOfWeek, dayOfMonth, lastWeekend, timeOfDay, startDate } = recurrence;
 
     // Set time first if specified
-    const activeTime = time || timeOfDay;
-    if (activeTime) {
-        const { hours, minutes } = parseTime(activeTime);
-        initialDate.setUTCHours(hours, minutes, 0, 0);
+    if (timeOfDay && timeOfDay.includes(':')) {
+        const [hours, minutes] = timeOfDay.split(':').map(Number);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+            initialDate.setUTCHours(hours, minutes, 0, 0);
+        }
     }
 
     switch (frequency) {
@@ -233,10 +191,6 @@ function calculateInitialDueDate(recurrence) {
             if (startDate) {
                 initialDate = new Date(startDate);
             }
-            if (activeTime) {
-                const { hours, minutes } = parseTime(activeTime);
-                initialDate.setUTCHours(hours, minutes, 0, 0);
-            }
             break;
     }
 
@@ -258,9 +212,7 @@ function getLastWeekendOfSameMonth(date) {
 }
 
 module.exports = {
-    parseTime,
     generateScheduleDates,
     calculateNextDueDate,
     calculateInitialDueDate
 };
-

@@ -50,17 +50,16 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Handle 'schedule' / 'scheduled' recurrence type: creates individual tasks for each day
     if (recurrence && (recurrence.frequency === 'schedule' || recurrence.frequency === 'scheduled')) {
-      const scheduleStartDate = recurrence.startDate || req.body.startDate || dueDate;
+      const scheduleStartDate = dueDate || recurrence.startDate || req.body.startDate;
       const scheduleEndDate = recurrence.endDate || req.body.endDate;
-      const scheduleTime = recurrence.time || recurrence.timeOfDay || req.body.time || req.body.timeOfDay;
 
       if (!scheduleStartDate || !scheduleEndDate) {
-        return res.status(400).json({ error: 'startDate and endDate are required for schedule recurrence' });
+        return res.status(400).json({ error: 'dueDate (or recurrence.startDate) and recurrence.endDate are required for schedule recurrence' });
       }
 
       let dates;
       try {
-        dates = generateScheduleDates(scheduleStartDate, scheduleEndDate, scheduleTime);
+        dates = generateScheduleDates(scheduleStartDate, scheduleEndDate);
       } catch (dateErr) {
         return res.status(400).json({ error: dateErr.message });
       }
@@ -70,8 +69,11 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       if (dates[0] < new Date()) {
-        return res.status(400).json({ error: 'startDate/time cannot be in the past' });
+        return res.status(400).json({ error: 'startDate/dueDate cannot be in the past' });
       }
+
+      // Calculate alarm reminder offset from the start date if provided so each day gets the appropriate notification time
+      const alarmOffset = alarm_reminder_time ? (new Date(scheduleStartDate).getTime() - new Date(alarm_reminder_time).getTime()) : 0;
 
       // Prepare bulk normal simple tasks for each calculated date in the schedule
       const tasksToCreate = dates.map(currentDueDate => {
@@ -88,7 +90,7 @@ router.post('/', verifyToken, async (req, res) => {
           dueDate: currentDueDate,
           subtasks: taskSubtasks,
           alarm_type,
-          alarm_reminder_time: alarm_reminder_time ? new Date(alarm_reminder_time) : currentDueDate,
+          alarm_reminder_time: alarm_reminder_time ? new Date(currentDueDate.getTime() - alarmOffset) : currentDueDate,
           created_at: new Date(),
           updated_at: new Date(),
           recurrence: { frequency: 'none' }, // Simple normal task

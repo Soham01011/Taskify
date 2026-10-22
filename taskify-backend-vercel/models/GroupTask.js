@@ -27,7 +27,6 @@ const GroupTaskSchema = new mongoose.Schema({
     },
     startDate: { type: Date },
     endDate: { type: Date },
-    time: { type: String },
     daysOfWeek: [Number],
     dayOfMonth: Number,
     lastWeekend: { type: Boolean, default: false },

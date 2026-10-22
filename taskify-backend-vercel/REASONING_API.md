@@ -80,7 +80,7 @@ while (true) {
 ## Available Tools (LLM-only)
 The client does not need to specify these; the server manages them internally:
 1. `getTasks`: Retrieves schedule for date ranges (`date`, `fromDate`, `toDate`).
-2. `createTask`: Schedules a new task entry. Supports single-date tasks (`datetime`) or multi-day schedules (`recurrence: "schedule"`, `startDate`, `endDate`, `time`) which bulk-creates normal tasks for each day.
+2. `createTask`: Schedules a new task entry. Supports single-date tasks (`datetime`) or multi-day schedules (`recurrence: "schedule"`, `startDate`, `endDate`) which bulk-creates normal tasks for each day.
 
 ---
 
@@ -88,7 +88,7 @@ The client does not need to specify these; the server manages them internally:
 
 The `schedule` recurrence type is designed for multi-day events or scheduled programs (e.g. an event next week spanning 5 days at 5 PM every day). 
 
-When requested, the backend calculates all dates between `startDate` and `endDate` and **bulk creates normal simple tasks** (`recurrence: { frequency: "none" }`) with the same title, description, time slots, and subtasks using MongoDB `insertMany()` in a single operation, rather than creating them one by one.
+Dates and daily times are sent as standard **ISO 8601 UTC date-time strings** (e.g., `"2026-10-20T17:00:00.000Z"`). The backend calculates each calendar day between `startDate` and `endDate` while preserving the exact scheduled time, and **bulk creates normal simple tasks** (`recurrence: { frequency: "none" }`) with the same title, description, time slots, and subtasks using MongoDB `insertMany()` in a single operation.
 
 ## Request Information
 
@@ -104,25 +104,29 @@ When requested, the backend calculates all dates between `startDate` and `endDat
 | :--- | :--- | :--- | :--- |
 | `title` | `String` | Yes | Title of the task / event. |
 | `description` | `String` | No | Description of the task. |
+| `dueDate` | `String` (ISO 8601) | Yes* | **Start date and time** for the task (e.g. `"2026-10-20T17:00:00.000Z"`). This sets the daily event start time (5:00 PM) used for alarms and notifications. *(Can also be provided as `recurrence.startDate`)*. |
+| `timeSlots` / `timeSlot` | `Array` \| `Object` \| `Number` | No | Duration of the task (e.g. `{ hours: 1, minutes: 30 }`, `90` minutes, or `[{ hours: 1, minutes: 30 }]`). Indicates how long the task takes from the start time. Defaults to 30 minutes. |
+| `alarm_type` | `String` | No | Alarm type for reminders (e.g., `"notification"`, `"alarm"`). |
+| `alarm_reminder_time` | `String` (ISO 8601) | No | Notification reminder time (e.g., `"2026-10-20T16:45:00.000Z"`). The offset before the start time (e.g. 15 minutes prior) is preserved for every day in the schedule. |
 | `recurrence` | `Object` | Yes | Recurrence configuration object: |
 | `recurrence.frequency` | `String` | Yes | Set to `"schedule"` (or `"scheduled"`). |
-| `recurrence.startDate` | `String` | Yes | Start date of the schedule (e.g., `"2026-10-20"` or ISO string). |
-| `recurrence.endDate` | `String` | Yes | End date of the schedule (e.g., `"2026-10-24"` or ISO string). |
-| `recurrence.time` | `String` | No | Time of the task (e.g., `"17:00"` or `"5 PM"`). Defaults to start date time or `12:00 AM`. |
-| `timeSlots` / `timeSlot` | `Array` \| `Object` \| `Number` | No | Optional time slot duration. Can be `{ hours: 1, minutes: 0 }`, `45` (minutes), or `[{ hours: 0, minutes: 30 }]`. Defaults to 30 minutes. |
+| `recurrence.startDate` | `String` (ISO 8601) | No | Schedule start date-time (defaults to `dueDate`). |
+| `recurrence.endDate` | `String` (ISO 8601) | Yes | Schedule end date-time (e.g., `"2026-10-24T17:00:00.000Z"`). |
 | `subtasks` | `Array<Object>` | No | Subtasks to include in each scheduled day's task `[{ title: "Step 1" }]`. |
 
-### Example Request Body (5-Day Event at 5 PM)
+### Example Request Body (5-Day Event starting at 5:00 PM with 15-min Reminder)
 ```json
 {
   "title": "Annual Tech Conference",
   "description": "5-day daily sessions and keynote presentations",
+  "dueDate": "2026-10-20T17:00:00.000Z",
+  "timeSlot": { "hours": 1, "minutes": 30 },
+  "alarm_type": "push",
+  "alarm_reminder_time": "2026-10-20T16:45:00.000Z",
   "recurrence": {
     "frequency": "schedule",
-    "startDate": "2026-10-20",
-    "endDate": "2026-10-24",
-    "time": "5 PM",
-    "timeSlot": { "hours": 1, "minutes": 30 }
+    "startDate": "2026-10-20T17:00:00.000Z",
+    "endDate": "2026-10-24T17:00:00.000Z"
   },
   "subtasks": [
     { "title": "Review session agenda" }
@@ -140,6 +144,8 @@ Returns an array of all 5 created **normal tasks** (`recurrence: { frequency: "n
     "title": "Annual Tech Conference",
     "description": "5-day daily sessions and keynote presentations",
     "dueDate": "2026-10-20T17:00:00.000Z",
+    "alarm_type": "push",
+    "alarm_reminder_time": "2026-10-20T16:45:00.000Z",
     "timeSlots": [{ "hours": 1, "minutes": 30 }],
     "subtasks": [{ "title": "Review session agenda", "completed": false }],
     "recurrence": {
@@ -156,6 +162,8 @@ Returns an array of all 5 created **normal tasks** (`recurrence: { frequency: "n
     "title": "Annual Tech Conference",
     "description": "5-day daily sessions and keynote presentations",
     "dueDate": "2026-10-21T17:00:00.000Z",
+    "alarm_type": "push",
+    "alarm_reminder_time": "2026-10-21T16:45:00.000Z",
     "timeSlots": [{ "hours": 1, "minutes": 30 }],
     "subtasks": [{ "title": "Review session agenda", "completed": false }],
     "recurrence": {
@@ -166,7 +174,7 @@ Returns an array of all 5 created **normal tasks** (`recurrence: { frequency: "n
     "created_at": "2026-10-22T20:00:00.000Z",
     "updated_at": "2026-10-22T20:00:00.000Z"
   }
-  // ... remaining 3 normal tasks for Oct 22, Oct 23, and Oct 24
+  // ... remaining 3 normal tasks for Oct 22, Oct 23, and Oct 24 (each with alarm at 16:45:00.000Z on that day)
 ]
 ```
 

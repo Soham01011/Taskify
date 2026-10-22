@@ -10,22 +10,20 @@ const { generateScheduleDates } = require('../utils/taskRecurrence');
  * @param {string} description - The description of the task.
  * @param {string} datetime - ISO datetime string.
  * @param {string} recurrence - Optional recurrence frequency (none, daily, weekly, monthly, schedule).
- * @param {string} [startDate] - Start date for schedule (YYYY-MM-DD).
- * @param {string} [endDate] - End date for schedule (YYYY-MM-DD).
- * @param {string} [time] - Daily time for schedule (e.g. "17:00" or "5 PM").
+ * @param {string} [startDate] - Start date-time in ISO format (e.g. 2026-10-20T17:00:00.000Z).
+ * @param {string} [endDate] - End date-time in ISO format (e.g. 2026-10-24T17:00:00.000Z).
  */
-async function createTask(userId, title, description, datetime, recurrence = 'none', startDate = null, endDate = null, time = null) {
+async function createTask(userId, title, description, datetime, recurrence = 'none', startDate = null, endDate = null) {
   try {
     if (recurrence === 'schedule' || recurrence === 'scheduled' || (startDate && endDate)) {
       const scheduleStartDate = startDate || datetime;
       const scheduleEndDate = endDate;
-      const scheduleTime = time || (datetime ? new Date(datetime).toISOString().split('T')[1].substring(0, 5) : '09:00');
 
       if (!scheduleStartDate || !scheduleEndDate) {
         return { error: 'startDate and endDate are required for schedule recurrence' };
       }
 
-      const dates = generateScheduleDates(scheduleStartDate, scheduleEndDate, scheduleTime);
+      const dates = generateScheduleDates(scheduleStartDate, scheduleEndDate);
       const tasksToCreate = dates.map(d => ({
         userId,
         title,
@@ -138,9 +136,8 @@ const createTaskDefinition = {
           default: 'none',
           description: 'Recurrence frequency. Use "schedule" when scheduling across multiple dates.' 
         },
-        startDate: { type: 'string', description: 'Start date for schedule recurrence (YYYY-MM-DD).' },
-        endDate: { type: 'string', description: 'End date for schedule recurrence (YYYY-MM-DD).' },
-        time: { type: 'string', description: 'Time of day for schedule (e.g. "17:00" or "5 PM").' }
+        startDate: { type: 'string', description: 'Start date-time in ISO format for schedule recurrence (e.g. 2026-10-20T17:00:00.000Z).' },
+        endDate: { type: 'string', description: 'End date-time in ISO format for schedule recurrence (e.g. 2026-10-24T17:00:00.000Z).' }
       },
       required: ['title']
     }

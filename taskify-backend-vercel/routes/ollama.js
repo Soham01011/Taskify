@@ -43,7 +43,7 @@ const executeTool = traceable(async (userId, toolCall) => {
   if (name === 'getTasks') {
     toolResult = await getTasks(userId, args.date, args.fromDate, args.toDate);
   } else if (name === 'createTask') {
-    toolResult = await createTask(userId, args.title, args.description, args.datetime, args.recurrence, args.startDate, args.endDate, args.time);
+    toolResult = await createTask(userId, args.title, args.description, args.datetime, args.recurrence, args.startDate, args.endDate);
   } else if (name === 'getIdeas') {
     toolResult = await getIdeas(userId);
   } else if (name === 'createIdea') {
