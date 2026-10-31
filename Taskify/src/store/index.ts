@@ -6,6 +6,7 @@ import taskReducer from './slices/taskSlice';
 import groupReducer from './slices/groupSlice';
 import ideaReducer from './slices/ideaSlice';
 import mateConfigReducer from './slices/mateConfigSlice';
+import expenseReducer from './slices/expenseSlice';
 
 import { injectStore } from '../api/client';
 
@@ -13,7 +14,7 @@ const persistConfig = {
     key: 'root',
     version: 1,
     storage: AsyncStorage,
-    whitelist: ['auth', 'tasks', 'groups', 'ideas', 'mateConfig'], // Persist auth, tasks, groups and ideas for local data usage
+    whitelist: ['auth', 'tasks', 'groups', 'ideas', 'mateConfig', 'expense'], // Persist expense tracker data locally
 
 };
 
@@ -25,6 +26,7 @@ const rootReducer = combineReducers({
     groups: groupReducer,
     ideas: ideaReducer,
     mateConfig: mateConfigReducer,
+    expense: expenseReducer,
 });
 
 

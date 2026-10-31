@@ -1,17 +1,33 @@
 import { useAppTheme } from '@/hooks/use-theme';
 import { useRouter } from 'expo-router';
-import { Activity, BarChart2, CalendarDays, ChevronRight, Network, PieChart, StickyNote } from 'lucide-react-native';
+import { Activity, BarChart2, CalendarDays, ChevronRight, Network, PieChart, StickyNote, Wallet } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FEATURES = [
     {
+        id: 'expenses',
+        title: 'Expense & Spend Intelligence',
+        description: 'Zero-knowledge tracking & GPay statement parser',
+        icon: Wallet,
+        route: '/expenses',
+        active: true
+    },
+    {
         id: 'calendar',
         title: 'Calendar',
         description: 'View and manage your tasks by date',
         icon: CalendarDays,
         route: '/calendar',
+        active: true
+    },
+    {
+        id: 'weekly-evaluation',
+        title: 'Weekly Evaluation',
+        description: 'Review your performance report for the previous week',
+        icon: BarChart2,
+        route: '/weekly-evaluation',
         active: true
     },
     {
@@ -38,14 +54,7 @@ const FEATURES = [
         active: true,
         route: '/workflows'
     },
-    {
-        id: 'weekly-evaluation',
-        title: 'Weekly Evaluation',
-        description: 'Review your performance report for the previous week',
-        icon: BarChart2,
-        route: '/weekly-evaluation',
-        active: true
-    },
+
     {
         id: 'habits',
         title: 'Habits',
