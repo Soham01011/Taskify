@@ -58,20 +58,13 @@ export function categorizeTransaction(
 ): { category: string; subCategory: string } {
   const lowerCounterparty = counterparty.toLowerCase().trim();
 
-  // If credit, default to Transfers & Personal if not matched
-  const allRules = [...customRules, ...DEFAULT_MERCHANT_RULES];
-
-  for (const rule of allRules) {
+  for (const rule of customRules) {
     if (lowerCounterparty.includes(rule.merchantKeyword.toLowerCase())) {
-      return { category: rule.category, subCategory: rule.subCategory };
+      return { category: rule.category, subCategory: rule.subCategory || 'General' };
     }
   }
 
-  if (type === 'credit') {
-    return { category: 'Transfers & Personal', subCategory: 'Salary & Income' };
-  }
-
-  return { category: 'Uncategorized', subCategory: 'General Outflow' };
+  return { category: 'Uncategorized', subCategory: 'General' };
 }
 
 export interface ParseResult {

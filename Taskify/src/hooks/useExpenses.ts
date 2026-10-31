@@ -2,8 +2,11 @@ import { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import {
-  addMerchantRule,
   addTransaction,
+  assignMerchantToGroup,
+  clearAllTransactions,
+  createCategoryGroup,
+  deleteCategoryGroup,
   deleteTransaction,
   importTransactions,
   resetToDefaultSample,
@@ -11,6 +14,7 @@ import {
   setFilterType,
   setSearchQuery,
   setSelectedMonth,
+  updateCategoryGroup,
   updateTransactionCategory,
 } from '../store/slices/expenseSlice';
 import {
@@ -18,7 +22,6 @@ import {
   CategoryBreakdown,
   DailyCadencePoint,
   ExpenseTransaction,
-  MerchantRule,
   MonthSummary,
   MultiMonthSummary,
   SubCategoryBreakdown,
@@ -56,7 +59,7 @@ export function useExpenses() {
     filterCategory,
   } = expenseState;
 
-  // 1. Compute Available Months from Transactions
+  // 1. Available Months from Transactions
   const availableMonths = useMemo(() => {
     const monthCounts = new Map<string, number>();
 
@@ -73,7 +76,6 @@ export function useExpenses() {
       count: monthCounts.get(key) || 0,
     }));
 
-    // Add 'all' option if multiple months exist
     if (sortedKeys.length > 1) {
       list.push({
         key: 'all',
@@ -108,18 +110,41 @@ export function useExpenses() {
     return transactions.filter((tx) => tx.date.startsWith(activeMonthKey));
   }, [transactions, activeMonthKey, isMultiMonthView]);
 
-  // 2. Month Summary Breakdown (KPIs, Fixed vs Variable, Bank Accounts, Categories, Cadence)
+  // Discovered list of merchants that are currently uncategorized (for easy group creation suggestions)
+  const uncategorizedMerchants = useMemo(() => {
+    const counts = new Map<string, number>();
+    transactions.forEach((tx) => {
+      if (!tx.category || tx.category === 'Uncategorized') {
+        const name = (tx.counterparty || '').trim();
+        if (name) {
+          counts.set(name, (counts.get(name) || 0) + 1);
+        }
+      }
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+  }, [transactions]);
+
+  // 2. Month Summary Breakdown
   const monthSummary: MonthSummary = useMemo(() => {
     let totalSettledOutflow = 0;
     let totalInflow = 0;
-    let committedFixed = 0;
-    let variableLifestyle = 0;
+    let categorizedTotal = 0;
+    let uncategorizedTotal = 0;
+    let uncategorizedCount = 0;
 
     const accountMap = new Map<string, { outflow: number; inflow: number; count: number }>();
-    const categoryGroupMap = new Map<string, { total: number; subMap: Map<string, { amount: number; count: number; merchants: Set<string> }> }>();
+    const categoryGroupMap = new Map<
+      string,
+      {
+        total: number;
+        subMap: Map<string, { amount: number; count: number; merchants: Set<string>; transactions: ExpenseTransaction[] }>;
+      }
+    >();
     const debitsList: ExpenseTransaction[] = [];
 
-    // Daily distribution map for day-of-week (Mon - Sun)
+    // Day of week distribution map (Mon - Sun)
     const dayTotals: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 0: 0 };
 
     monthTransactions.forEach((tx) => {
@@ -134,20 +159,18 @@ export function useExpenses() {
 
         // Day of week
         const d = new Date(tx.date);
-        const dayOfWeek = d.getDay(); // 0 is Sun, 1 is Mon
+        const dayOfWeek = d.getDay();
         dayTotals[dayOfWeek] = (dayTotals[dayOfWeek] || 0) + tx.amount;
 
-        // Group Fixed vs Variable
-        const catObj = categories.find((c) => c.name.toLowerCase() === tx.category.toLowerCase());
-        if (catObj?.isFixed) {
-          committedFixed += tx.amount;
-        } else {
-          variableLifestyle += tx.amount;
-        }
-
-        // Category breakdown
         const catName = tx.category || 'Uncategorized';
-        const subName = tx.subCategory || 'General Outflow';
+        const subName = tx.subCategory || 'General';
+
+        if (catName === 'Uncategorized') {
+          uncategorizedTotal += tx.amount;
+          uncategorizedCount++;
+        } else {
+          categorizedTotal += tx.amount;
+        }
 
         if (!categoryGroupMap.has(catName)) {
           categoryGroupMap.set(catName, { total: 0, subMap: new Map() });
@@ -156,12 +179,13 @@ export function useExpenses() {
         grp.total += tx.amount;
 
         if (!grp.subMap.has(subName)) {
-          grp.subMap.set(subName, { amount: 0, count: 0, merchants: new Set() });
+          grp.subMap.set(subName, { amount: 0, count: 0, merchants: new Set(), transactions: [] });
         }
         const sub = grp.subMap.get(subName)!;
         sub.amount += tx.amount;
         sub.count++;
-        if (tx.counterparty && sub.merchants.size < 3) {
+        sub.transactions.push(tx);
+        if (tx.counterparty && sub.merchants.size < 4) {
           sub.merchants.add(tx.counterparty);
         }
       } else {
@@ -183,7 +207,7 @@ export function useExpenses() {
       }))
       .sort((a, b) => b.totalOutflow - a.totalOutflow);
 
-    // Categories breakdown
+    // User Categories breakdown
     const categoryBreakdown: CategoryBreakdown[] = categories
       .map((cat) => {
         const grpData = categoryGroupMap.get(cat.name);
@@ -198,10 +222,26 @@ export function useExpenses() {
               txCount: subData.count,
               percentageOfGroup: totalAmount > 0 ? Math.round((subData.amount / totalAmount) * 100) : 0,
               merchants: Array.from(subData.merchants),
+              transactions: subData.transactions,
             });
           });
-          subGroups.sort((a, b) => b.amount - a.amount);
         }
+
+        // Also ensure any declared sub-groups from the group config are present
+        (cat.subCategories || []).forEach((subCatName) => {
+          if (!subGroups.some((s) => s.name === subCatName)) {
+            subGroups.push({
+              name: subCatName,
+              amount: 0,
+              txCount: 0,
+              percentageOfGroup: 0,
+              merchants: [],
+              transactions: [],
+            });
+          }
+        });
+
+        subGroups.sort((a, b) => b.amount - a.amount);
 
         return {
           category: cat,
@@ -211,7 +251,6 @@ export function useExpenses() {
           subGroups,
         };
       })
-      .filter((c) => c.totalAmount > 0)
       .sort((a, b) => b.totalAmount - a.totalAmount);
 
     // Top Settled Outflows
@@ -219,14 +258,7 @@ export function useExpenses() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 4);
 
-    // Uncategorized check
-    const uncategorizedGrp = categoryGroupMap.get('Uncategorized');
-    const uncategorizedTotal = uncategorizedGrp ? uncategorizedGrp.total : 0;
-    const uncategorizedCount = monthTransactions.filter(
-      (t) => t.category === 'Uncategorized' && t.type === 'debit'
-    ).length;
-
-    // Daily Cadence Sparkline
+    // Daily Cadence
     const dayLabels = [
       { day: 1, label: 'Mon' },
       { day: 2, label: 'Tue' },
@@ -249,10 +281,7 @@ export function useExpenses() {
     const debitCount = debitsList.length;
     const creditCount = monthTransactions.length - debitCount;
     const daysInMonth = 30;
-    const dailyAverage = Math.round(totalSettledOutflow / Math.max(debitCount > 0 ? 30 : 1, 1));
-
-    const fixedPct = totalSettledOutflow > 0 ? Math.round((committedFixed / totalSettledOutflow) * 100) : 0;
-    const varPct = 100 - fixedPct;
+    const dailyAverage = Math.round(totalSettledOutflow / Math.max(debitCount > 0 ? daysInMonth : 1, 1));
 
     return {
       monthKey: activeMonthKey,
@@ -263,10 +292,6 @@ export function useExpenses() {
       txCount: monthTransactions.length,
       debitCount,
       creditCount,
-      committedFixed,
-      committedFixedPercent: fixedPct,
-      variableLifestyle,
-      variableLifestylePercent: varPct,
       topSettledOutflows,
       bankAccounts,
       categoryBreakdown,
@@ -274,18 +299,19 @@ export function useExpenses() {
       dailyAverage,
       uncategorizedCount,
       uncategorizedTotal,
+      categorizedTotal,
       projection: {
         minOutflow: Math.round(totalSettledOutflow * 0.94),
         maxOutflow: Math.round(totalSettledOutflow * 1.06),
-        confidence: 88,
-        targetPerDay: Math.round(variableLifestyle / daysInMonth),
-        forecastVariable: Math.round(variableLifestyle * 0.98),
-        note: 'Median pacing based on recurring fixed mandates and rolling lifestyle spend.',
+        confidence: 90,
+        targetPerDay: Math.round(totalSettledOutflow / daysInMonth),
+        forecastVariable: uncategorizedTotal,
+        note: 'Median pacing window based on local on-device transactions.',
       },
     };
   }, [monthTransactions, activeMonthKey, categories]);
 
-  // 3. Multi-Month Trend Summary
+  // 3. Multi-Month Trends
   const multiMonthSummary: MultiMonthSummary = useMemo(() => {
     const monthMap = new Map<string, { outflow: number; inflow: number; count: number }>();
     const catTrendMap = new Map<string, Map<string, number>>();
@@ -317,17 +343,19 @@ export function useExpenses() {
       }))
       .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 
-    const categoryTrends = categories.map((cat) => {
-      const mCatMap = catTrendMap.get(cat.name);
-      return {
-        categoryName: cat.name,
-        color: cat.color,
-        monthlyData: months.map((m) => ({
-          monthKey: m.monthKey,
-          amount: mCatMap?.get(m.monthKey) || 0,
-        })),
-      };
-    }).filter((ct) => ct.monthlyData.some((d) => d.amount > 0));
+    const categoryTrends = categories
+      .map((cat) => {
+        const mCatMap = catTrendMap.get(cat.name);
+        return {
+          categoryName: cat.name,
+          color: cat.color,
+          monthlyData: months.map((m) => ({
+            monthKey: m.monthKey,
+            amount: mCatMap?.get(m.monthKey) || 0,
+          })),
+        };
+      })
+      .filter((ct) => ct.monthlyData.some((d) => d.amount > 0));
 
     const totalSpend = months.reduce((acc, m) => acc + m.totalOutflow, 0);
     const averageMonthlySpend = months.length > 0 ? Math.round(totalSpend / months.length) : 0;
@@ -337,8 +365,14 @@ export function useExpenses() {
 
     if (months.length > 0) {
       const sortedBySpend = [...months].sort((a, b) => b.totalOutflow - a.totalOutflow);
-      highestSpendMonth = { monthLabel: sortedBySpend[0].monthLabel, amount: sortedBySpend[0].totalOutflow };
-      lowestSpendMonth = { monthLabel: sortedBySpend[sortedBySpend.length - 1].monthLabel, amount: sortedBySpend[sortedBySpend.length - 1].totalOutflow };
+      highestSpendMonth = {
+        monthLabel: sortedBySpend[0].monthLabel,
+        amount: sortedBySpend[0].totalOutflow,
+      };
+      lowestSpendMonth = {
+        monthLabel: sortedBySpend[sortedBySpend.length - 1].monthLabel,
+        amount: sortedBySpend[sortedBySpend.length - 1].totalOutflow,
+      };
     }
 
     return {
@@ -353,15 +387,15 @@ export function useExpenses() {
   // 4. Filtered Transactions
   const filteredTransactions = useMemo(() => {
     return monthTransactions.filter((tx) => {
-      // Type Filter
       if (filterType !== 'all' && tx.type !== filterType) {
         return false;
       }
-      // Category Filter
-      if (filterCategory !== 'all' && tx.category !== filterCategory) {
-        return false;
+      if (filterCategory !== 'all') {
+        const txCat = tx.category || 'Uncategorized';
+        if (txCat.toLowerCase() !== filterCategory.toLowerCase()) {
+          return false;
+        }
       }
-      // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const cp = (tx.counterparty || '').toLowerCase();
@@ -382,12 +416,38 @@ export function useExpenses() {
   const changeSearchQuery = (q: string) => dispatch(setSearchQuery(q));
   const changeFilterType = (t: 'all' | 'debit' | 'credit') => dispatch(setFilterType(t));
   const changeFilterCategory = (c: string) => dispatch(setFilterCategory(c));
+  const clearFilterCategory = () => dispatch(setFilterCategory('all'));
 
-  const handleImportTransactions = (newTxs: ExpenseTransaction[]) => {
-    dispatch(importTransactions({ transactions: newTxs }));
+  const handleCreateGroup = (
+    name: string,
+    color: string,
+    icon?: string,
+    subCategories?: string[],
+    merchants?: string[]
+  ) => {
+    dispatch(createCategoryGroup({ name, color, icon, subCategories, merchants }));
   };
 
-  const handleUpdateCategory = (
+  const handleUpdateGroup = (
+    id: string,
+    name: string,
+    color: string,
+    icon?: string,
+    subCategories: string[] = [],
+    merchants?: string[]
+  ) => {
+    dispatch(updateCategoryGroup({ id, name, color, icon, subCategories, merchants }));
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    dispatch(deleteCategoryGroup(id));
+  };
+
+  const handleAssignMerchant = (merchantKeyword: string, category: string, subCategory?: string) => {
+    dispatch(assignMerchantToGroup({ merchantKeyword, category, subCategory }));
+  };
+
+  const handleUpdateTransactionCategory = (
     id: string,
     category: string,
     subCategory: string,
@@ -405,12 +465,20 @@ export function useExpenses() {
     );
   };
 
+  const handleImportTransactions = (newTxs: ExpenseTransaction[]) => {
+    dispatch(importTransactions({ transactions: newTxs }));
+  };
+
   const handleAddTransaction = (tx: ExpenseTransaction) => {
     dispatch(addTransaction(tx));
   };
 
   const handleDeleteTransaction = (id: string) => {
     dispatch(deleteTransaction(id));
+  };
+
+  const handleClearAll = () => {
+    dispatch(clearAllTransactions());
   };
 
   const handleResetToDefaultSample = () => {
@@ -427,6 +495,7 @@ export function useExpenses() {
     monthSummary,
     multiMonthSummary,
     filteredTransactions,
+    uncategorizedMerchants,
     searchQuery,
     filterType,
     filterCategory,
@@ -435,10 +504,16 @@ export function useExpenses() {
     changeSearchQuery,
     changeFilterType,
     changeFilterCategory,
+    clearFilterCategory,
+    createGroup: handleCreateGroup,
+    updateGroup: handleUpdateGroup,
+    deleteGroup: handleDeleteGroup,
+    assignMerchant: handleAssignMerchant,
+    updateTransactionCategory: handleUpdateTransactionCategory,
     importTransactions: handleImportTransactions,
-    updateTransactionCategory: handleUpdateCategory,
     addTransaction: handleAddTransaction,
     deleteTransaction: handleDeleteTransaction,
+    clearAll: handleClearAll,
     resetToDefaultSample: handleResetToDefaultSample,
   };
 }

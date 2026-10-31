@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,7 +14,10 @@ import {
   Check,
   CreditCard,
   Edit3,
+  FolderPlus,
   Hash,
+  Plus,
+  Tag,
   Trash2,
   X,
 } from 'lucide-react-native';
@@ -33,6 +37,7 @@ interface Props {
     merchantName: string
   ) => void;
   onDelete: (id: string) => void;
+  onRequestCreateGroup?: () => void;
 }
 
 export const RecategorizeModal: React.FC<Props> = ({
@@ -42,25 +47,30 @@ export const RecategorizeModal: React.FC<Props> = ({
   onClose,
   onSave,
   onDelete,
+  onRequestCreateGroup,
 }) => {
   const { colors, isDark } = useAppTheme();
 
-  const [selectedGroup, setSelectedGroup] = useState<string>('');
-  const [selectedSubGroup, setSelectedSubGroup] = useState<string>('');
+  const [selectedGroup, setSelectedGroup] = useState<string>('Uncategorized');
+  const [selectedSubGroup, setSelectedSubGroup] = useState<string>('General');
+  const [customSubInput, setCustomSubInput] = useState<string>('');
+  const [showAddSub, setShowAddSub] = useState<boolean>(false);
   const [applyToMerchant, setApplyToMerchant] = useState<boolean>(false);
 
   useEffect(() => {
     if (transaction) {
       setSelectedGroup(transaction.category || 'Uncategorized');
-      setSelectedSubGroup(transaction.subCategory || 'General Outflow');
+      setSelectedSubGroup(transaction.subCategory || 'General');
       setApplyToMerchant(false);
+      setShowAddSub(false);
+      setCustomSubInput('');
     }
-  }, [transaction]);
+  }, [transaction, visible]);
 
   if (!transaction) return null;
 
   const currentCategoryObj = categories.find((c) => c.name === selectedGroup);
-  const availableSubCategories = currentCategoryObj?.subCategories || ['General Outflow'];
+  const availableSubCategories = currentCategoryObj?.subCategories || ['General'];
 
   const handleGroupSelect = (groupName: string) => {
     setSelectedGroup(groupName);
@@ -68,7 +78,16 @@ export const RecategorizeModal: React.FC<Props> = ({
     if (cat && cat.subCategories.length > 0) {
       setSelectedSubGroup(cat.subCategories[0]);
     } else {
-      setSelectedSubGroup('General Outflow');
+      setSelectedSubGroup('General');
+    }
+  };
+
+  const handleAddCustomSub = () => {
+    const clean = customSubInput.trim();
+    if (clean) {
+      setSelectedSubGroup(clean);
+      setCustomSubInput('');
+      setShowAddSub(false);
     }
   };
 
@@ -99,7 +118,7 @@ export const RecategorizeModal: React.FC<Props> = ({
                 <Edit3 size={18} color={colors.primary} />
               </View>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Recategorize Transaction
+                Move / Recategorize
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -107,7 +126,7 @@ export const RecategorizeModal: React.FC<Props> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Transaction Details Pill */}
             <View
               style={[
@@ -157,11 +176,60 @@ export const RecategorizeModal: React.FC<Props> = ({
               ) : null}
             </View>
 
-            {/* 1. Primary Category Group Selector */}
-            <Text style={[styles.sectionHeading, { color: colors.text }]}>
-              Select Category Group
-            </Text>
+            {/* Destination Group Selector */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionHeading, { color: colors.text }]}>
+                Select Destination Group
+              </Text>
+              {onRequestCreateGroup && (
+                <TouchableOpacity
+                  style={styles.createGroupLink}
+                  onPress={() => {
+                    onClose();
+                    onRequestCreateGroup();
+                  }}
+                >
+                  <Plus size={13} color={colors.primary} />
+                  <Text style={[styles.createGroupLinkText, { color: colors.primary }]}>
+                    New Group
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <View style={styles.groupChipsContainer}>
+              {/* Uncategorized Option */}
+              <TouchableOpacity
+                style={[
+                  styles.groupChip,
+                  {
+                    backgroundColor:
+                      selectedGroup === 'Uncategorized'
+                        ? '#FF7A0020'
+                        : isDark
+                        ? '#171C22'
+                        : '#FFFFFF',
+                    borderColor: selectedGroup === 'Uncategorized' ? '#FF7A00' : colors.border,
+                  },
+                ]}
+                onPress={() => handleGroupSelect('Uncategorized')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.dot, { backgroundColor: '#FF7A00' }]} />
+                <Text
+                  style={[
+                    styles.groupChipText,
+                    {
+                      color: selectedGroup === 'Uncategorized' ? '#FF7A00' : colors.text,
+                      fontWeight: selectedGroup === 'Uncategorized' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Uncategorized
+                </Text>
+              </TouchableOpacity>
+
+              {/* User-created groups */}
               {categories.map((cat) => {
                 const isSelected = selectedGroup === cat.name;
                 const catColor = cat.color || colors.primary;
@@ -200,7 +268,7 @@ export const RecategorizeModal: React.FC<Props> = ({
               })}
             </View>
 
-            {/* 2. Sub-group Selector */}
+            {/* Sub-group Selector */}
             <Text style={[styles.sectionHeading, { color: colors.text, marginTop: 14 }]}>
               Select Sub-group
             </Text>
@@ -213,7 +281,11 @@ export const RecategorizeModal: React.FC<Props> = ({
                     style={[
                       styles.subChip,
                       {
-                        backgroundColor: isSelected ? colors.primary : isDark ? '#171C22' : '#F1F5F9',
+                        backgroundColor: isSelected
+                          ? colors.primary
+                          : isDark
+                          ? '#171C22'
+                          : '#F1F5F9',
                         borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
@@ -232,9 +304,45 @@ export const RecategorizeModal: React.FC<Props> = ({
                   </TouchableOpacity>
                 );
               })}
+
+              {/* Add custom sub-group button/input */}
+              {!showAddSub ? (
+                <TouchableOpacity
+                  style={[
+                    styles.addSubChipBtn,
+                    { borderColor: colors.border, backgroundColor: isDark ? '#171C22' : '#FFFFFF' },
+                  ]}
+                  onPress={() => setShowAddSub(true)}
+                >
+                  <Plus size={12} color={colors.primary} />
+                  <Text style={[styles.addSubChipText, { color: colors.primary }]}>
+                    + Add Sub-group
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.customSubRow}>
+                  <TextInput
+                    style={[
+                      styles.customSubInput,
+                      { color: colors.text, borderColor: colors.primary, backgroundColor: isDark ? '#171C22' : '#FFFFFF' },
+                    ]}
+                    placeholder="New sub-group name"
+                    placeholderTextColor={colors.placeholder || colors.textSecondary}
+                    value={customSubInput}
+                    onChangeText={setCustomSubInput}
+                    autoFocus
+                  />
+                  <TouchableOpacity
+                    style={[styles.customSubSaveBtn, { backgroundColor: colors.primary }]}
+                    onPress={handleAddCustomSub}
+                  >
+                    <Check size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
-            {/* 3. Apply to All Transactions From This Merchant Switch */}
+            {/* Apply to All Transactions From This Merchant Switch */}
             <View
               style={[
                 styles.switchCard,
@@ -246,7 +354,7 @@ export const RecategorizeModal: React.FC<Props> = ({
                   Apply to all from this merchant
                 </Text>
                 <Text style={[styles.switchSub, { color: colors.textSecondary }]}>
-                  Automatically recategorize all current & future transactions for "{transaction.counterparty}". Leave off to recategorize just this one payment.
+                  Map "{transaction.counterparty}" to this group so all current & future transactions move automatically. Leave off to move just this single payment.
                 </Text>
               </View>
               <Switch
@@ -264,6 +372,7 @@ export const RecategorizeModal: React.FC<Props> = ({
               style={[styles.deleteBtn, { borderColor: '#E74C3C40' }]}
               onPress={handleDelete}
               activeOpacity={0.7}
+              accessibilityLabel="Delete transaction"
             >
               <Trash2 size={16} color="#E74C3C" />
             </TouchableOpacity>
@@ -273,7 +382,7 @@ export const RecategorizeModal: React.FC<Props> = ({
               onPress={handleSave}
               activeOpacity={0.8}
             >
-              <Text style={styles.saveBtnText}>Save Category</Text>
+              <Text style={styles.saveBtnText}>Save & Move</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -299,7 +408,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -316,6 +425,9 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
+  },
+  scrollContent: {
+    paddingVertical: 4,
   },
   detailsBox: {
     padding: 12,
@@ -352,10 +464,24 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 11,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   sectionHeading: {
     fontSize: 13,
     fontWeight: '700',
-    marginBottom: 8,
+  },
+  createGroupLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  createGroupLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   groupChipsContainer: {
     flexDirection: 'row',
@@ -396,6 +522,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  addSubChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  addSubChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  customSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  customSubInput: {
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    fontSize: 12,
+  },
+  customSubSaveBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   switchCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,7 +561,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     marginTop: 16,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   switchTitle: {
     fontSize: 13,
@@ -421,8 +579,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   deleteBtn: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
@@ -431,7 +589,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     flex: 1,
-    height: 46,
+    height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',

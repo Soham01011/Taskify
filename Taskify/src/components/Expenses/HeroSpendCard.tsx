@@ -8,37 +8,20 @@ import {
 } from 'react-native';
 import {
   ArrowRightLeft,
-  Calendar,
-  Car,
   CheckCircle2,
-  HeartPulse,
-  HelpCircle,
   RotateCcw,
-  ShoppingBag,
   Sparkles,
-  TrendingDown,
-  Utensils,
-  Wallet,
+  Tag,
 } from 'lucide-react-native';
 import { useAppTheme } from '@/hooks/use-theme';
-import { ExpenseTransaction, MonthSummary } from '../../types/expense';
+import { MonthSummary } from '../../types/expense';
 
 interface Props {
   summary: MonthSummary;
+  onReviewUncategorized?: () => void;
 }
 
-const getCategoryIcon = (category: string, size = 16, color = '#FFF') => {
-  const cat = (category || '').toLowerCase();
-  if (cat.includes('food')) return <Utensils size={size} color={color} />;
-  if (cat.includes('transport') || cat.includes('commute')) return <Car size={size} color={color} />;
-  if (cat.includes('fixed') || cat.includes('bill') || cat.includes('subscription')) return <Calendar size={size} color={color} />;
-  if (cat.includes('shop')) return <ShoppingBag size={size} color={color} />;
-  if (cat.includes('health')) return <HeartPulse size={size} color={color} />;
-  if (cat.includes('transfer')) return <Wallet size={size} color={color} />;
-  return <HelpCircle size={size} color={color} />;
-};
-
-export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
+export const HeroSpendCard: React.FC<Props> = ({ summary, onReviewUncategorized }) => {
   const { colors, isDark } = useAppTheme();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -82,6 +65,12 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
     inputRange: [89, 90],
     outputRange: [0, 1],
   });
+
+  const categorizedPercent =
+    summary.totalSettledOutflow > 0
+      ? Math.round((summary.categorizedTotal / summary.totalSettledOutflow) * 100)
+      : 0;
+  const uncategorizedPercent = 100 - categorizedPercent;
 
   return (
     <View style={styles.container}>
@@ -130,12 +119,12 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
               ₹{summary.totalSettledOutflow.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </Text>
             <View style={[styles.statusBadge, { backgroundColor: '#2ECC7120' }]}>
-              <Text style={styles.statusBadgeText}>Within 3% of Target</Text>
+              <Text style={styles.statusBadgeText}>Settled Actuals</Text>
             </View>
           </View>
         </View>
 
-        {/* Split Pill Metrics */}
+        {/* Dynamic Split Pill Metrics: Categorized vs Uncategorized */}
         <View style={styles.splitGrid}>
           <View
             style={[
@@ -144,39 +133,61 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
             ]}
           >
             <Text style={[styles.splitLabel, { color: colors.textSecondary }]}>
-              Committed Fixed
+              In Custom Groups
             </Text>
-            <Text style={[styles.splitValue, { color: colors.text }]}>
-              ₹{summary.committedFixed.toLocaleString('en-IN')}
+            <Text style={[styles.splitValue, { color: colors.primary }]}>
+              ₹{summary.categorizedTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </Text>
             <Text style={[styles.splitSub, { color: colors.textSecondary }]}>
-              Rent, SIP, Mandates ({summary.committedFixedPercent}%)
+              {categorizedPercent}% of monthly outflow
             </Text>
           </View>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.splitCard,
-              { backgroundColor: isDark ? '#262A30' : '#F1F5F9', borderColor: colors.border },
+              {
+                backgroundColor:
+                  summary.uncategorizedCount > 0
+                    ? isDark
+                      ? '#2A2218'
+                      : '#FFF8F0'
+                    : isDark
+                    ? '#262A30'
+                    : '#F1F5F9',
+                borderColor: summary.uncategorizedCount > 0 ? '#FF7A0040' : colors.border,
+              },
             ]}
+            onPress={onReviewUncategorized}
+            activeOpacity={0.7}
           >
-            <Text style={[styles.splitLabel, { color: colors.textSecondary }]}>
-              Variable Lifestyle
+            <Text
+              style={[
+                styles.splitLabel,
+                { color: summary.uncategorizedCount > 0 ? '#FF7A00' : colors.textSecondary },
+              ]}
+            >
+              Uncategorized
             </Text>
-            <Text style={[styles.splitValue, { color: colors.primary }]}>
-              ₹{summary.variableLifestyle.toLocaleString('en-IN')}
+            <Text
+              style={[
+                styles.splitValue,
+                { color: summary.uncategorizedCount > 0 ? '#FF7A00' : colors.text },
+              ]}
+            >
+              ₹{summary.uncategorizedTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </Text>
             <Text style={[styles.splitSub, { color: colors.textSecondary }]}>
-              Food, Transit, Quick ({summary.variableLifestylePercent}%)
+              {summary.uncategorizedCount} {summary.uncategorizedCount === 1 ? 'item' : 'items'} ({uncategorizedPercent}%)
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Top Settled Outflows Micro-list */}
         {summary.topSettledOutflows.length > 0 && (
           <View style={styles.topOutflowsBlock}>
             <Text style={[styles.sectionMicroTitle, { color: colors.textSecondary }]}>
-              Top Settled Outflows
+              Top Outflows
             </Text>
             {summary.topSettledOutflows.slice(0, 3).map((item, idx) => (
               <View
@@ -188,7 +199,7 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
               >
                 <View style={styles.microLeft}>
                   <View style={[styles.microIconBox, { backgroundColor: colors.primary + '18' }]}>
-                    {getCategoryIcon(item.category, 14, colors.primary)}
+                    <Tag size={13} color={colors.primary} />
                   </View>
                   <Text
                     style={[styles.microMerchant, { color: colors.text }]}
@@ -198,7 +209,7 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
                   </Text>
                 </View>
                 <Text style={[styles.microAmount, { color: colors.text }]}>
-                  ₹{item.amount.toLocaleString('en-IN')}
+                  ₹{item.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                 </Text>
               </View>
             ))}
@@ -230,7 +241,7 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
             </View>
             <View style={[styles.confidenceBadge, { backgroundColor: colors.primary + '20' }]}>
               <CheckCircle2 size={12} color={colors.primary} />
-              <Text style={[styles.confidenceText, { color: colors.primary }]}>88% Conf.</Text>
+              <Text style={[styles.confidenceText, { color: colors.primary }]}>90% Conf.</Text>
             </View>
           </View>
 
@@ -269,13 +280,13 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
             ]}
           >
             <Text style={[styles.splitLabel, { color: colors.textSecondary }]}>
-              Committed Fixed Due
+              Daily Cadence
             </Text>
             <Text style={[styles.splitValue, { color: colors.text }]}>
-              ₹{summary.committedFixed.toLocaleString('en-IN')}
+              ₹{summary.dailyAverage.toLocaleString('en-IN')}
             </Text>
             <Text style={[styles.splitSub, { color: colors.primary }]}>
-              100% Due Detected
+              Avg daily run-rate
             </Text>
           </View>
 
@@ -286,18 +297,18 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
             ]}
           >
             <Text style={[styles.splitLabel, { color: colors.textSecondary }]}>
-              Forecast Variable
+              Inflow Offset
             </Text>
-            <Text style={[styles.splitValue, { color: '#FF7A00' }]}>
-              ₹{summary.projection.forecastVariable.toLocaleString('en-IN')}
+            <Text style={[styles.splitValue, { color: '#2ECC71' }]}>
+              +₹{summary.totalInflow.toLocaleString('en-IN')}
             </Text>
             <Text style={[styles.splitSub, { color: colors.textSecondary }]}>
-              Target: ₹{summary.projection.targetPerDay}/day
+              {summary.creditCount} incoming credits
             </Text>
           </View>
         </View>
 
-        {/* Run-rate intelligence note */}
+        {/* Local intelligence note */}
         <View
           style={[
             styles.noteBox,
@@ -307,10 +318,10 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
           <Sparkles size={18} color={colors.primary} style={{ marginTop: 2 }} />
           <View style={{ flex: 1, marginLeft: 8 }}>
             <Text style={[styles.noteTitle, { color: colors.text }]}>
-              Local Intelligence Engine
+              Zero-Knowledge Local Storage
             </Text>
             <Text style={[styles.noteText, { color: colors.textSecondary }]}>
-              Parsed safely on-device with zero-knowledge tracking. Run-rate tracks within safe variance.
+              All categories, rules, and parsed statement transactions are stored securely on this phone.
             </Text>
           </View>
         </View>
@@ -334,7 +345,7 @@ export const HeroSpendCard: React.FC<Props> = ({ summary }) => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    minHeight: 330,
+    minHeight: 310,
     position: 'relative',
   },
   card: {
@@ -453,10 +464,10 @@ const styles = StyleSheet.create({
   },
   splitLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   splitValue: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     marginVertical: 2,
   },

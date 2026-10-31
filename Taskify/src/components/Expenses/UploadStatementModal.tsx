@@ -411,42 +411,115 @@ export const UploadStatementModal: React.FC<Props> = ({
                 </View>
               </View>
 
-              {/* Transactions Preview List */}
-              <Text style={[styles.previewListHeading, { color: colors.textSecondary }]}>
-                Preview parsed items:
-              </Text>
-              <ScrollView style={styles.previewScrollView} showsVerticalScrollIndicator={false}>
-                {parseResult.transactions.slice(0, 15).map((tx, idx) => (
-                  <View
-                    key={tx.id || idx}
-                    style={[
-                      styles.previewItem,
-                      { backgroundColor: isDark ? '#171C22' : '#FFFFFF', borderColor: colors.border },
-                    ]}
-                  >
-                    <View style={styles.previewItemLeft}>
-                      <Text style={[styles.previewMerchant, { color: colors.text }]} numberOfLines={1}>
-                        {tx.counterparty}
-                      </Text>
-                      <Text style={[styles.previewItemMeta, { color: colors.textSecondary }]}>
-                        {tx.rawDate || tx.date} • {tx.category} › {tx.subCategory}
-                      </Text>
-                    </View>
-                    <Text
+              {/* Transactions Preview List - Horizontally Scrollable */}
+              <View style={styles.previewHeadingRow}>
+                <Text style={[styles.previewListHeading, { color: colors.textSecondary }]}>
+                  Preview parsed transactions ({parseResult.transactions.length})
+                </Text>
+                <Text style={[styles.swipeHint, { color: colors.primary }]}>
+                  Swipe →
+                </Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalPreviewList}
+              >
+                {parseResult.transactions.map((tx, idx) => {
+                  const isExisting = existingTransactions.some((t) => t.id === tx.id);
+                  const isCredit = tx.type === 'credit';
+                  return (
+                    <View
+                      key={tx.id || idx}
                       style={[
-                        styles.previewItemAmount,
-                        { color: tx.type === 'debit' ? colors.text : '#2ECC71' },
+                        styles.previewHorizontalCard,
+                        {
+                          backgroundColor: isDark ? '#171C22' : '#FFFFFF',
+                          borderColor: isExisting ? '#FF7A0060' : colors.border,
+                        },
                       ]}
                     >
-                      {tx.type === 'debit' ? '-' : '+'}₹{tx.amount.toLocaleString('en-IN')}
-                    </Text>
-                  </View>
-                ))}
-                {parseResult.transactions.length > 15 && (
-                  <Text style={[styles.moreNotice, { color: colors.textSecondary }]}>
-                    + {parseResult.transactions.length - 15} more transactions
-                  </Text>
-                )}
+                      {/* Top Badges */}
+                      <View style={styles.cardTopRow}>
+                        <View
+                          style={[
+                            styles.indexPill,
+                            { backgroundColor: isDark ? '#262A30' : '#E2E8F0' },
+                          ]}
+                        >
+                          <Text style={[styles.indexPillText, { color: colors.textSecondary }]}>
+                            #{idx + 1}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.typePill,
+                            {
+                              backgroundColor: isCredit ? '#2ECC7120' : colors.primary + '18',
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.typePillText,
+                              { color: isCredit ? '#2ECC71' : colors.primary },
+                            ]}
+                          >
+                            {tx.type.toUpperCase()}
+                          </Text>
+                        </View>
+                        {isExisting && (
+                          <View style={styles.skippedPill}>
+                            <Text style={styles.skippedPillText}>SKIPPED</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Amount & Merchant */}
+                      <View style={{ marginVertical: 4 }}>
+                        <Text
+                          style={[
+                            styles.cardAmount,
+                            { color: isCredit ? '#2ECC71' : colors.text },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {isCredit ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        </Text>
+                        <Text style={[styles.cardMerchant, { color: colors.text }]} numberOfLines={1}>
+                          {tx.counterparty}
+                        </Text>
+                      </View>
+
+                      {/* Category & Date Footer */}
+                      <View style={styles.cardFooter}>
+                        <View
+                          style={[
+                            styles.categoryTag,
+                            { backgroundColor: isDark ? '#262A30' : '#F1F5F9' },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.categoryTagText, { color: colors.textSecondary }]}
+                            numberOfLines={1}
+                          >
+                            {tx.category} › {tx.subCategory}
+                          </Text>
+                        </View>
+                        <View style={styles.cardMetaRow}>
+                          <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
+                            {tx.rawDate || tx.date}
+                          </Text>
+                          {tx.account ? (
+                            <Text style={[styles.cardAccount, { color: colors.textSecondary }]}>
+                              {tx.account}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
               </ScrollView>
 
               {/* Action Buttons */}
@@ -714,41 +787,105 @@ const styles = StyleSheet.create({
   duplicateText: {
     fontSize: 11,
   },
+  previewHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 2,
+  },
   previewListHeading: {
     fontSize: 12,
+    fontWeight: '700',
+  },
+  swipeHint: {
+    fontSize: 11,
     fontWeight: '600',
   },
-  previewScrollView: {
-    maxHeight: 200,
+  horizontalPreviewList: {
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    gap: 10,
   },
-  previewItem: {
+  previewHorizontalCard: {
+    width: 230,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 6,
+    gap: 6,
   },
-  previewItemLeft: {
-    flex: 1,
-    marginRight: 8,
+  indexPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  previewMerchant: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  previewItemMeta: {
+  indexPillText: {
     fontSize: 10,
-    marginTop: 2,
+    fontWeight: '700',
   },
-  previewItemAmount: {
+  typePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typePillText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  skippedPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#FF7A0020',
+  },
+  skippedPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FF7A00',
+  },
+  cardAmount: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  cardMerchant: {
     fontSize: 13,
     fontWeight: '700',
   },
-  moreNotice: {
-    textAlign: 'center',
-    fontSize: 11,
-    paddingVertical: 4,
+  cardFooter: {
+    marginTop: 8,
+    gap: 4,
+  },
+  categoryTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  categoryTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  cardDate: {
+    fontSize: 10,
+  },
+  cardAccount: {
+    fontSize: 10,
   },
 });

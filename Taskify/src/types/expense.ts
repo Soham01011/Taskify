@@ -8,8 +8,8 @@ export interface ExpenseTransaction {
   amount: number;
   refId: string; // UPI Transaction ID
   account: string; // e.g. "Saraswat Bank 8847"
-  category: string;
-  subCategory: string;
+  category: string; // User-defined group or 'Uncategorized'
+  subCategory: string; // User-defined sub-group or 'General'
   note?: string;
   isManual?: boolean;
   source?: 'gpay' | 'manual' | 'other';
@@ -19,10 +19,12 @@ export interface ExpenseTransaction {
 export interface CategoryGroup {
   id: string;
   name: string;
-  icon: string;
+  icon?: string;
   color: string;
-  isFixed: boolean; // Committed Fixed vs Variable Lifestyle
+  isFixed?: boolean;
   subCategories: string[];
+  merchants?: string[]; // Merchants mapped to this group
+  subCategoryMerchants?: Record<string, string[]>; // Merchants mapped to specific sub-categories
 }
 
 export interface MerchantRule {
@@ -45,6 +47,7 @@ export interface SubCategoryBreakdown {
   txCount: number;
   percentageOfGroup: number;
   merchants: string[];
+  transactions: ExpenseTransaction[];
 }
 
 export interface CategoryBreakdown {
@@ -71,10 +74,6 @@ export interface MonthSummary {
   txCount: number;
   debitCount: number;
   creditCount: number;
-  committedFixed: number;
-  committedFixedPercent: number;
-  variableLifestyle: number;
-  variableLifestylePercent: number;
   topSettledOutflows: ExpenseTransaction[];
   bankAccounts: BankAccountBreakdown[];
   categoryBreakdown: CategoryBreakdown[];
@@ -82,6 +81,7 @@ export interface MonthSummary {
   dailyAverage: number;
   uncategorizedCount: number;
   uncategorizedTotal: number;
+  categorizedTotal: number;
   projection: {
     minOutflow: number;
     maxOutflow: number;

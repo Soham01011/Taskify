@@ -8,17 +8,11 @@ import {
 } from 'react-native';
 import {
   ArrowDownLeft,
-  ArrowUpRight,
-  Calendar,
-  Car,
+  ChevronLeft,
   CreditCard,
-  HeartPulse,
   HelpCircle,
   Search,
-  ShoppingBag,
-  SlidersHorizontal,
-  Utensils,
-  Wallet,
+  Tag,
   X,
 } from 'lucide-react-native';
 import { useAppTheme } from '@/hooks/use-theme';
@@ -35,22 +29,6 @@ interface Props {
   onFilterCategoryChange: (category: string) => void;
   onSelectTransaction: (tx: ExpenseTransaction) => void;
 }
-
-const getTxIcon = (category: string, type: 'debit' | 'credit', color: string) => {
-  const cat = (category || '').toLowerCase();
-  if (type === 'credit') return <ArrowDownLeft size={16} color="#2ECC71" />;
-  if (cat.includes('food')) return <Utensils size={15} color={color} />;
-  if (cat.includes('transport') || cat.includes('commute')) return <Car size={15} color={color} />;
-  if (cat.includes('fixed') || cat.includes('bill') || cat.includes('subscription'))
-    return <Calendar size={15} color={color} />;
-  if (cat.includes('shopping') || cat.includes('lifestyle'))
-    return <ShoppingBag size={15} color={color} />;
-  if (cat.includes('health') || cat.includes('medical'))
-    return <HeartPulse size={15} color={color} />;
-  if (cat.includes('transfer') || cat.includes('personal'))
-    return <Wallet size={15} color={color} />;
-  return <HelpCircle size={15} color={color} />;
-};
 
 export const TransactionList: React.FC<Props> = ({
   transactions,
@@ -77,6 +55,34 @@ export const TransactionList: React.FC<Props> = ({
         </Text>
       </View>
 
+      {/* Prominent Active Filter Banner with 1-tap "Back to All" */}
+      {filterCategory !== 'all' && (
+        <View
+          style={[
+            styles.activeFilterBanner,
+            {
+              backgroundColor: isDark ? '#261F18' : '#FFF7ED',
+              borderColor: '#FF7A0040',
+            },
+          ]}
+        >
+          <View style={styles.activeFilterLeft}>
+            <Tag size={15} color="#FF7A00" />
+            <Text style={[styles.activeFilterTitle, { color: colors.text }]} numberOfLines={1}>
+              Filtered by: <Text style={{ fontWeight: '700', color: '#FF7A00' }}>{filterCategory}</Text>
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.clearFilterBtn, { backgroundColor: colors.primary }]}
+            onPress={() => onFilterCategoryChange('all')}
+            activeOpacity={0.8}
+          >
+            <ChevronLeft size={14} color="#FFFFFF" />
+            <Text style={styles.clearFilterBtnText}>Back to All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Search Input Bar */}
       <View
         style={[
@@ -87,7 +93,7 @@ export const TransactionList: React.FC<Props> = ({
         <Search size={16} color={colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by merchant, note, or UPI ID..."
+          placeholder="Search merchant, category, or UPI ID..."
           placeholderTextColor={colors.placeholder || colors.textSecondary}
           value={searchQuery}
           onChangeText={onSearchChange}
@@ -134,7 +140,7 @@ export const TransactionList: React.FC<Props> = ({
           );
         })}
 
-        {/* Category reset pill if category is active */}
+        {/* Clear category chip if active */}
         {filterCategory !== 'all' && (
           <TouchableOpacity
             style={[styles.activeCategoryPill, { backgroundColor: colors.primary + '20' }]}
@@ -156,13 +162,23 @@ export const TransactionList: React.FC<Props> = ({
           <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
             Try clearing filters or search keywords
           </Text>
+          {filterCategory !== 'all' && (
+            <TouchableOpacity
+              style={[styles.clearFilterEmptyBtn, { backgroundColor: colors.primary }]}
+              onPress={() => onFilterCategoryChange('all')}
+            >
+              <Text style={styles.clearFilterEmptyText}>Reset Filter to All</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <View style={styles.itemsList}>
           {transactions.map((tx) => {
             const isDebit = tx.type === 'debit';
-            const catObj = categories.find((c) => c.name.toLowerCase() === tx.category.toLowerCase());
-            const catColor = catObj?.color || colors.primary;
+            const catObj = categories.find(
+              (c) => c.name.toLowerCase() === (tx.category || '').toLowerCase()
+            );
+            const catColor = catObj?.color || (tx.category === 'Uncategorized' ? '#FF7A00' : colors.primary);
 
             return (
               <TouchableOpacity
@@ -175,14 +191,18 @@ export const TransactionList: React.FC<Props> = ({
                 activeOpacity={0.7}
               >
                 <View style={styles.cardLeft}>
-                  {/* Category icon box */}
+                  {/* Category icon circle */}
                   <View
                     style={[
                       styles.iconCircle,
                       { backgroundColor: isDebit ? catColor + '18' : '#2ECC7118' },
                     ]}
                   >
-                    {getTxIcon(tx.category, tx.type, catColor)}
+                    {isDebit ? (
+                      <Tag size={15} color={catColor} />
+                    ) : (
+                      <ArrowDownLeft size={16} color="#2ECC71" />
+                    )}
                   </View>
 
                   {/* Merchant & details */}
@@ -196,12 +216,12 @@ export const TransactionList: React.FC<Props> = ({
                       </Text>
                     </View>
 
-                    {/* Category pill & Account badge */}
+                    {/* Category tag pill & Account badge */}
                     <View style={styles.tagsRow}>
                       <View style={[styles.tagBadge, { backgroundColor: isDark ? '#262A30' : '#F1F5F9' }]}>
                         <View style={[styles.tagDot, { backgroundColor: catColor }]} />
                         <Text style={[styles.tagText, { color: colors.text }]} numberOfLines={1}>
-                          {tx.category} › {tx.subCategory}
+                          {tx.category || 'Uncategorized'} › {tx.subCategory || 'General'}
                         </Text>
                       </View>
                       {tx.account && (
@@ -261,6 +281,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  activeFilterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  activeFilterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  activeFilterTitle: {
+    fontSize: 12,
+  },
+  clearFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  clearFilterBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -318,6 +368,17 @@ const styles = StyleSheet.create({
   },
   emptySub: {
     fontSize: 12,
+  },
+  clearFilterEmptyBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  clearFilterEmptyText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   itemsList: {
     gap: 8,
