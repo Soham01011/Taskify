@@ -13,7 +13,6 @@ import {
   EyeOff,
   FileText,
   Lock,
-  Sparkles,
   Upload,
   X
 } from 'lucide-react-native';
@@ -30,7 +29,6 @@ import {
 } from 'react-native';
 import { ExpenseTransaction, MerchantRule } from '../../types/expense';
 import { parseGPayStatementText, ParseResult } from '../../utils/expenseParser';
-import { SAMPLE_GPAY_TRANSACTIONS } from '../../utils/sampleExpenseData';
 
 interface Props {
   visible: boolean;
@@ -104,19 +102,7 @@ export const UploadStatementModal: React.FC<Props> = ({
 
     try {
       const nativeAvailable = isPdfExtractAvailable();
-      if (!nativeAvailable) {
-        // Fallback for environment without native build: offer pre-parsed sample statement
-        setStep('idle');
-        Alert.alert(
-          'Native PDF Module in Dev Build',
-          'Native PDF extraction runs on Android/iOS build. To test right now, you can load the sample GPay statement (Sep 2026) directly!',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Load GPay Sample', onPress: handleLoadSampleStatement },
-          ]
-        );
-        return;
-      }
+
 
       // Check if password protected
       if (!customPassword) {
@@ -175,30 +161,7 @@ export const UploadStatementModal: React.FC<Props> = ({
   };
 
   // 4. One-Tap Demo Load of Sample GPay statement (from gpay.pdf)
-  const handleLoadSampleStatement = () => {
-    // Check duplicates against existing transactions
-    const existingIds = new Set(existingTransactions.map((t) => t.id));
-    const duplicates = SAMPLE_GPAY_TRANSACTIONS.filter((t) => existingIds.has(t.id));
-    const newItems = SAMPLE_GPAY_TRANSACTIONS.filter((t) => !existingIds.has(t.id));
-
-    setParseResult({
-      transactions: SAMPLE_GPAY_TRANSACTIONS,
-      newTransactions: newItems,
-      duplicateCount: duplicates.length,
-      totalParsedCount: SAMPLE_GPAY_TRANSACTIONS.length,
-      statementPeriod: {
-        raw: '01 September 2026 - 30 September 2026',
-        startDate: '2026-09-01',
-        endDate: '2026-09-30',
-      },
-      summaryFromHeader: {
-        totalSent: 7425.3,
-        totalReceived: 457.0,
-      },
-    });
-    setSelectedFileName('gpay_statement_september_2026.pdf');
-    setStep('preview');
-  };
+  // Removed the sample data 
 
   // 5. Confirm and Save
   const handleConfirmSave = () => {
@@ -250,26 +213,6 @@ export const UploadStatementModal: React.FC<Props> = ({
                 </Text>
               </TouchableOpacity>
 
-              {/* Quick Sample Loader Button */}
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
-                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.sampleBtn,
-                  { backgroundColor: isDark ? '#262A30' : '#F1F5F9', borderColor: colors.border },
-                ]}
-                onPress={handleLoadSampleStatement}
-                activeOpacity={0.7}
-              >
-                <Sparkles size={16} color={colors.primary} />
-                <Text style={[styles.sampleBtnText, { color: colors.text }]}>
-                  Load Sample GPay Statement (Sep 2026)
-                </Text>
-              </TouchableOpacity>
             </View>
           )}
 
