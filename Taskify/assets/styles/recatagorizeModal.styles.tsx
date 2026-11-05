@@ -1,0 +1,211 @@
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.65)',
+        justifyContent: 'flex-end',
+    },
+    modalCard: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderWidth: 1,
+        padding: 20,
+        maxHeight: '90%',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    headerTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    iconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+    },
+    scrollContent: {
+        paddingVertical: 4,
+    },
+    detailsBox: {
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 14,
+        gap: 6,
+    },
+    detailTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    merchantName: {
+        fontSize: 14,
+        fontWeight: '700',
+        flex: 1,
+        marginRight: 8,
+    },
+    amountText: {
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    detailMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap',
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    metaText: {
+        fontSize: 11,
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    sectionHeading: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    createGroupLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    createGroupLinkText: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    groupChipsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    groupChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 6,
+    },
+    groupChipText: {
+        fontSize: 12,
+    },
+    subChipsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    subChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 999,
+        borderWidth: 1,
+    },
+    subChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    addSubChipBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        borderRadius: 999,
+        borderWidth: 1,
+    },
+    addSubChipText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    customSubRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    customSubInput: {
+        height: 34,
+        borderRadius: 8,
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        fontSize: 12,
+    },
+    customSubSaveBtn: {
+        width: 34,
+        height: 34,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    switchCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    switchTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    switchSub: {
+        fontSize: 11,
+        marginTop: 2,
+        lineHeight: 15,
+    },
+    footerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingTop: 10,
+    },
+    deleteBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#E74C3C15',
+    },
+    saveBtn: {
+        flex: 1,
+        height: 48,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    saveBtnText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+});
