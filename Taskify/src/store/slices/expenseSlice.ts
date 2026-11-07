@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { CategoryGroup, ExpenseTransaction, MerchantRule } from '../../types/expense';
-import { SAMPLE_GPAY_TRANSACTIONS } from '../../utils/sampleExpenseData';
 
 export interface ExpenseState {
   transactions: ExpenseTransaction[];
@@ -13,7 +12,7 @@ export interface ExpenseState {
 }
 
 const initialState: ExpenseState = {
-  transactions: SAMPLE_GPAY_TRANSACTIONS, // Sample transactions start in Uncategorized so user builds their own structure
+  transactions: [], // Empty on fresh install — data comes from user uploads
   categories: [], // Starts empty! User creates and manages their own custom groups
   merchantRules: [],
   selectedMonth: 'latest',
@@ -379,7 +378,7 @@ export const expenseSlice = createSlice({
     },
 
     resetToDefaultSample: (state) => {
-      state.transactions = SAMPLE_GPAY_TRANSACTIONS;
+      state.transactions = [];
       state.categories = [];
       state.merchantRules = [];
       state.selectedMonth = 'latest';

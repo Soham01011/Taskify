@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
@@ -126,6 +126,7 @@ export function useCreateTask(onSuccess: () => void) {
     const { currentUserId, users } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
     const { groups } = useSelector((state: RootState) => state.groups);
+    const isSubmittingRef = useRef(false);
 
     const toggleAlarmType = useCallback(async () => {
         if (state.alarmType === 'push') {
@@ -147,14 +148,24 @@ export function useCreateTask(onSuccess: () => void) {
     }, [state.alarmType]);
 
     const handleCreate = useCallback(async () => {
+        // Immediate synchronous entry guard against rapid double-clicks
+        if (isSubmittingRef.current || state.loading) {
+            return;
+        }
+
         if (!state.title.trim()) {
             localDispatch({ type: 'SET_FIELD', field: 'error', value: 'Task title is required' });
             return;
         }
 
+        // Lock submission immediately
+        isSubmittingRef.current = true;
+        localDispatch({ type: 'SUBMIT_START' });
+
         if (state.frequency === 'schedule') {
             if (!state.startDate || !state.endDate) {
                 localDispatch({ type: 'SET_FIELD', field: 'error', value: 'startDate and endDate are required for schedule recurrence' });
+                isSubmittingRef.current = false;
                 return;
             }
 
@@ -164,11 +175,13 @@ export function useCreateTask(onSuccess: () => void) {
 
             if (endMid < startMid) {
                 localDispatch({ type: 'SET_FIELD', field: 'error', value: 'endDate cannot be before startDate' });
+                isSubmittingRef.current = false;
                 return;
             }
 
             if (startMid < todayMid) {
                 localDispatch({ type: 'SET_FIELD', field: 'error', value: 'startDate cannot be in the past' });
+                isSubmittingRef.current = false;
                 return;
             }
         }
@@ -231,7 +244,6 @@ export function useCreateTask(onSuccess: () => void) {
         // Build timeSlots payload: [{ hours, minutes }]
         const timeSlotsPayload = [{ hours: state.timeSlotHours, minutes: state.timeSlotMinutes }];
 
-        localDispatch({ type: 'SUBMIT_START' });
         try {
             if (state.selectedGroupId) {
                 const activeGroup = groups.find(g => g._id === state.selectedGroupId);
@@ -302,6 +314,8 @@ export function useCreateTask(onSuccess: () => void) {
         } catch (err: any) {
             const errorMsg = err?.response?.data?.error || err?.response?.data?.message || 'Failed to create task';
             localDispatch({ type: 'SUBMIT_ERROR', error: errorMsg });
+        } finally {
+            isSubmittingRef.current = false;
         }
     }, [state, dispatch, currentUserId, currentUser, groups, onSuccess]);
 

@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Check, ChevronRight, History, AlertTriangle, CheckSquare, Square, Trash2 } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     withSpring,
     useDerivedValue,
     interpolate,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withTiming,
 } from 'react-native-reanimated';
 import { Task, taskApi } from '../../api/tasks';
 import { SPACING } from '../../constants/theme';
@@ -19,16 +23,40 @@ interface TaskCardProps {
     task: Task;
     onPress: (task: Task) => void;
     onComplete: (id: string) => void;
+    isCompleting?: boolean;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete, isCompleting = false }) => {
     const { colors } = useAppTheme();
     const styles = getStyles(colors);
     const dispatch = useDispatch<AppDispatch>();
     const [isExpanded, setIsExpanded] = useState(false);
     const isOverdue = new Date(task.dueDate) < new Date() && !task.completed;
 
+    // Pulsing skeletal loading animation while completing in background
+    const pulseAnim = useSharedValue(1);
+
+    useEffect(() => {
+        if (isCompleting) {
+            pulseAnim.value = withRepeat(
+                withSequence(
+                    withTiming(0.45, { duration: 600 }),
+                    withTiming(0.9, { duration: 600 })
+                ),
+                -1,
+                true
+            );
+        } else {
+            pulseAnim.value = withTiming(1, { duration: 250 });
+        }
+    }, [isCompleting, pulseAnim]);
+
+    const cardAnimatedStyle = useAnimatedStyle(() => ({
+        opacity: pulseAnim.value,
+    }));
+
     const toggleExpand = () => {
+        if (isCompleting) return;
         setIsExpanded(!isExpanded);
         onPress(task);
     };
@@ -126,23 +154,31 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
     };
 
     return (
-        <View style={styles.cardContainer}>
+        <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
             <TouchableOpacity
                 style={[
                     styles.card,
-                    isExpanded && styles.expandedCard
+                    isExpanded && styles.expandedCard,
+                    isCompleting && { borderColor: colors.primary + '60' }
                 ]}
                 onPress={toggleExpand}
-                onLongPress={handleDeleteTask}
+                onLongPress={isCompleting ? undefined : handleDeleteTask}
                 activeOpacity={0.9}
+                disabled={isCompleting}
             >
                 <View style={styles.content}>
                     <View style={styles.header}>
                         <TouchableOpacity
                             style={styles.actionBtn}
                             onPress={() => onComplete(task._id)}
+                            disabled={isCompleting || task.completed}
+                            activeOpacity={0.7}
                         >
-                            {task.completed ? (
+                            {isCompleting ? (
+                                <View style={[styles.checkbox, { borderColor: colors.primary, backgroundColor: colors.primary + '18' }]}>
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                </View>
+                            ) : task.completed ? (
                                 <View style={[styles.checkbox, styles.checkboxChecked]}>
                                     <Check size={14} color={colors.white || '#FFF'} strokeWidth={3} />
                                 </View>
@@ -154,15 +190,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                         <View style={styles.titleContainer}>
                             <Text style={[
                                 styles.title,
-                                task.completed && styles.completedTextStrike
+                                (task.completed || isCompleting) && styles.completedTextStrike
                             ]} numberOfLines={1}>
                                 {task.title}
                             </Text>
                             <Text style={[
                                 styles.subtitleText,
-                                isOverdue ? styles.overdueText : null
+                                isCompleting ? { color: colors.primary, fontWeight: '600' } : isOverdue ? styles.overdueText : null
                             ]}>
-                                {task.completed ? `Done at ${new Date(task.updated_at || task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 
+                                {isCompleting ? 'Completing task...' :
+                                 task.completed ? `Done at ${new Date(task.updated_at || task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 
                                  isOverdue ? `High Priority • Overdue` :
                                  `Due at ${new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • ${task.groupName || 'Personal'}`}
                             </Text>
@@ -187,12 +224,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                                         <TouchableOpacity
                                             style={styles.deleteSubtaskBtn}
                                             onPress={() => handleDeleteSubtask(subtask._id!)}
+                                            disabled={isCompleting}
                                         >
                                             <Trash2 size={16} color={colors.danger} opacity={0.6} />
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={styles.subtaskMain}
                                             onPress={() => handleSubtaskToggle(subtask._id!, subtask.completed)}
+                                            disabled={isCompleting}
                                         >
                                             {subtask.completed ? (
                                                 <CheckSquare size={18} color={colors.secondary} />
@@ -213,6 +252,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete })
                     </Animated.View>
                 </View>
             </TouchableOpacity>
-        </View>
+        </Animated.View>
     );
 };

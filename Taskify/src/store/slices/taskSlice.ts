@@ -11,6 +11,7 @@ interface TaskState {
     pagination: PaginatedTasksResponse['pagination'] | null;
     isLoading: boolean;
     error: string | null;
+    completingTaskIds: string[];
 }
 
 const initialState: TaskState = {
@@ -18,6 +19,7 @@ const initialState: TaskState = {
     pagination: null,
     isLoading: false,
     error: null,
+    completingTaskIds: [],
 };
 
 export const fetchTasks = createAsyncThunk(
@@ -25,6 +27,18 @@ export const fetchTasks = createAsyncThunk(
     async (params?: FetchTasksParams) => {
         const response = await taskApi.getAll(params);
         return { data: response.data, params };
+    }
+);
+
+export const completeTask = createAsyncThunk(
+    'tasks/complete',
+    async (id: string, { rejectWithValue }) => {
+        try {
+            const response = await taskApi.complete(id);
+            return response.data;
+        } catch (err: any) {
+            return rejectWithValue(err?.response?.data?.message || err?.message || 'Failed to complete task');
+        }
     }
 );
 
@@ -94,16 +108,38 @@ const taskSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.error.message || 'Failed to fetch tasks';
             })
+            // Complete task with non-blocking per-task loading tracking
+            .addCase(completeTask.pending, (state, action) => {
+                const id = action.meta.arg;
+                if (!state.completingTaskIds.includes(id)) {
+                    state.completingTaskIds.push(id);
+                }
+            })
+            .addCase(completeTask.fulfilled, (state, action) => {
+                const id = action.meta.arg;
+                state.completingTaskIds = state.completingTaskIds.filter(taskId => taskId !== id);
+                const index = state.tasks.findIndex(t => t._id === action.payload._id);
+                if (index !== -1) {
+                    state.tasks[index] = action.payload;
+                }
+            })
+            .addCase(completeTask.rejected, (state, action) => {
+                const id = action.meta.arg;
+                state.completingTaskIds = state.completingTaskIds.filter(taskId => taskId !== id);
+                state.error = (action.payload as string) || 'Failed to complete task';
+            })
             // Listen to auth actions for automatic cleanup
             .addCase(logout, (state) => {
                 state.tasks = [];
                 state.pagination = null;
                 state.error = null;
+                state.completingTaskIds = [];
             })
             .addCase(removeAccount, (state) => {
                 state.tasks = [];
                 state.pagination = null;
                 state.error = null;
+                state.completingTaskIds = [];
             });
     },
 });

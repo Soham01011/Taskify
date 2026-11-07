@@ -219,7 +219,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
     },
     // Thread modal styles
     threadModalOverlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         backgroundColor: colors.overlay,
         zIndex: 200,
     },

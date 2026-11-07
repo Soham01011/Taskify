@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CalendarScreen() {
     const { colors } = useAppTheme();
-    const { tasks, handleComplete } = useTasks();
+    const { tasks, handleComplete, completingTaskIds = [] } = useTasks();
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     const selectedTasks = useMemo(() => {
@@ -89,6 +89,7 @@ export default function CalendarScreen() {
                         task={item}
                         onPress={() => { }}
                         onComplete={handleComplete}
+                        isCompleting={completingTaskIds.includes(item._id)}
                     />
                 )}
                 ListEmptyComponent={

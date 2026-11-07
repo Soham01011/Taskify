@@ -10,6 +10,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from 'react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSelector } from 'react-redux';
@@ -169,8 +170,9 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
 
                     <View style={styles.buttonGroup}>
                         <TouchableOpacity
-                            style={styles.cancelButton}
+                            style={[styles.cancelButton, state.loading && { opacity: 0.5 }]}
                             onPress={onCancel || onSuccess}
+                            disabled={state.loading}
                         >
                             <Text style={styles.cancelButtonText}>Cancel</Text>
                         </TouchableOpacity>
@@ -181,8 +183,13 @@ export const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onSuccess, onCan
                             ]}
                             onPress={handleCreate}
                             disabled={!state.title.trim() || state.loading}
+                            activeOpacity={0.7}
                         >
-                            <Text style={styles.addButtonText}>Add task</Text>
+                            {state.loading ? (
+                                <ActivityIndicator size="small" color={colors.white || '#FFF'} />
+                            ) : (
+                                <Text style={styles.addButtonText}>Add task</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>

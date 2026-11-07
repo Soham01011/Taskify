@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useRef, useEffect, useReducer } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/src/store';
-import { fetchTasks, updateTask, selectUnifiedTasks } from '@/src/store/slices/taskSlice';
+import { fetchTasks, updateTask, completeTask, selectUnifiedTasks } from '@/src/store/slices/taskSlice';
 import { taskApi, FetchTasksParams } from '@/src/api/tasks';
 import { Group } from '@/src/api/groups';
 
@@ -44,7 +44,7 @@ function dashboardReducer(state: DashboardState, action: DashboardAction): Dashb
 
 export function useTasks() {
     const dispatch = useDispatch<AppDispatch>();
-    const { isLoading, pagination } = useSelector((state: RootState) => state.tasks);
+    const { isLoading, pagination, completingTaskIds = [] } = useSelector((state: RootState) => state.tasks);
     const tasks = useSelector(selectUnifiedTasks);
     const { currentUserId } = useSelector((state: RootState) => state.auth);
     const groups = useSelector((state: RootState) => state.groups.groups);
@@ -53,6 +53,7 @@ export function useTasks() {
     const [state, dashboardDispatch] = useReducer(dashboardReducer, initialState);
     const { refreshing, isCreating, filter, sortOrder, lastParams } = state;
     const hasAttemptedInitialSync = useRef(false);
+    const completingRef = useRef<Set<string>>(new Set());
 
     const pendingGroupTasks = useMemo(() => {
         return groups.flatMap((group: Group) =>
@@ -142,11 +143,18 @@ export function useTasks() {
     };
 
     const handleComplete = useCallback(async (id: string) => {
+        // Entry guard: Ignore duplicate taps immediately before async processing
+        if (completingRef.current.has(id)) {
+            return;
+        }
+        completingRef.current.add(id);
+
         try {
-            const response = await taskApi.complete(id);
-            dispatch(updateTask(response.data));
+            await dispatch(completeTask(id)).unwrap();
         } catch (err) {
             console.error('Failed to complete task', err);
+        } finally {
+            completingRef.current.delete(id);
         }
     }, [dispatch]);
 
@@ -160,6 +168,7 @@ export function useTasks() {
         pendingGroupTasks,
         ideas,
         groups,
+        completingTaskIds,
         setIsCreating: (val: boolean) => dashboardDispatch({ type: 'SET_IS_CREATING', payload: val }),
         setFilter: (val: TaskFilter) => dashboardDispatch({ type: 'SET_FILTER', payload: val }),
         toggleSort: () => dashboardDispatch({ type: 'SET_SORT_ORDER', payload: sortOrder === 'asc' ? 'desc' : 'asc' }),

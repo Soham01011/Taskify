@@ -40,6 +40,7 @@ export default function TaskDashboard() {
         tasks,
         refreshing,
         isCreating,
+        completingTaskIds = [],
         setIsCreating,
         onRefresh,
         handleComplete,
@@ -139,7 +140,12 @@ export default function TaskDashboard() {
                     sections={displaySections}
                     renderItem={({ item }) => (
                         <View style={{ paddingHorizontal: SPACING.lg }}>
-                            <TaskCard task={item} onPress={() => { }} onComplete={handleComplete} />
+                            <TaskCard
+                                task={item}
+                                onPress={() => { }}
+                                onComplete={handleComplete}
+                                isCompleting={completingTaskIds.includes(item._id)}
+                            />
                         </View>
                     )}
                     renderSectionHeader={({ section: { title, data } }) => (
