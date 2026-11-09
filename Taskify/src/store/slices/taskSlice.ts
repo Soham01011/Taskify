@@ -108,25 +108,35 @@ const taskSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.error.message || 'Failed to fetch tasks';
             })
+            // Handle Redux Persist rehydration to ensure runtime transient fields are properly initialized
+            .addCase('persist/REHYDRATE', (state) => {
+                state.completingTaskIds = [];
+                state.isLoading = false;
+            })
             // Complete task with non-blocking per-task loading tracking
             .addCase(completeTask.pending, (state, action) => {
                 const id = action.meta.arg;
+                if (!state.completingTaskIds) {
+                    state.completingTaskIds = [];
+                }
                 if (!state.completingTaskIds.includes(id)) {
                     state.completingTaskIds.push(id);
                 }
             })
             .addCase(completeTask.fulfilled, (state, action) => {
                 const id = action.meta.arg;
-                state.completingTaskIds = state.completingTaskIds.filter(taskId => taskId !== id);
-                const index = state.tasks.findIndex(t => t._id === action.payload._id);
-                if (index !== -1) {
-                    state.tasks[index] = action.payload;
+                state.completingTaskIds = (state.completingTaskIds || []).filter(taskId => taskId !== id);
+                if (action.payload?._id) {
+                    const index = state.tasks.findIndex(t => t._id === action.payload._id);
+                    if (index !== -1) {
+                        state.tasks[index] = action.payload;
+                    }
                 }
             })
             .addCase(completeTask.rejected, (state, action) => {
                 const id = action.meta.arg;
-                state.completingTaskIds = state.completingTaskIds.filter(taskId => taskId !== id);
-                state.error = (action.payload as string) || 'Failed to complete task';
+                state.completingTaskIds = (state.completingTaskIds || []).filter(taskId => taskId !== id);
+                state.error = (action.payload as string) || action.error?.message || 'Failed to complete task';
             })
             // Listen to auth actions for automatic cleanup
             .addCase(logout, (state) => {
