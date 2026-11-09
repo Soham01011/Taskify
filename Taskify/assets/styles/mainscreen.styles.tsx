@@ -137,6 +137,7 @@ export const getStyles = (colors: any) => StyleSheet.create({
         marginTop: 12,
         opacity: 0.7,
     },
+    // keep the same shadow effect but use the pirmary color instead of rgba(239, 0, 0, 0.4)
     fab: {
         position: 'absolute',
         bottom: 30,
@@ -147,7 +148,14 @@ export const getStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        boxShadow: '0 8px 15px rgba(0, 174, 239, 0.4)',
+        boxShadow: [
+            {
+                offsetX: 0,
+                offsetY: 8,
+                blurRadius: 15,
+                color: colors.primary,
+            },
+        ],
     },
     fabTouch: {
         width: '100%',
