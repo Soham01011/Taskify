@@ -33,7 +33,7 @@ export default function AboutScreen() {
                         <CheckCircle size={40} color={colors.primary} strokeWidth={3} />
                     </View>
                     <Text style={[styles.appName, { color: colors.text }]}>Taskify</Text>
-                    <Text style={[styles.version, { color: colors.textSecondary }]}>Version 0.0.7</Text>
+                    <Text style={[styles.version, { color: colors.textSecondary }]}>Version 0.0.8</Text>
                 </View>
 
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
