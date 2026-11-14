@@ -4,7 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from "expo-updates";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AlertTriangle, Bell, Calendar as CalendarIcon, CheckCircle2, ChevronRight, Copy, Info, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
+import { AlertTriangle, Bell, Calendar as CalendarIcon, CheckCircle2, ChevronRight, Copy, Info, Palette, RefreshCw, Settings, Shield, User, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -14,8 +14,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStyles } from '@/assets/styles/profilescreen.styles';
 import { useAppTheme } from '@/hooks/use-theme';
 import { Button } from '@/src/components/ui/Button';
+import { ColorPickerModal } from '@/src/components/ColorPickerModal';
 import { RootState } from '@/src/store';
-import { logout, switchUser, updateUserPreferences } from '@/src/store/slices/authSlice';
+import { logout, switchUser, updateUserPreferences, updateGlobalPreferences } from '@/src/store/slices/authSlice';
 import { CalendarService } from '@/src/utils/calendarService';
 
 const MenuItem = ({
@@ -95,14 +96,36 @@ const MenuSwitch = ({
 export default function ProfileScreen() {
     const router = useRouter();
     const dispatch = useDispatch();
-    const { colors, isDark } = useAppTheme();
+    const { colors, isDark, customPrimaryColor } = useAppTheme();
     const styles = getStyles(colors);
     const { users, currentUserId } = useSelector((state: RootState) => state.auth);
     const currentUser = users.find(u => u.id === currentUserId);
     const tasks = useSelector((state: RootState) => state.tasks.tasks);
     const groups = useSelector((state: RootState) => state.groups.groups);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [showColorPicker, setShowColorPicker] = useState(false);
     const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+
+    const handleSelectAccentColor = (newHex: string) => {
+        if (currentUserId) {
+            dispatch(updateUserPreferences({
+                userId: currentUserId,
+                preferences: { primaryColor: newHex }
+            }));
+        }
+        dispatch(updateGlobalPreferences({ primaryColor: newHex }));
+    };
+
+    const handleResetAccentColor = () => {
+        const defaultColor = '#00AEEF';
+        if (currentUserId) {
+            dispatch(updateUserPreferences({
+                userId: currentUserId,
+                preferences: { primaryColor: defaultColor }
+            }));
+        }
+        dispatch(updateGlobalPreferences({ primaryColor: defaultColor }));
+    };
 
     const handleToggleCalendarSync = async (val: boolean) => {
         if (!currentUserId) return;
@@ -279,6 +302,29 @@ export default function ProfileScreen() {
                             colors={colors}
                             styles={styles}
                         />
+                        <MenuItem
+                            icon={<Palette size={20} color={colors.primary} />}
+                            title="Accent Color"
+                            subtitle={`Theme: ${customPrimaryColor || colors.primary}`}
+                            rightIcon={
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <View
+                                        style={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: 11,
+                                            backgroundColor: customPrimaryColor || colors.primary,
+                                            borderWidth: 2,
+                                            borderColor: colors.card,
+                                        }}
+                                    />
+                                    <ChevronRight size={18} color={colors.textSecondary} />
+                                </View>
+                            }
+                            onPress={() => setShowColorPicker(true)}
+                            colors={colors}
+                            styles={styles}
+                        />
                         <MenuSwitch
                             icon={<Bell size={20} color="#6366f1" />}
                             title="Push Notifications"
@@ -420,6 +466,15 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
             )}
+
+            {/* Accent Color Picker Modal */}
+            <ColorPickerModal
+                visible={showColorPicker}
+                initialColor={customPrimaryColor || colors.primary}
+                onClose={() => setShowColorPicker(false)}
+                onSelectColor={handleSelectAccentColor}
+                onResetColor={handleResetAccentColor}
+            />
         </SafeAreaView>
     );
 }

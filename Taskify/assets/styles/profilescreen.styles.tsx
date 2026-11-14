@@ -141,10 +141,8 @@ export const getStyles = (colors: any) => StyleSheet.create({
         marginBottom: SPACING.md,
     },
     modalOverlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         backgroundColor: colors.overlay,
-        justifyContent: 'center',
-        alignItems: 'center',
         zIndex: 1000,
     },
     modalContainer: {

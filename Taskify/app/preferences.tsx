@@ -8,7 +8,7 @@ import { OSColorPicker } from '@/src/components/OSColorPicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { RootState } from '@/src/store';
-import { updateUserPreferences } from '@/src/store/slices/authSlice';
+import { updateUserPreferences, updateGlobalPreferences } from '@/src/store/slices/authSlice';
 import { useAppTheme } from '@/hooks/use-theme';
 import { PALETTE } from '@/src/constants/theme';
 import { styles } from '@/assets/styles/PreferanceScreen.styles';
@@ -69,6 +69,7 @@ export default function PreferencesScreen() {
                 preferences: { primaryColor: newColor }
             }));
         }
+        dispatch(updateGlobalPreferences({ primaryColor: newColor }));
     }, [currentUserId, dispatch]);
 
     const resetColor = React.useCallback(() => {
@@ -80,6 +81,7 @@ export default function PreferencesScreen() {
                 preferences: { primaryColor: defaultColor }
             }));
         }
+        dispatch(updateGlobalPreferences({ primaryColor: defaultColor }));
     }, [isDark, currentUserId, dispatch]);
 
 

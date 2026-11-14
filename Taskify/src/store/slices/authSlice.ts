@@ -108,6 +108,9 @@ const authSlice = createSlice({
             if (user) {
                 user.preferences = { ...user.preferences, ...action.payload.preferences };
             }
+            if (action.payload.preferences) {
+                state.globalPreferences = { ...state.globalPreferences, ...action.payload.preferences };
+            }
         },
         updateGlobalPreferences: (state, action: PayloadAction<Partial<UserPreferences>>) => {
             state.globalPreferences = { ...state.globalPreferences, ...action.payload };

@@ -92,12 +92,109 @@ export function useSecureNotes() {
         }
     };
 
+    const getAllNotesWithContent = async (): Promise<Array<NoteMeta & { body: string | null }>> => {
+        try {
+            const data = await AsyncStorage.getItem(STORAGE_KEY);
+            if (!data) return [];
+            const metaList: NoteMeta[] = JSON.parse(data);
+            const fullNotes: Array<NoteMeta & { body: string | null }> = [];
+
+            for (const meta of metaList) {
+                let body: string | null = null;
+                try {
+                    if (meta.isSecure) {
+                        body = await SecureStore.getItemAsync(meta.id, {
+                            requireAuthentication: true,
+                        });
+                    } else {
+                        body = await SecureStore.getItemAsync(meta.id);
+                    }
+                } catch (e) {
+                    console.warn(`Could not read body for note ${meta.id}:`, e);
+                }
+                fullNotes.push({
+                    ...meta,
+                    body: body ?? '',
+                });
+            }
+            return fullNotes;
+        } catch (error) {
+            console.error('Failed to get all notes with content:', error);
+            return [];
+        }
+    };
+
+    const restoreNotes = async (
+        importedNotes: Array<{ id?: string; title: string; isSecure: boolean; createdAt?: number; body?: string | null }>,
+        mode: 'merge' | 'replace' = 'merge'
+    ): Promise<number> => {
+        try {
+            let existing: NoteMeta[] = [];
+            if (mode === 'merge') {
+                const data = await AsyncStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    existing = JSON.parse(data);
+                }
+            } else {
+                // If replace, remove old secure storage items
+                const oldData = await AsyncStorage.getItem(STORAGE_KEY);
+                if (oldData) {
+                    const oldNotes: NoteMeta[] = JSON.parse(oldData);
+                    for (const oldNote of oldNotes) {
+                        try {
+                            await SecureStore.deleteItemAsync(oldNote.id);
+                        } catch {
+                            // ignore cleanup error
+                        }
+                    }
+                }
+            }
+
+            const existingMap = new Map<string, NoteMeta>(existing.map((n) => [n.id, n]));
+            let importedCount = 0;
+
+            for (const item of importedNotes) {
+                const noteId = item.id || `note_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                const body = item.body ?? '';
+
+                if (item.isSecure) {
+                    await SecureStore.setItemAsync(noteId, body, {
+                        requireAuthentication: true,
+                        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+                    });
+                } else {
+                    await SecureStore.setItemAsync(noteId, body);
+                }
+
+                existingMap.set(noteId, {
+                    id: noteId,
+                    title: item.title || 'Untitled Note',
+                    isSecure: !!item.isSecure,
+                    createdAt: item.createdAt || Date.now(),
+                });
+                importedCount++;
+            }
+
+            const updatedNotes = Array.from(existingMap.values()).sort(
+                (a, b) => b.createdAt - a.createdAt
+            );
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedNotes));
+            setNotes(updatedNotes);
+            return importedCount;
+        } catch (error) {
+            console.error('Failed to restore notes:', error);
+            throw error;
+        }
+    };
+
     return {
         notes,
         loading,
         saveNote,
         readNoteBody,
         deleteNote,
+        getAllNotesWithContent,
+        restoreNotes,
         reloadNotes: loadNotes
     };
 }

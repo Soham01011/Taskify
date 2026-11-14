@@ -384,6 +384,72 @@ export const expenseSlice = createSlice({
       state.selectedMonth = 'latest';
       state.filterCategory = 'all';
     },
+
+    restoreExpenseData: (
+      state,
+      action: PayloadAction<{
+        transactions?: ExpenseTransaction[];
+        categories?: CategoryGroup[];
+        merchantRules?: MerchantRule[];
+        mode?: 'merge' | 'replace';
+      }>
+    ) => {
+      const {
+        transactions = [],
+        categories = [],
+        merchantRules = [],
+        mode = 'merge',
+      } = action.payload;
+
+      if (mode === 'replace') {
+        state.transactions = [...transactions].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        state.categories = categories;
+        state.merchantRules = merchantRules;
+      } else {
+        // Merge category groups (add if name doesn't exist)
+        const existingCatNames = new Set(state.categories.map((c) => c.name.toLowerCase()));
+        for (const cat of categories) {
+          if (!existingCatNames.has(cat.name.toLowerCase())) {
+            state.categories.push(cat);
+            existingCatNames.add(cat.name.toLowerCase());
+          }
+        }
+
+        // Merge merchant rules
+        const existingKeywords = new Set(
+          state.merchantRules.map((r) => r.merchantKeyword.toLowerCase())
+        );
+        for (const rule of merchantRules) {
+          if (!existingKeywords.has(rule.merchantKeyword.toLowerCase())) {
+            state.merchantRules.push(rule);
+            existingKeywords.add(rule.merchantKeyword.toLowerCase());
+          }
+        }
+
+        // Merge transactions with deduplication
+        const existingIds = new Set(state.transactions.map((t) => t.id));
+        const existingRefIds = new Set(
+          state.transactions.filter((t) => t.refId).map((t) => t.refId)
+        );
+
+        const toAdd: ExpenseTransaction[] = [];
+        for (const tx of transactions) {
+          const isDuplicate =
+            existingIds.has(tx.id) || (tx.refId && existingRefIds.has(tx.refId));
+          if (!isDuplicate) {
+            toAdd.push(tx);
+            existingIds.add(tx.id);
+            if (tx.refId) existingRefIds.add(tx.refId);
+          }
+        }
+
+        state.transactions = [...toAdd, ...state.transactions].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+      }
+    },
   },
 });
 
@@ -402,6 +468,7 @@ export const {
   setFilterType,
   setFilterCategory,
   resetToDefaultSample,
+  restoreExpenseData,
 } = expenseSlice.actions;
 
 export default expenseSlice.reducer;

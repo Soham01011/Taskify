@@ -20,12 +20,17 @@ export const MatrixText: React.FC<MatrixTextProps> = ({
   const revealTimesRef = useRef<number[]>([]);
 
   useEffect(() => {
-    // Initialize reveal times
-    revealTimesRef.current = text.split('').map(() => Math.random() * 0.7);
+    if (!text) {
+      setDisplayText('');
+      return;
+    }
 
+    let isMounted = true;
+    revealTimesRef.current = text.split('').map(() => Math.random() * 0.7);
     const startTime = Date.now();
 
     const animate = () => {
+      if (!isMounted) return;
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
@@ -33,18 +38,20 @@ export const MatrixText: React.FC<MatrixTextProps> = ({
         if (char === ' ') return ' ';
 
         // Use a small buffer to ensure the scramble happens before reveal
-        if (progress > revealTimesRef.current[i] + 0.15) {
+        if (progress > (revealTimesRef.current[i] ?? 0) + 0.15) {
           return char;
         }
 
         return CHARS[Math.floor(Math.random() * CHARS.length)];
       }).join('');
 
-      setDisplayText(result);
+      if (isMounted) {
+        setDisplayText(result);
+      }
 
       if (progress < 1) {
         frameRef.current = requestAnimationFrame(animate);
-      } else {
+      } else if (isMounted) {
         setDisplayText(text);
       }
     };
@@ -52,6 +59,7 @@ export const MatrixText: React.FC<MatrixTextProps> = ({
     frameRef.current = requestAnimationFrame(animate);
 
     return () => {
+      isMounted = false;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
   }, [text, duration]);

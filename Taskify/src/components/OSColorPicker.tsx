@@ -1,273 +1,196 @@
-import React, { useEffect, useReducer } from 'react';
-import { View, Text, Platform, StyleSheet } from 'react-native';
-import Slider from '@react-native-community/slider';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Check } from 'lucide-react-native';
+
+import { useAppTheme } from '@/hooks/use-theme';
+import { SPACING, RADIUS, SHADOWS } from '@/src/constants/theme';
+import { ColorPicker } from '@/src/components/HoloColorPicker';
+import {
+    RGBColor,
+    HSVColor,
+    hsvToRgb,
+    hsvToHex,
+    hexToHsv,
+    hexToRgb,
+    parseColorToAllFormats,
+} from '@/src/utils/colors';
 
 interface OSColorPickerProps {
     color: string;
-    onColorChange: (result: { hex: string }) => void;
-    onColorComplete: (result: { hex: string }) => void;
+    onColorChange: (result: { hex: string; rgb: RGBColor; hsv: HSVColor }) => void;
+    onColorComplete: (result: { hex: string; rgb: RGBColor; hsv: HSVColor }) => void;
     styles?: any;
 }
-
-// Convert hex/rgba string to individual r,g,b,a values
-const parseColorString = (color: string) => {
-    let r = 0, g = 0, b = 0, a = 1;
-    if (color.startsWith('#')) {
-        let cleanHex = color.replace('#', '');
-        if (cleanHex.length === 3) {
-            r = parseInt(cleanHex[0] + cleanHex[0], 16);
-            g = parseInt(cleanHex[1] + cleanHex[1], 16);
-            b = parseInt(cleanHex[2] + cleanHex[2], 16);
-        } else if (cleanHex.length === 6) {
-            r = parseInt(cleanHex.substring(0, 2), 16);
-            g = parseInt(cleanHex.substring(2, 4), 16);
-            b = parseInt(cleanHex.substring(4, 6), 16);
-        } else if (cleanHex.length === 8) {
-            r = parseInt(cleanHex.substring(0, 2), 16);
-            g = parseInt(cleanHex.substring(2, 4), 16);
-            b = parseInt(cleanHex.substring(4, 6), 16);
-            a = parseInt(cleanHex.substring(6, 8), 16) / 255;
-        }
-    } else if (color.startsWith('rgba')) {
-        const parts = color.match(/[\d.]+/g);
-        if (parts && parts.length >= 3) {
-            r = parseInt(parts[0]);
-            g = parseInt(parts[1]);
-            b = parseInt(parts[2]);
-            a = parseFloat(parts[3] || '1');
-        }
-    } else if (color.startsWith('rgb')) {
-        const parts = color.match(/[\d.]+/g);
-        if (parts && parts.length >= 3) {
-            r = parseInt(parts[0]);
-            g = parseInt(parts[1]);
-            b = parseInt(parts[2]);
-        }
-    }
-    return { r, g, b, a };
-};
-
-const rgbaToHex = (r: number, g: number, b: number, a: number) => {
-    const toHex = (n: number) => {
-        const h = Math.round(n).toString(16);
-        return h.length === 1 ? '0' + h : h;
-    };
-    if (a >= 0.99) {
-        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-    }
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(a * 255)}`;
-};
-
-type ColorState = { r: number; g: number; b: number; a: number };
-type ColorAction =
-    | { type: 'SET_ALL'; payload: ColorState }
-    | { type: 'UPDATE_COLOR'; rgbKey: keyof ColorState; value: number };
-
-const colorReducer = (state: ColorState, action: ColorAction): ColorState => {
-    switch (action.type) {
-        case 'SET_ALL':
-            return action.payload;
-        case 'UPDATE_COLOR':
-            return { ...state, [action.rgbKey]: action.value };
-        default:
-            return state;
-    }
-};
 
 export const OSColorPicker: React.FC<OSColorPickerProps> = ({
     color,
     onColorChange,
     onColorComplete,
-    styles: customStyles,
 }) => {
-    // Hooks MUST be unconditionally invoked at the top of the component
-    const [state, dispatch] = useReducer(colorReducer, { r: 0, g: 0, b: 0, a: 1 });
+    const { colors } = useAppTheme();
+
+    const initialParsed = parseColorToAllFormats(color || '#00AEEF');
+    const [currentHsv, setCurrentHsv] = useState<HSVColor>(initialParsed.hsv);
+    const [currentHex, setCurrentHex] = useState<string>(initialParsed.hex);
+    const [currentRgb, setCurrentRgb] = useState<RGBColor>(initialParsed.rgb);
+
+    const prevHexRef = useRef<string>(initialParsed.hex.toLowerCase());
 
     useEffect(() => {
-        // Sync incoming color prop to local state
-        const initialColors = parseColorString(color);
-        dispatch({ type: 'SET_ALL', payload: initialColors });
+        if (color && color.toLowerCase() !== prevHexRef.current) {
+            prevHexRef.current = color.toLowerCase();
+            const parsed = parseColorToAllFormats(color);
+            setCurrentHex(parsed.hex);
+            setCurrentRgb(parsed.rgb);
+            setCurrentHsv(parsed.hsv);
+        }
     }, [color]);
 
-    const handleValueChange = (rgbKey: keyof ColorState, val: number) => {
-        dispatch({ type: 'UPDATE_COLOR', rgbKey, value: val });
-        // Calculate the predicted hex value state explicitly to bypass any async hook state lag 
-        // while bubbling update upstream:
-        const nextState = { ...state, [rgbKey]: val };
-        const newHex = rgbaToHex(nextState.r, nextState.g, nextState.b, nextState.a);
-        onColorChange({ hex: newHex });
-    };
+    const handleColorChange = useCallback((hsv: HSVColor) => {
+        const hex = hsvToHex(hsv);
+        if (hex.toLowerCase() === prevHexRef.current) return;
 
-    const handleSlidingComplete = () => {
-        const newHex = rgbaToHex(state.r, state.g, state.b, state.a);
-        onColorComplete({ hex: newHex });
-    };
+        prevHexRef.current = hex.toLowerCase();
+        const rgb = hsvToRgb(hsv);
 
-    // Note: Early return for iOS is intentionally placed after all top-level Hook invocations to satisfy React's compiler and strict Hook rules.
-    if (Platform.OS === 'ios') {
-        const { Host, ColorPicker: NativePicker } = require('@expo/ui/swift-ui');
-        return (
-            <Host style={customStyles?.pickerStyle || styles.pickerStyle}>
-                <View style={customStyles?.nativePickerRow || styles.nativePickerRow}>
-                    <NativePicker
-                        label="Choose Accent Color"
-                        selection={color}
-                        onValueChanged={(res: any) => {
-                            if (res && res.nativeEvent && res.nativeEvent.value) {
-                                onColorComplete({ hex: res.nativeEvent.value });
-                            } else if (typeof res === 'string') {
-                                onColorComplete({ hex: res });
-                            } else {
-                                onColorComplete({ hex: res?.value || res?.hex || color });
-                            }
-                        }}
-                        supportsOpacity={true}
-                    />
-                    <View style={[customStyles?.demoToken || styles.demoToken, { backgroundColor: color }]}>
-                        <Check color="white" size={16} />
-                    </View>
-                </View>
-            </Host>
-        );
-    }
+        setCurrentHsv(hsv);
+        setCurrentHex(hex);
+        setCurrentRgb(rgb);
+
+        if (onColorChange) {
+            onColorChange({ hex, rgb, hsv });
+        }
+    }, [onColorChange]);
+
+    const handleColorSelected = useCallback((hex: string) => {
+        const parsed = parseColorToAllFormats(hex);
+        prevHexRef.current = parsed.hex.toLowerCase();
+        setCurrentHex(parsed.hex);
+        setCurrentRgb(parsed.rgb);
+        setCurrentHsv(parsed.hsv);
+
+        if (onColorComplete) {
+            onColorComplete({ hex: parsed.hex, rgb: parsed.rgb, hsv: parsed.hsv });
+        }
+    }, [onColorComplete]);
+
+    const handleSaveCurrent = useCallback(() => {
+        if (onColorComplete) {
+            onColorComplete({ hex: currentHex, rgb: currentRgb, hsv: currentHsv });
+        }
+    }, [currentHex, currentRgb, currentHsv, onColorComplete]);
 
     return (
-        <View style={styles.androidContainer}>
-            <View style={styles.previewRow}>
-                <View style={[customStyles?.demoToken || styles.demoToken, { backgroundColor: color }]}>
-                    <Check color="white" size={16} />
+        <View style={styles.container}>
+            {/* Color metrics badge row */}
+            <View style={[styles.metricsRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={styles.metricBadge}>
+                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>HEX</Text>
+                    <Text style={[styles.metricValue, { color: colors.text }]}>{currentHex}</Text>
+                </View>
+
+                <View style={styles.metricBadge}>
+                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>RGB</Text>
+                    <Text style={[styles.metricValue, { color: colors.text }]}>
+                        {currentRgb.r}, {currentRgb.g}, {currentRgb.b}
+                    </Text>
+                </View>
+
+                <View style={styles.metricBadge}>
+                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>HSV</Text>
+                    <Text style={[styles.metricValue, { color: colors.text }]}>
+                        {Math.round(currentHsv.h)}°, {Math.round(currentHsv.s * 100)}%, {Math.round(currentHsv.v * 100)}%
+                    </Text>
                 </View>
             </View>
 
-            <View style={styles.sliderGroup}>
-                <View style={styles.sliderHeader}>
-                    <Text style={styles.sliderLabel}>Red</Text>
-                    <Text style={styles.sliderValue}>{Math.round(state.r)}</Text>
-                </View>
-                <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={255}
-                    step={1}
-                    value={state.r}
-                    onValueChange={(val) => handleValueChange('r', val)}
-                    onSlidingComplete={handleSlidingComplete}
-                    minimumTrackTintColor="#FF3B30"
-                    maximumTrackTintColor="#E5E5EA"
-                    thumbTintColor="#FF3B30"
+            {/* Holo Color Picker */}
+            <View style={styles.pickerWrapper}>
+                <ColorPicker
+                    color={currentHsv}
+                    onColorChange={handleColorChange}
+                    onColorSelected={handleColorSelected}
+                    style={styles.picker}
                 />
             </View>
 
-            <View style={styles.sliderGroup}>
-                <View style={styles.sliderHeader}>
-                    <Text style={styles.sliderLabel}>Green</Text>
-                    <Text style={styles.sliderValue}>{Math.round(state.g)}</Text>
-                </View>
-                <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={255}
-                    step={1}
-                    value={state.g}
-                    onValueChange={(val) => handleValueChange('g', val)}
-                    onSlidingComplete={handleSlidingComplete}
-                    minimumTrackTintColor="#34C759"
-                    maximumTrackTintColor="#E5E5EA"
-                    thumbTintColor="#34C759"
-                />
-            </View>
+            <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: currentHex }]}
+                onPress={handleSaveCurrent}
+                activeOpacity={0.8}
+            >
+                <Check size={16} color="#FFFFFF" strokeWidth={3} />
+                <Text style={styles.saveBtnText}>Apply Color Everywhere</Text>
+            </TouchableOpacity>
 
-            <View style={styles.sliderGroup}>
-                <View style={styles.sliderHeader}>
-                    <Text style={styles.sliderLabel}>Blue</Text>
-                    <Text style={styles.sliderValue}>{Math.round(state.b)}</Text>
-                </View>
-                <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={255}
-                    step={1}
-                    value={state.b}
-                    onValueChange={(val) => handleValueChange('b', val)}
-                    onSlidingComplete={handleSlidingComplete}
-                    minimumTrackTintColor="#007AFF"
-                    maximumTrackTintColor="#E5E5EA"
-                    thumbTintColor="#007AFF"
-                />
-            </View>
-
-            <View style={styles.sliderGroup}>
-                <View style={styles.sliderHeader}>
-                    <Text style={styles.sliderLabel}>Opacity</Text>
-                    <Text style={styles.sliderValue}>{Math.round(state.a * 100)}%</Text>
-                </View>
-                <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={1}
-                    step={0.01}
-                    value={state.a}
-                    onValueChange={(val) => handleValueChange('a', val)}
-                    onSlidingComplete={handleSlidingComplete}
-                    minimumTrackTintColor="#8E8E93"
-                    maximumTrackTintColor="#E5E5EA"
-                    thumbTintColor="#8E8E93"
-                />
-            </View>
+            <Text style={[styles.hintText, { color: colors.textSecondary }]}>
+                Tap the center circle or &ldquo;Apply Color Everywhere&rdquo; to set this theme across Taskify.
+            </Text>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    pickerStyle: {
+    container: {
         width: '100%',
-    },
-    nativePickerRow: {
-        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 8,
     },
-    demoToken: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+    metricsRow: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingVertical: SPACING.sm,
+        paddingHorizontal: SPACING.md,
+        borderRadius: RADIUS.md,
+        borderWidth: 1,
+        marginBottom: SPACING.sm,
+    },
+    metricBadge: {
+        alignItems: 'center',
+    },
+    metricLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 2,
+    },
+    metricValue: {
+        fontSize: 12,
+        fontWeight: '700',
+        fontVariant: ['tabular-nums'],
+    },
+    pickerWrapper: {
+        width: '100%',
+        height: 280,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    androidContainer: {
-        paddingVertical: 8,
+    picker: {
         width: '100%',
-        gap: 16,
+        height: 270,
     },
-    previewRow: {
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    sliderGroup: {
-        width: '100%',
-    },
-    sliderHeader: {
+    saveBtn: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 4,
-        paddingHorizontal: 8,
-    },
-    sliderLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#666',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    sliderValue: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#666',
-    },
-    slider: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: SPACING.lg,
+        borderRadius: RADIUS.lg,
+        marginTop: SPACING.md,
+        gap: 6,
         width: '100%',
-        height: 40,
-    }
+        ...SHADOWS.sm,
+    },
+    saveBtnText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    hintText: {
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: SPACING.sm,
+        paddingHorizontal: SPACING.md,
+    },
 });
