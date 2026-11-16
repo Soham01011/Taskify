@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
+const CronStatus = require('../models/cronStatus');
 
 // ─── Cron auth middleware ──────────────────────────────────────────────────────
 // Vercel cron jobs send: Authorization: Bearer <CRON_SECRET>
@@ -29,9 +30,23 @@ router.post('/cleanup-tasks', verifyCron, async (req, res) => {
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
 
+    // Find tasks to be deleted to capture their IDs (optional)
+    const tasksToDelete = await Task.find({
+      completed: true,
+      updated_at: { $lt: twoMonthsAgo }
+    }).select('_id');
+    const taskIds = tasksToDelete.map(t => t._id);
+
     const result = await Task.deleteMany({
       completed: true,
       updated_at: { $lt: twoMonthsAgo }
+    });
+
+    // Record cron execution status
+    await CronStatus.create({
+      runAt: new Date(),
+      deletedCount: result.deletedCount,
+      deletedTaskIds: taskIds,
     });
 
     console.log(`[CRON cleanup-tasks] Deleted ${result.deletedCount} completed tasks older than 2 months.`);
