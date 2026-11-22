@@ -302,29 +302,6 @@ export default function ProfileScreen() {
                             colors={colors}
                             styles={styles}
                         />
-                        <MenuItem
-                            icon={<Palette size={20} color={colors.primary} />}
-                            title="Accent Color"
-                            subtitle={`Theme: ${customPrimaryColor || colors.primary}`}
-                            rightIcon={
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <View
-                                        style={{
-                                            width: 22,
-                                            height: 22,
-                                            borderRadius: 11,
-                                            backgroundColor: customPrimaryColor || colors.primary,
-                                            borderWidth: 2,
-                                            borderColor: colors.card,
-                                        }}
-                                    />
-                                    <ChevronRight size={18} color={colors.textSecondary} />
-                                </View>
-                            }
-                            onPress={() => setShowColorPicker(true)}
-                            colors={colors}
-                            styles={styles}
-                        />
                         <MenuSwitch
                             icon={<Bell size={20} color="#6366f1" />}
                             title="Push Notifications"

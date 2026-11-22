@@ -1,21 +1,20 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import Slider from '@react-native-community/slider';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View,
+    I18nManager,
     Image,
+    PanResponder,
+    StyleProp,
     StyleSheet,
     TouchableOpacity,
-    PanResponder,
-    I18nManager,
-    InteractionManager,
-    StyleProp,
+    View,
     ViewStyle,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 
 import {
+    hexToHsv,
     HSVColor,
     hsvToHex,
-    hexToHsv,
 } from '@/src/utils/colors';
 
 const COLOR_CIRCLE_IMG = require('react-native-color-picker/resources/color-circle.png');
@@ -51,7 +50,7 @@ export const HoloColorPicker: React.FC<IPickerProps> = ({
     sliderComponent: CustomSlider,
 }) => {
     const isRTL = I18nManager.isRTL;
-    const pickerContainerRef = useRef<View | null>(null);
+    const pickerContainerRef = useRef<any>(null);
 
     const parseHsv = useCallback((c?: string | HSVColor): HSVColor => {
         if (!c) return { h: 196, s: 1, v: 1 };
@@ -134,12 +133,16 @@ export const HoloColorPicker: React.FC<IPickerProps> = ({
             v: current.v ?? 1,
         };
 
+        // Always update the ref to latest color
         colorRef.current = newColor;
-        setColor(newColor);
 
-        // Throttle minor hue oscillations to reduce upstream render noise
-        if (Math.abs(h - prevNotifiedHueRef.current) >= 0.8) {
-            prevNotifiedHueRef.current = h;
+        // Determine if we should notify / re‑render
+        const hueChanged = Math.abs(h - prevNotifiedHueRef.current) >= 0.8;
+        const satChanged = Math.abs(newColor.s - current.s) > 0.01;
+        const valChanged = Math.abs(newColor.v - current.v) > 0.01;
+        if (hueChanged || satChanged || valChanged) {
+            setColor(newColor);
+            if (hueChanged) prevNotifiedHueRef.current = h;
             prevSyncedHexRef.current = hsvToHex(newColor).toLowerCase();
             if (onColorChangeRef.current) {
                 onColorChangeRef.current(newColor);
@@ -157,7 +160,7 @@ export const HoloColorPicker: React.FC<IPickerProps> = ({
             onPanResponderGrant: (evt) => {
                 isInteractingRef.current = true;
                 if (pickerContainerRef.current) {
-                    pickerContainerRef.current.measure((_x, _y, _w, _h, px, py) => {
+                    pickerContainerRef.current.measure((_x: number, _y: number, _w: number, _h: number, px: number, py: number) => {
                         pagePosRef.current = { pageX: px, pageY: py };
                         handleTouch(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
                     });
@@ -188,9 +191,10 @@ export const HoloColorPicker: React.FC<IPickerProps> = ({
             setPickerSize(size);
         }
 
-        InteractionManager.runAfterInteractions(() => {
+        // Measure container position using requestAnimationFrame instead of deprecated InteractionManager
+        requestAnimationFrame(() => {
             if (pickerContainerRef.current) {
-                pickerContainerRef.current.measure((_x, _y, _w, _h, px, py) => {
+                pickerContainerRef.current.measure((_x: number, _y: number, _w: number, _h: number, px: number, py: number) => {
                     pagePosRef.current = { pageX: px, pageY: py };
                 });
             }
