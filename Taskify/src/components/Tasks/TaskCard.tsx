@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { Check, ChevronRight, History, AlertTriangle, CheckSquare, Square, Trash2 } from 'lucide-react-native';
+import { getStyles } from '@/assets/styles/TaskCard.styles';
+import { useAppTheme } from '@/hooks/use-theme';
+import { AlertTriangle, Check, CheckSquare, ChevronRight, History, Square, Trash2 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    useAnimatedStyle,
-    withSpring,
-    useDerivedValue,
     interpolate,
+    useAnimatedStyle,
+    useDerivedValue,
     useSharedValue,
     withRepeat,
     withSequence,
+    withSpring,
     withTiming,
 } from 'react-native-reanimated';
+import { useDispatch } from 'react-redux';
 import { Task, taskApi } from '../../api/tasks';
 import { SPACING } from '../../constants/theme';
-import { useDispatch } from 'react-redux';
-import { fetchTasks, removeTask, updateTask } from '../../store/slices/taskSlice';
 import { AppDispatch } from '../../store';
-import { getStyles } from '@/assets/styles/TaskCard.styles';
-import { useAppTheme } from '@/hooks/use-theme';
+import { removeTask, updateTask } from '../../store/slices/taskSlice';
 
 interface TaskCardProps {
     task: Task;
@@ -186,12 +186,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete, i
                                 <View style={[styles.checkbox, isOverdue && styles.checkboxOverdue]} />
                             )}
                         </TouchableOpacity>
-                        
+
                         <View style={styles.titleContainer}>
                             <Text style={[
                                 styles.title,
                                 (task.completed || isCompleting) && styles.completedTextStrike
-                            ]} numberOfLines={1}>
+                            ]} numberOfLines={isExpanded ? undefined : 1}>
                                 {task.title}
                             </Text>
                             <Text style={[
@@ -199,9 +199,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onComplete, i
                                 isCompleting ? { color: colors.primary, fontWeight: '600' } : isOverdue ? styles.overdueText : null
                             ]}>
                                 {isCompleting ? 'Completing task...' :
-                                 task.completed ? `Done at ${new Date(task.updated_at || task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 
-                                 isOverdue ? `High Priority • Overdue` :
-                                 `Due at ${new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • ${task.groupName || 'Personal'}`}
+                                    task.completed ? `Done at ${new Date(task.updated_at || task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` :
+                                        isOverdue ? `High Priority • Overdue` :
+                                            `Due at ${new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${task.groupName || 'Personal'}`}
                             </Text>
                         </View>
 
